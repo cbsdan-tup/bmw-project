@@ -511,3 +511,39 @@ exports.getCarAvailability = async (req, res) => {
       res.status(500).json({ success: false, message: error.message });
   }
 };
+
+exports.getFeaturedCars = async (req, res) => {
+  try {
+    const featuredCars = await Cars.find({ 
+      isActive: true,
+      // You can adjust the criteria for "featured" cars as needed
+      // For example, using high-rated cars or newest listings
+    })
+    .sort({ createdAt: -1 })
+    .limit(10);
+
+    if (!featuredCars || featuredCars.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No featured cars found"
+      });
+    }
+
+    const carsWithImages = featuredCars.map((car) => ({
+      ...car.toObject(),
+      images: car.images.map((image) => image.url),
+    }));
+
+    return res.status(200).json({
+      success: true,
+      cars: carsWithImages,
+    });
+  } catch (error) {
+    console.error("Error fetching featured cars:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};

@@ -12,11 +12,14 @@ const {
     getCarsByUserId,
     getAllCarsInfinite,
     filterCars,
-    getCarAvailability
+    getCarAvailability,
+    getFeaturedCars // Add the new controller import
 } = require('../controllers/carControllers'); 
 
 
 router.get('/Cars', getAllCars)
+// Important: Place the featured route BEFORE the :id route to avoid the parameter conflict
+router.get('/Cars/featured', getFeaturedCars);
 router.get("/Cars/infinite", getAllCarsInfinite);
 router.get("/Cars/filter", filterCars);
 router.get('/Cars/:id', getSingleCar); 
