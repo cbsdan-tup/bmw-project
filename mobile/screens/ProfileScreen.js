@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -10,25 +10,20 @@ import {
   Alert,
   ActivityIndicator,
   SafeAreaView,
-  Platform
+  Platform,
+  StatusBar
 } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { useNavigation } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
 import Icon from 'react-native-vector-icons/FontAwesome';
-import { globalStyles } from '../styles/globalStyles';
 
 const ProfileScreen = () => {
   const { colors, isDarkMode, toggleTheme } = useTheme();
   const { user, logout, isLoading, isAuthenticated } = useAuth();
   const navigation = useNavigation();
   const { favorites } = useSelector(state => state.cars);
-  
-  // Debugging
-  useEffect(() => {
-    console.log("ProfileScreen - Auth State:", { user, isAuthenticated });
-  }, [user, isAuthenticated]);
 
   const handleLogout = () => {
     Alert.alert(
@@ -42,7 +37,6 @@ const ProfileScreen = () => {
   };
 
   const ProfileHeader = () => {
-    // Use isAuthenticated instead of just checking user
     if (!isAuthenticated) {
       return (
         <View style={styles.guestHeader}>
@@ -293,6 +287,13 @@ const ProfileScreen = () => {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { 
+        backgroundColor: colors.headerBackground,
+        paddingTop: Platform.OS === 'ios' ? 16 : 16 + (StatusBar.currentHeight || 0)
+      }]}>
+        <Text style={[styles.headerTitle, { color: colors.headerText }]}>Profile</Text>
+      </View>
+
       <ScrollView showsVerticalScrollIndicator={false}>
         <ProfileHeader />
         <QuickStats />
@@ -326,6 +327,16 @@ const ProfileScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  header: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e1e1e1',
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
   },
   guestHeader: {
     padding: 24,

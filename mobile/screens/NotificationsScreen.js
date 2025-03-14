@@ -7,14 +7,14 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   SafeAreaView,
-  RefreshControl
+  RefreshControl,
+  Platform,
+  StatusBar
 } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/FontAwesome';
-import axios from 'axios';
-import { API_URL } from '../config/constants';
 
 const NotificationsScreen = () => {
   const { colors } = useTheme();
@@ -25,8 +25,6 @@ const NotificationsScreen = () => {
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Mock notifications for demo purposes
-  // In a real app, you would fetch these from your backend
   const mockNotifications = [
     {
       _id: '1',
@@ -206,6 +204,10 @@ const NotificationsScreen = () => {
   if (!user) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={[styles.header, { backgroundColor: colors.headerBackground }]}>
+          <Text style={[styles.headerTitle, { color: colors.headerText }]}>Notifications</Text>
+        </View>
+        
         <View style={styles.centerContent}>
           <Icon name="lock" size={50} color={colors.secondary} />
           <Text style={[styles.placeholderText, { color: colors.text }]}>
@@ -224,17 +226,11 @@ const NotificationsScreen = () => {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[
-        styles.header,
-        { 
-          backgroundColor: colors.headerBackground,
-          borderBottomColor: colors.border
-        }
-      ]}>
-        <Text style={[styles.headerTitle, { color: colors.headerText }]}>
-          Notifications
-        </Text>
-        
+      <View style={[styles.header, { 
+        backgroundColor: colors.headerBackground,
+        paddingTop: Platform.OS === 'ios' ? 16 : 16 + (StatusBar.currentHeight || 0)
+      }]}>
+        <Text style={[styles.headerTitle, { color: colors.headerText }]}>Notifications</Text>
         <TouchableOpacity
           style={styles.headerButton}
           onPress={() => {
@@ -301,11 +297,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingBottom: 16,
     borderBottomWidth: 1,
+    borderBottomColor: '#e1e1e1',
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
   },
   headerButton: {
@@ -314,6 +311,7 @@ const styles = StyleSheet.create({
   },
   headerButtonText: {
     fontSize: 14,
+    fontWeight: '600',
   },
   notificationList: {
     padding: 16,

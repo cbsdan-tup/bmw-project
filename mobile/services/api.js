@@ -17,10 +17,9 @@ const api = axios.create({
   },
 });
 
-// Add request interceptor for authentication
 api.interceptors.request.use(
   async (config) => {
-    const token = await AsyncStorage.getItem('authToken');
+    const token = await AsyncStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -29,23 +28,18 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Helper function to store user data
 const storeUserData = async (authToken, userData) => {
-  await AsyncStorage.setItem('authToken', authToken);
+  await AsyncStorage.setItem('token', authToken);
   await AsyncStorage.setItem('user', JSON.stringify(userData));
 };
 
-// Authentication service functions
 export const authService = {
-  // Login with email and password
   login: async (email, password) => {
     try {
-      // Firebase authentication
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
       const idToken = await user.getIdToken();
       
-      // Get user data from backend
       const response = await api.post('/getUserInfo', { uid: user.uid });
       
       if (response.data.success) {
@@ -60,7 +54,6 @@ export const authService = {
     } catch (error) {
       console.log("Login error:", error);
       
-      // Handle Firebase authentication errors
       if (error.code === 'auth/user-not-found') {
         throw { message: 'No account found with this email' };
       } else if (error.code === 'auth/wrong-password') {
@@ -75,27 +68,21 @@ export const authService = {
     }
   },
   
-  // Register new user
   register: async (userData) => {
     try {
-      // Firebase authentication
       const { email, password, firstName, lastName, avatar } = userData;
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
       const idToken = await user.getIdToken();
       
-      // Send user data to backend
       const formData = new FormData();
       formData.append("uid", user.uid);
       formData.append("firstName", firstName);
       formData.append("lastName", lastName);
       formData.append("email", email);
       
-      // Add avatar if present
       if (avatar) {
-        // Check if avatar is a string (URI) or an object
         if (typeof avatar === 'string') {
-          // Handle when avatar is already a URI string
           const uriParts = avatar.split('.');
           const fileType = uriParts[uriParts.length - 1];
           
@@ -105,7 +92,6 @@ export const authService = {
             type: `image/${fileType}`,
           });
         } else if (avatar.uri) {
-          // Handle when avatar is an object with uri property (old format)
           const uriParts = avatar.uri.split('.');
           const fileType = uriParts[uriParts.length - 1];
           
@@ -140,40 +126,33 @@ export const authService = {
     }
   },
   
-  // Google Sign-In
   googleSignIn: async (idToken) => {
     try {
       if (!idToken) {
         throw new Error("No token provided");
       }
       
-      // Create Google credential
       const credential = GoogleAuthProvider.credential(null, idToken);
       
-      // Sign in with credential
       const userCredential = await signInWithCredential(auth, credential);
       const user = userCredential.user;
       const fbToken = await user.getIdToken();
       
       try {
-        // Check if user exists in our backend
         const response = await api.post('/getUserInfo', { uid: user.uid });
         
         if (response.data.success && response.data.user) {
-          // User exists, store data and return
           await storeUserData(fbToken, response.data.user);
           return {
             token: fbToken,
             user: response.data.user
           };
         } else {
-          // User doesn't exist, register them
           const displayName = user.displayName || '';
           const nameParts = displayName.split(/\s+/);
           const firstName = nameParts[0] || '';
           const lastName = nameParts.slice(1).join(" ") || '';
           
-          // Create user in backend
           const formData = new FormData();
           formData.append("uid", user.uid);
           formData.append("email", user.email);
@@ -181,8 +160,6 @@ export const authService = {
           formData.append("lastName", lastName);
           
           if (user.photoURL) {
-            // You might want to download the image and attach it
-            // For now, we'll just send the URL
             formData.append("photoURL", user.photoURL);
           }
           
@@ -212,7 +189,6 @@ export const authService = {
     } catch (error) {
       console.log("Google sign-in error:", error);
       
-      // Handle specific Google auth errors
       if (error.code === 'auth/account-exists-with-different-credential') {
         throw { message: 'An account already exists with the same email address but different sign-in credentials' };
       }
@@ -225,7 +201,7 @@ export const authService = {
   logout: async () => {
     try {
       await auth.signOut();
-      await AsyncStorage.removeItem('authToken');
+      await AsyncStorage.removeItem('token');
       await AsyncStorage.removeItem('user');
     } catch (error) {
       console.log("Logout error:", error);
@@ -233,10 +209,9 @@ export const authService = {
     }
   },
   
-  // Check if user is authenticated
   isAuthenticated: async () => {
     try {
-      const token = await AsyncStorage.getItem('authToken');
+      const token = await AsyncStorage.getItem('token');
       const user = await AsyncStorage.getItem('user');
       return !!token && !!user;
     } catch (error) {
@@ -245,7 +220,6 @@ export const authService = {
     }
   },
   
-  // Get current user
   getCurrentUser: async () => {
     try {
       const user = await AsyncStorage.getItem('user');

@@ -1,5 +1,7 @@
 const FavoriteCar = require("../models/FavoriteCar");
 const mongoose = require("mongoose");
+const Rental = require("../models/Rental");
+const Review = require("../models/Review");
 
 const createFavoriteCar = async (req, res) => {
   try {
@@ -66,14 +68,40 @@ const getFavoriteCars = async (req, res) => {
       return res.status(400).json({ message: "Invalid user ID" });
     }
 
-    const favoriteCars = await FavoriteCar.find({ user: userId }).populate(
-      "car"
+    const favoriteCars = await FavoriteCar.find({ user: userId }).populate("car");
+    
+    const enhancedFavoriteCars = await Promise.all(
+      favoriteCars.map(async (favCar) => {
+        const rentals = await Rental.find({ car: favCar.car._id });
+        
+        const rentalIds = rentals.map(rental => rental._id);
+        
+        const reviews = await Review.find({ rental: { $in: rentalIds } });
+        
+        const reviewCount = reviews.length;
+        const averageRating = reviewCount > 0 
+          ? Number((reviews.reduce((sum, review) => sum + review.rating, 0) / reviewCount).toFixed(1))
+          : 0;
+          
+        const carObj = favCar.car.toObject();
+        carObj.reviewCount = reviewCount;
+        carObj.averageRating = averageRating;
+        
+        return {
+          ...favCar.toObject(),
+          car: carObj
+        };
+      })
     );
-    res
-      .status(200)
-      .json({ message: "Favorite cars retrieved successfully", favoriteCars });
+    
+    res.status(200).json({ 
+      success: true,
+      message: "Favorite cars retrieved successfully", 
+      favoriteCars: enhancedFavoriteCars 
+    });
   } catch (err) {
-    res.status(500).json({ message: "Server error", error: err.message });
+    console.error('Error fetching favorite cars:', err);
+    res.status(500).json({ success: false, message: "Server error", error: err.message });
   }
 };
 

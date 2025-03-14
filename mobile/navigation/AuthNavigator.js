@@ -8,6 +8,7 @@ import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import { useTheme } from '../context/ThemeContext';
 import BottomTabNavigator from './BottomTabNavigator';
 import EditProfileScreen from '../screens/EditProfileScreen';
+import MyFavoritesScreen from '../screens/MyFavoritesScreen';
 
 const Stack = createStackNavigator();
 
@@ -59,6 +60,11 @@ const AuthNavigator = () => {
         name="EditProfile"
         component={EditProfileScreen}
         options={{ title: 'Edit Profile' }}
+      />
+      <Stack.Screen
+        name="MyFavorites"
+        component={MyFavoritesScreen}
+        options={{ title: 'My Favorites' }}
       />
     </Stack.Navigator>
   );

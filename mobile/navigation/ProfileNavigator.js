@@ -3,6 +3,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { useTheme } from '../context/ThemeContext';
 import ProfileScreen from '../screens/ProfileScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
+import MyFavoritesScreen from '../screens/MyFavoritesScreen';
 
 const Stack = createStackNavigator();
 
@@ -12,7 +13,14 @@ const ProfileNavigator = () => {
   return (
     <Stack.Navigator
       screenOptions={{
-        headerShown: false,
+        headerShown: false, 
+        headerStyle: {
+          backgroundColor: colors.headerBackground,
+        },
+        headerTintColor: colors.headerText,
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
       }}
     >
       <Stack.Screen name="ProfileMain" component={ProfileScreen} />
@@ -21,11 +29,15 @@ const ProfileNavigator = () => {
         component={EditProfileScreen}
         options={{ 
           headerShown: true,
-          title: 'Edit Profile',
-          headerStyle: {
-            backgroundColor: colors.headerBackground,
-          },
-          headerTintColor: colors.headerText,
+          title: 'Edit Profile', 
+        }}
+      />
+      <Stack.Screen
+        name="MyFavorites"
+        component={MyFavoritesScreen}
+        options={{ 
+          headerShown: true,
+          title: 'My Favorites' 
         }}
       />
     </Stack.Navigator>
