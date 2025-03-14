@@ -19,6 +19,7 @@ export const fetchFeaturedCars = createAsyncThunk(
         return car;
       });
       
+      console.log("Cars:", cars);
       return cars;
     } catch (error) {
       return rejectWithValue(error.response?.data || 'Failed to fetch featured cars');

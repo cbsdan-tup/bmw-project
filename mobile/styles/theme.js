@@ -1,7 +1,6 @@
-// Common colors for consistency across the app
 export const COMMON_COLORS = {
-  primaryBMW: '#0066B1',  // BMW blue
-  secondaryBMW: '#FFFFFF', // BMW white
+  primaryBMW: '#0066B1',  
+  secondaryBMW: '#FFFFFF', 
   error: '#FF4444',
   success: '#00C851',
   warning: '#FFBB33',

@@ -79,8 +79,8 @@ const HomeScreen = () => {
 
   const renderCarCard = (car, index) => {
     const isFavorite = favorites.includes(car._id);
-    const rating = car.rating || 4.5; // Default rating if not available
-    
+    const rating = car.averageRating || 0; 
+
     return (
       <TouchableOpacity 
         key={car._id || index}

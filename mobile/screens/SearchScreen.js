@@ -121,7 +121,7 @@ const SearchScreen = () => {
             <Text style={[styles.price, { color: colors.primary }]}>
               ₱{item.pricePerDay}/day
             </Text>
-            <StarRating rating={item.rating || 4.5} size={12} />
+            <StarRating rating={item.averageRating || 0} size={12} />
           </View>
         </View>
       </TouchableOpacity>

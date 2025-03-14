@@ -103,10 +103,10 @@ const IntroScreen = ({ onComplete }) => {
           <Video
             ref={videoRef}
             source={require('../assets/videos/car-intro.mp4')} 
-       o    rate={1.0}
+            rate={1.0}  // Fixed: removed stray 'o' character
             volume={0.0}
             isMuted={true}
-            resfaode="cover"
+            resizeMode="cover"  // Fixed: corrected misspelled 'resfaode' to 'resizeMode'
             shouldPlay
             isLooping
             style={styles.backgroundVideo}

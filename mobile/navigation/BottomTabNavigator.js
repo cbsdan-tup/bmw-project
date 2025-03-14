@@ -8,6 +8,7 @@ import CarDetailsScreen from '../screens/CarDetailsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import SearchScreen from '../screens/SearchScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
+import ReviewsScreen from '../screens/ReviewsScreen';
 import { useTheme } from '../context/ThemeContext';
 
 const Tab = createBottomTabNavigator();
@@ -45,6 +46,13 @@ const HomeStack = () => {
         options={{ title: 'All Cars' }}
       />
       <Stack.Screen 
+        name="Reviews" 
+        component={ReviewsScreen} 
+        options={({ route }) => ({
+          title: route.params?.carTitle ? `Reviews for ${route.params.carTitle}` : 'Reviews'
+        })}
+      />
+      <Stack.Screen 
         name="BookingScreen" 
         component={BookingScreen} 
         options={{ title: 'Book a Car' }}
@@ -53,6 +61,48 @@ const HomeStack = () => {
         name="ChatScreen" 
         component={ChatScreen} 
         options={({ route }) => ({ title: route.params?.chatName || 'Chat' })}
+      />
+    </Stack.Navigator>
+  );
+};
+
+// Search Stack Navigator - Add this new stack for the Search tab
+const SearchStack = () => {
+  const { colors } = useTheme();
+
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: colors.headerBackground,
+        },
+        headerTintColor: colors.headerText,
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        }
+      }}
+    >
+      <Stack.Screen 
+        name="SearchScreen" 
+        component={SearchScreen} 
+        options={{ title: 'Search Cars' }}
+      />
+      <Stack.Screen 
+        name="CarDetails" 
+        component={CarDetailsScreen} 
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="Reviews" 
+        component={ReviewsScreen} 
+        options={({ route }) => ({
+          title: route.params?.carTitle ? `Reviews for ${route.params.carTitle}` : 'Reviews'
+        })}
+      />
+      <Stack.Screen 
+        name="BookingScreen" 
+        component={BookingScreen} 
+        options={{ title: 'Book a Car' }}
       />
     </Stack.Navigator>
   );
@@ -88,7 +138,7 @@ const BottomTabNavigator = () => {
       />
       <Tab.Screen
         name="Search"
-        component={SearchScreen}
+        component={SearchStack}  // Use SearchStack instead of directly using SearchScreen
         options={{
           tabBarIcon: ({ color, size }) => (
             <Icon name="search" size={size} color={color} />

@@ -1,29 +1,32 @@
-import React, { useEffect, useState } from 'react';
-import { 
-  View, 
-  Text, 
-  ScrollView, 
-  Image, 
-  SafeAreaView, 
+import React, { useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  ScrollView,
+  Image,
+  SafeAreaView,
   TouchableOpacity,
   StyleSheet,
   Dimensions,
   ActivityIndicator,
   Alert,
   Share,
-  Platform
-} from 'react-native';
-import { useDispatch, useSelector } from 'react-redux';
-import { useRoute, useNavigation } from '@react-navigation/native';
-import { globalStyles } from '../styles/globalStyles';
-import { useTheme } from '../context/ThemeContext';
-import { useAuth } from '../context/AuthContext';
-import { fetchCarByID, toggleFavorite } from '../redux/slices/carSlice';
-import { CAR_IMAGES, COMMON_COLORS } from '../config/constants';
-import Icon from 'react-native-vector-icons/FontAwesome';
-import StarRating from '../components/StarRating';
+  Platform,
+  FlatList,
+  Modal,
+  StatusBar,
+} from "react-native";
+import { useDispatch, useSelector } from "react-redux";
+import { useRoute, useNavigation } from "@react-navigation/native";
+import { globalStyles } from "../styles/globalStyles";
+import { useTheme } from "../context/ThemeContext";
+import { useAuth } from "../context/AuthContext";
+import { fetchCarByID, toggleFavorite } from "../redux/slices/carSlice";
+import { CAR_IMAGES, COMMON_COLORS } from "../config/constants";
+import Icon from "react-native-vector-icons/FontAwesome";
+import StarRating from "../components/StarRating";
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get("window");
 
 const CarDetailsScreen = () => {
   const { colors, isDarkMode } = useTheme();
@@ -31,9 +34,13 @@ const CarDetailsScreen = () => {
   const route = useRoute();
   const navigation = useNavigation();
   const dispatch = useDispatch();
-  const { currentCar, loading, error, favorites } = useSelector(state => state.cars);
+  const { currentCar, loading, error, favorites } = useSelector(
+    (state) => state.cars
+  );
   const { carId } = route.params || {};
-  
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [isImageViewerVisible, setIsImageViewerVisible] = useState(false);
+
   useEffect(() => {
     if (carId) {
       dispatch(fetchCarByID(carId));
@@ -43,11 +50,11 @@ const CarDetailsScreen = () => {
   const handleFavoritePress = () => {
     if (!user) {
       Alert.alert(
-        "Login Required", 
+        "Login Required",
         "Please login to add this car to your favorites",
         [
           { text: "Cancel", style: "cancel" },
-          { text: "Login", onPress: () => navigation.navigate("Login") }
+          { text: "Login", onPress: () => navigation.navigate("Login") },
         ]
       );
       return;
@@ -57,12 +64,12 @@ const CarDetailsScreen = () => {
 
   const handleSharePress = async () => {
     if (!currentCar) return;
-    
+
     try {
       await Share.share({
         message: `Check out this ${currentCar.brand} ${currentCar.model} for rent at ₱${currentCar.pricePerDay}/day!`,
         // Replace with your app's deep link format
-        url: `bmwrental://car/${carId}`
+        url: `bmwrental://car/${carId}`,
       });
     } catch (error) {
       console.error("Error sharing car:", error);
@@ -71,27 +78,46 @@ const CarDetailsScreen = () => {
 
   const handleBookPress = () => {
     if (!user) {
-      Alert.alert(
-        "Login Required", 
-        "Please login to book this car",
-        [
-          { text: "Cancel", style: "cancel" },
-          { text: "Login", onPress: () => navigation.navigate("Login") }
-        ]
-      );
+      Alert.alert("Login Required", "Please login to book this car", [
+        { text: "Cancel", style: "cancel" },
+        { text: "Login", onPress: () => navigation.navigate("Login") },
+      ]);
       return;
     }
-    
+
     // Navigate to booking screen with car details
     navigation.navigate("BookingScreen", { carId });
   };
 
+  // Function to open image viewer
+  const handleImagePress = (index) => {
+    setActiveImageIndex(index);
+    setIsImageViewerVisible(true);
+  };
+
+  // Function to close image viewer
+  const closeImageViewer = () => {
+    setIsImageViewerVisible(false);
+  };
+
+  // Inside the component, add a function to handle navigation to reviews screen
+  const handleViewReviews = () => {
+    navigation.navigate("Reviews", {
+      carId: currentCar._id,
+      carTitle: `${currentCar.brand} ${currentCar.model}`,
+    });
+  };
+
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: colors.background }]}
+      >
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.loadingText, { color: colors.text }]}>Loading car details...</Text>
+          <Text style={[styles.loadingText, { color: colors.text }]}>
+            Loading car details...
+          </Text>
         </View>
       </SafeAreaView>
     );
@@ -99,11 +125,15 @@ const CarDetailsScreen = () => {
 
   if (error) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: colors.background }]}
+      >
         <View style={styles.errorContainer}>
           <Icon name="exclamation-circle" size={40} color={colors.error} />
-          <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
-          <TouchableOpacity 
+          <Text style={[styles.errorText, { color: colors.error }]}>
+            {error}
+          </Text>
+          <TouchableOpacity
             style={[styles.retryButton, { backgroundColor: colors.primary }]}
             onPress={() => dispatch(fetchCarByID(carId))}
           >
@@ -116,11 +146,15 @@ const CarDetailsScreen = () => {
 
   if (!currentCar) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: colors.background }]}
+      >
         <View style={styles.errorContainer}>
           <Icon name="car" size={40} color={colors.secondary} />
-          <Text style={[styles.errorText, { color: colors.text }]}>Car not found</Text>
-          <TouchableOpacity 
+          <Text style={[styles.errorText, { color: colors.text }]}>
+            Car not found
+          </Text>
+          <TouchableOpacity
             style={[styles.returnButton, { backgroundColor: colors.primary }]}
             onPress={() => navigation.goBack()}
           >
@@ -133,59 +167,191 @@ const CarDetailsScreen = () => {
 
   const isFavorite = favorites.includes(currentCar._id);
 
+  // Add this component inside your render function before the return statement
+  const ImageViewer = () => {
+    return (
+      <Modal
+        visible={isImageViewerVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={closeImageViewer}
+      >
+        <StatusBar hidden />
+        <View style={styles.imageViewerContainer}>
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={closeImageViewer}
+          >
+            <Icon name="close" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+
+          <FlatList
+            data={currentCar.images || []}
+            keyExtractor={(_, index) => index.toString()}
+            horizontal
+            pagingEnabled
+            initialScrollIndex={activeImageIndex}
+            getItemLayout={(_, index) => ({
+              length: width,
+              offset: width * index,
+              index,
+            })}
+            onMomentumScrollEnd={(e) => {
+              const newIndex = Math.floor(
+                e.nativeEvent.contentOffset.x / width
+              );
+              setActiveImageIndex(newIndex);
+            }}
+            showsHorizontalScrollIndicator={false}
+            renderItem={({ item }) => (
+              <View style={styles.fullScreenImageContainer}>
+                <Image
+                  source={{
+                    uri: typeof item === "string" ? item : item?.url || null,
+                  }}
+                  style={styles.fullScreenImage}
+                  resizeMode="contain"
+                />
+              </View>
+            )}
+          />
+
+          <View style={styles.paginationContainer}>
+            {(currentCar.images || []).map((_, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.paginationDot,
+                  {
+                    width: activeImageIndex === index ? 12 : 8,
+                    opacity: activeImageIndex === index ? 1 : 0.6,
+                    backgroundColor: "#FFFFFF",
+                  },
+                ]}
+              />
+            ))}
+          </View>
+        </View>
+      </Modal>
+    );
+  };
+
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Car Image */}
         <View style={styles.imageContainer}>
           {currentCar.images && currentCar.images.length > 0 ? (
-            <Image 
-              // Fix the image source format - check if it's a string or an object with url property
-              source={{ uri: typeof currentCar.images[0] === 'string' 
-                ? currentCar.images[0] 
-                : currentCar.images[0]?.url || null }}
-              style={styles.carImage}
-              resizeMode="cover"
-              defaultSource={CAR_IMAGES.placeholder} // Add default source as fallback
-            />
+            <>
+              <FlatList
+                data={currentCar.images}
+                keyExtractor={(item, index) => index.toString()}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                onMomentumScrollEnd={(e) => {
+                  const newIndex = Math.floor(
+                    e.nativeEvent.contentOffset.x / width
+                  );
+                  setActiveImageIndex(newIndex);
+                }}
+                renderItem={({ item, index }) => (
+                  <TouchableOpacity
+                    activeOpacity={0.9}
+                    onPress={() => handleImagePress(index)}
+                  >
+                    <Image
+                      source={{
+                        uri:
+                          typeof item === "string" ? item : item?.url || null,
+                      }}
+                      style={styles.carImageFull}
+                      resizeMode="cover"
+                      defaultSource={CAR_IMAGES.placeholder}
+                    />
+                  </TouchableOpacity>
+                )}
+              />
+
+              {/* Image pagination indicators */}
+              <View style={styles.paginationContainer}>
+                {currentCar.images.map((_, index) => (
+                  <View
+                    key={index}
+                    style={[
+                      styles.paginationDot,
+                      {
+                        backgroundColor:
+                          activeImageIndex === index
+                            ? colors.primary
+                            : "rgba(255,255,255,0.6)",
+                      },
+                    ]}
+                  />
+                ))}
+              </View>
+            </>
           ) : (
-            <Image 
+            <Image
               source={CAR_IMAGES.placeholder}
               style={styles.carImage}
               resizeMode="cover"
             />
           )}
-          
+
           <View style={styles.imageOverlayButtons}>
             {user && (
-              <TouchableOpacity 
-                style={[styles.iconButton, { backgroundColor: isDarkMode ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.8)' }]}
+              <TouchableOpacity
+                style={[
+                  styles.iconButton,
+                  {
+                    backgroundColor: isDarkMode
+                      ? "rgba(0,0,0,0.6)"
+                      : "rgba(255,255,255,0.8)",
+                  },
+                ]}
                 onPress={handleFavoritePress}
               >
-                <Icon 
-                  name={isFavorite ? "bookmark" : "bookmark-o"} 
-                  size={24} 
-                  color={isFavorite ? colors.primary : colors.text} 
+                <Icon
+                  name={isFavorite ? "bookmark" : "bookmark-o"}
+                  size={24}
+                  color={isFavorite ? colors.primary : colors.text}
                 />
               </TouchableOpacity>
             )}
-            
-            <TouchableOpacity 
-              style={[styles.iconButton, { backgroundColor: isDarkMode ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.8)' }]}
+
+            <TouchableOpacity
+              style={[
+                styles.iconButton,
+                {
+                  backgroundColor: isDarkMode
+                    ? "rgba(0,0,0,0.6)"
+                    : "rgba(255,255,255,0.8)",
+                },
+              ]}
               onPress={handleSharePress}
             >
               <Icon name="share-alt" size={22} color={colors.text} />
             </TouchableOpacity>
           </View>
-          
-          <TouchableOpacity 
-            style={[styles.backButton, { backgroundColor: isDarkMode ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.8)' }]}
+
+          <TouchableOpacity
+            style={[
+              styles.backButton,
+              {
+                backgroundColor: isDarkMode
+                  ? "rgba(0,0,0,0.6)"
+                  : "rgba(255,255,255,0.8)",
+              },
+            ]}
             onPress={() => navigation.goBack()}
           >
             <Icon name="arrow-left" size={20} color={colors.text} />
           </TouchableOpacity>
         </View>
-        
+
         {/* Car Info */}
         <View style={styles.infoContainer}>
           <View style={styles.header}>
@@ -198,96 +364,163 @@ const CarDetailsScreen = () => {
               </Text>
             </View>
             <View style={styles.priceContainer}>
-              <Text style={[styles.priceLabel, { color: colors.secondary }]}>Price</Text>
+              <Text style={[styles.priceLabel, { color: colors.secondary }]}>
+                Price
+              </Text>
               <Text style={[styles.price, { color: colors.primary }]}>
                 ₱{currentCar.pricePerDay}/day
               </Text>
             </View>
           </View>
-          
+
           <View style={styles.ratingContainer}>
-            <StarRating rating={currentCar.rating || 4.5} size={18} />
-            <Text style={[styles.ratingText, { color: colors.secondary, marginLeft: 8 }]}>
-              {currentCar.rating || 4.5} ({currentCar.numberOfRatings || 24} reviews)
-            </Text>
-            
             {currentCar.isAutoApproved !== undefined && (
-              <View style={[
-                styles.approvalBadge, 
-                { backgroundColor: currentCar.isAutoApproved ? colors.success : colors.error }
-              ]}>
+              <View
+                style={[
+                  styles.approvalBadge,
+                  {
+                    backgroundColor: currentCar.isAutoApproved
+                      ? colors.success
+                      : colors.error,
+                  },
+                ]}
+              >
                 <Text style={styles.approvalText}>
-                  {currentCar.isAutoApproved ? "Auto Approved" : "Requires Approval"}
+                  {currentCar.isAutoApproved
+                    ? "Auto Approved"
+                    : "Requires Approval"}
                 </Text>
               </View>
             )}
+            <View style={styles.ratingRow}>
+              <StarRating rating={currentCar?.averageRating || 0} size={18} />
+              <Text
+                style={[
+                  styles.ratingText,
+                  { color: colors.secondary, marginLeft: 8 },
+                ]}
+              >
+                {currentCar?.averageRating || 0} ({currentCar?.reviewCount || 0}{" "}
+                reviews)
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              onPress={handleViewReviews}
+              style={styles.viewReviewsButton}
+            >
+              <Text style={{ color: colors.primary }}>View Reviews</Text>
+            </TouchableOpacity>
           </View>
-          
+
           {/* Car Features */}
-          <View style={[styles.sectionContainer, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Car Features</Text>
+          <View
+            style={[
+              styles.sectionContainer,
+              { borderBottomColor: colors.border },
+            ]}
+          >
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              Car Features
+            </Text>
             <View style={styles.featuresGrid}>
               {[
-                { icon: 'users', label: `${currentCar.seatCapacity || 5} Seats` },
-                { icon: 'cog', label: currentCar.transmission || 'Automatic' },
-                { icon: 'tachometer', label: `${currentCar.mileage || 15} km/L` },
-                { icon: 'tint', label: currentCar.fuel || 'Petrol' },
-                { icon: 'calendar', label: `Year ${currentCar.year || 2023}` },
-                { icon: 'bolt', label: `${currentCar.displacement || 2000}cc` }
+                {
+                  icon: "users",
+                  label: `${currentCar.seatCapacity || 5} Seats`,
+                },
+                { icon: "cog", label: currentCar.transmission || "Automatic" },
+                {
+                  icon: "tachometer",
+                  label: `${currentCar.mileage || 15} km/L`,
+                },
+                { icon: "tint", label: currentCar.fuel || "Petrol" },
+                { icon: "calendar", label: `Year ${currentCar.year || 2023}` },
+                { icon: "bolt", label: `${currentCar.displacement || 2000}cc` },
               ].map((feature, index) => (
-                <View 
-                  key={index} 
+                <View
+                  key={index}
                   style={[
-                    styles.featureItem, 
-                    { 
+                    styles.featureItem,
+                    {
                       backgroundColor: colors.card,
-                      ...colors.shadow
-                    }
+                      ...colors.shadow,
+                    },
                   ]}
                 >
                   <Icon name={feature.icon} size={16} color={colors.primary} />
-                  <Text style={[styles.featureText, { color: colors.text }]}>{feature.label}</Text>
+                  <Text style={[styles.featureText, { color: colors.text }]}>
+                    {feature.label}
+                  </Text>
                 </View>
               ))}
             </View>
           </View>
-          
+
           {/* Description */}
           {currentCar.description && (
-            <View style={[styles.sectionContainer, { borderBottomColor: colors.border }]}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Description</Text>
+            <View
+              style={[
+                styles.sectionContainer,
+                { borderBottomColor: colors.border },
+              ]}
+            >
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                Description
+              </Text>
               <Text style={[styles.descriptionText, { color: colors.text }]}>
                 {currentCar.description}
               </Text>
             </View>
           )}
-          
+
           {/* Location */}
-          <View style={[styles.sectionContainer, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Pickup Location</Text>
-            <View style={[styles.locationBox, { backgroundColor: colors.card }]}>
-              <Icon name="map-marker" size={18} color={colors.primary} style={styles.locationIcon} />
+          <View
+            style={[
+              styles.sectionContainer,
+              { borderBottomColor: colors.border },
+            ]}
+          >
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              Pickup Location
+            </Text>
+            <View
+              style={[styles.locationBox, { backgroundColor: colors.card }]}
+            >
+              <Icon
+                name="map-marker"
+                size={18}
+                color={colors.primary}
+                style={styles.locationIcon}
+              />
               <Text style={[styles.locationText, { color: colors.text }]}>
-                {currentCar.pickUpLocation || 'Manila, Philippines'}
+                {currentCar.pickUpLocation || "Manila, Philippines"}
               </Text>
             </View>
           </View>
-          
+
           {/* Owner Info */}
           {currentCar.owner && (
             <View style={styles.sectionContainer}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Car Owner</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                Car Owner
+              </Text>
               <View style={[styles.ownerBox, { backgroundColor: colors.card }]}>
                 <View style={styles.ownerAvatarContainer}>
                   {currentCar.owner.profilePicture ? (
-                    <Image 
-                      source={{ uri: currentCar.owner.profilePicture }} 
-                      style={styles.ownerAvatar} 
+                    <Image
+                      source={{ uri: currentCar.owner.profilePicture }}
+                      style={styles.ownerAvatar}
                     />
                   ) : (
-                    <View style={[styles.avatarPlaceholder, { backgroundColor: colors.primary }]}>
+                    <View
+                      style={[
+                        styles.avatarPlaceholder,
+                        { backgroundColor: colors.primary },
+                      ]}
+                    >
                       <Text style={styles.avatarInitial}>
-                        {currentCar.owner.firstName?.[0] || 'U'}
+                        {currentCar.owner.firstName?.[0] || "U"}
                       </Text>
                     </View>
                   )}
@@ -296,32 +529,48 @@ const CarDetailsScreen = () => {
                   <Text style={[styles.ownerName, { color: colors.text }]}>
                     {currentCar.owner?.firstName} {currentCar.owner?.lastName}
                   </Text>
-                  <Text style={[styles.ownerJoined, { color: colors.secondary }]}>
-                    Member since {currentCar.owner?.createdAt 
-                      ? new Date(currentCar.owner.createdAt).getFullYear() 
-                      : '2022'}
+                  <Text
+                    style={[styles.ownerJoined, { color: colors.secondary }]}
+                  >
+                    Member since{" "}
+                    {currentCar.owner?.createdAt
+                      ? new Date(currentCar.owner.createdAt).getFullYear()
+                      : "2022"}
                   </Text>
                 </View>
-                <TouchableOpacity 
-                  style={[styles.contactButton, { backgroundColor: colors.primary }]}
-                  onPress={() => navigation.navigate('ChatScreen', { recipientId: currentCar.owner._id })}
+                <TouchableOpacity
+                  style={[
+                    styles.contactButton,
+                    { backgroundColor: colors.primary },
+                  ]}
+                  onPress={() =>
+                    navigation.navigate("ChatScreen", {
+                      recipientId: currentCar.owner._id,
+                    })
+                  }
                 >
                   <Text style={styles.contactButtonText}>Contact</Text>
                 </TouchableOpacity>
               </View>
             </View>
           )}
-          
+
           {/* Book Now Button */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.bookButton, { backgroundColor: colors.primary }]}
             onPress={handleBookPress}
           >
-            <Icon name="calendar-check-o" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
+            <Icon
+              name="calendar-check-o"
+              size={18}
+              color="#FFFFFF"
+              style={{ marginRight: 8 }}
+            />
             <Text style={styles.bookButtonText}>Book Now</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
+      <ImageViewer />
     </SafeAreaView>
   );
 };
@@ -332,8 +581,8 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   loadingText: {
     marginTop: 10,
@@ -341,14 +590,14 @@ const styles = StyleSheet.create({
   },
   errorContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: 20,
   },
   errorText: {
     fontSize: 16,
-    textAlign: 'center',
-    margin: 20
+    textAlign: "center",
+    margin: 20,
   },
   retryButton: {
     paddingVertical: 10,
@@ -356,8 +605,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   retryButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
+    color: "#fff",
+    fontWeight: "bold",
     fontSize: 16,
   },
   returnButton: {
@@ -366,24 +615,43 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   returnButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
+    color: "#fff",
+    fontWeight: "bold",
     fontSize: 16,
   },
   imageContainer: {
-    position: 'relative',
-    width: '100%',
+    position: "relative",
+    width: "100%",
     height: 250,
   },
   carImage: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
+  },
+  carImageFull: {
+    width: width,
+    height: 250,
+  },
+  paginationContainer: {
+    position: "absolute",
+    bottom: 10,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  paginationDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginHorizontal: 4,
   },
   imageOverlayButtons: {
-    position: 'absolute',
-    top: Platform.OS === 'ios' ? 50 : 12,
+    position: "absolute",
+    top: Platform.OS === "ios" ? 50 : 12,
     right: 16,
-    flexDirection: 'row',
+    flexDirection: "row",
   },
   iconButton: {
     padding: 10,
@@ -391,8 +659,8 @@ const styles = StyleSheet.create({
     marginLeft: 10,
   },
   backButton: {
-    position: 'absolute',
-    top: Platform.OS === 'ios' ? 50 : 12,
+    position: "absolute",
+    top: Platform.OS === "ios" ? 50 : 12,
     left: 16,
     padding: 10,
     borderRadius: 25,
@@ -401,48 +669,54 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
     marginBottom: 12,
   },
   carTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   carType: {
     fontSize: 16,
     marginTop: 4,
   },
   priceContainer: {
-    alignItems: 'flex-end',
+    alignItems: "flex-end",
   },
   priceLabel: {
     fontSize: 14,
   },
   price: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
     marginBottom: 16,
-    flexWrap: 'wrap',
+  },
+  ratingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
   },
   ratingText: {
     fontSize: 14,
   },
+  viewReviewsButton: {
+    alignSelf: "flex-start",
+    marginBottom: 8,
+  },
   approvalBadge: {
-    marginLeft: 'auto',
+    marginLeft: "auto",
     paddingVertical: 3,
     paddingHorizontal: 8,
     borderRadius: 12,
   },
   approvalText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 10,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   sectionContainer: {
     marginBottom: 24,
@@ -451,13 +725,13 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: "600",
     marginBottom: 12,
   },
   featuresGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
     marginHorizontal: -4,
   },
   featureItem: {
@@ -465,8 +739,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 8,
     borderRadius: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginHorizontal: 4,
     marginBottom: 8,
   },
@@ -479,8 +753,8 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   locationBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: 16,
     borderRadius: 8,
   },
@@ -492,8 +766,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   ownerBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: 16,
     borderRadius: 8,
   },
@@ -509,20 +783,20 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   avatarInitial: {
-    color: 'white',
+    color: "white",
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   ownerInfo: {
     flex: 1,
   },
   ownerName: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     marginBottom: 4,
   },
   ownerJoined: {
@@ -534,21 +808,46 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   contactButtonText: {
-    color: '#fff',
-    fontWeight: '600',
+    color: "#fff",
+    fontWeight: "600",
   },
   bookButton: {
-    flexDirection: 'row',
+    flexDirection: "row",
     padding: 16,
     borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginVertical: 16,
   },
   bookButtonText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: "600",
+  },
+  imageViewerContainer: {
+    flex: 1,
+    backgroundColor: "black",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  closeButton: {
+    position: "absolute",
+    top: 40,
+    right: 20,
+    zIndex: 10,
+    padding: 10,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    borderRadius: 20,
+  },
+  fullScreenImageContainer: {
+    width: width,
+    height: height,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  fullScreenImage: {
+    width: width,
+    height: height * 0.8,
   },
 });
 

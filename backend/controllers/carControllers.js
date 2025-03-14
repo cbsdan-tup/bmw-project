@@ -205,6 +205,21 @@ exports.getSingleCar = async (req, res) => {
       });
     }
 
+    // Fetch all rentals for this car
+    const rentals = await Rental.find({ car: id });
+    
+    // Get all rental IDs
+    const rentalIds = rentals.map(rental => rental._id);
+    
+    // Fetch all reviews for these rentals
+    const reviews = await Reviews.find({ rental: { $in: rentalIds } });
+    
+    // Calculate average rating and review count
+    const reviewCount = reviews.length;
+    const averageRating = reviewCount > 0 
+      ? Number((reviews.reduce((sum, review) => sum + review.rating, 0) / reviewCount).toFixed(1))
+      : 0;
+
     const {
       _id,
       model,
@@ -245,6 +260,8 @@ exports.getSingleCar = async (req, res) => {
         pickUpLocation,
         owner,
         images,
+        averageRating,
+        reviewCount
       },
     });
   } catch (error) {
@@ -471,11 +488,15 @@ exports.filterCars = async (req, res) => {
         images: Array.isArray(car.images)
           ? car.images.map((image) => image.url)
           : [], 
+        averageRating: car.averageRating || 0,
+        reviewCount: car.reviewCount || 0
       };
     });
 
     console.log("Filtered Cars with Images:", carsWithImages);
 
+    console.log(carsWithImages);
+    
     res.status(200).json({
       success: true,
       count: carsWithImages.length,
@@ -516,11 +537,8 @@ exports.getFeaturedCars = async (req, res) => {
   try {
     const featuredCars = await Cars.find({ 
       isActive: true,
-      // You can adjust the criteria for "featured" cars as needed
-      // For example, using high-rated cars or newest listings
     })
-    .sort({ createdAt: -1 })
-    .limit(10);
+    .limit(20); 
 
     if (!featuredCars || featuredCars.length === 0) {
       return res.status(404).json({
@@ -529,16 +547,39 @@ exports.getFeaturedCars = async (req, res) => {
       });
     }
 
-    const carsWithImages = featuredCars.map((car) => ({
-      ...car.toObject(),
-      images: car.images.map((image) => image.url),
+    // Get cars with ratings
+    const carsWithRatings = await Promise.all(featuredCars.map(async (car) => {
+      const rentals = await Rental.find({ car: car._id });
+      
+      const rentalIds = rentals.map(rental => rental._id);
+      
+      const reviews = await Reviews.find({ rental: { $in: rentalIds } });
+      
+      const reviewCount = reviews.length;
+      const averageRating = reviewCount > 0 
+        ? Number((reviews.reduce((sum, review) => sum + review.rating, 0) / reviewCount).toFixed(1))
+        : 0;
+        
+      return {
+        ...car.toObject(),
+        images: car.images.map((image) => image.url),
+        averageRating,
+        reviewCount
+      };
     }));
+
+    // Sort cars by average rating (highest first)
+    const sortedCars = carsWithRatings.sort((a, b) => b.averageRating - a.averageRating);
+    
+    // Limit to 10 cars after sorting by rating
+    const topRatedCars = sortedCars.slice(0, 10);
 
     return res.status(200).json({
       success: true,
-      cars: carsWithImages,
+      cars: topRatedCars,
     });
   } catch (error) {
+    // ...existing code...
     console.error("Error fetching featured cars:", error);
     return res.status(500).json({
       success: false,

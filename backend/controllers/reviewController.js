@@ -29,7 +29,7 @@ const getReviews = async (req, res) => {
     const rentals = await Rental.find({ car: carId });
 
     if (!rentals.length) {
-      return res.status(404).json({ message: "No rentals found for this car" });
+      return res.status(200).json({ message: "Fetched reviews successfully", reviews: [] });
     }
 
     const rentalIds = rentals.map((rental) => rental._id);
