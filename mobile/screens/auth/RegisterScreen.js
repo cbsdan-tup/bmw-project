@@ -114,22 +114,14 @@ const RegisterScreen = ({ navigation }) => {
     try {
       setRegistrationInProgress(true);
       
-      // Prepare user data for registration - ensure avatar is properly formatted
-      const userData = {
+      // Use the centralized register function from AuthContext
+      const result = await register({
         firstName,
         lastName,
         email,
         password,
-        // Make sure avatar is properly defined to prevent the split error
-        avatar: avatar || null // Provide a default value to prevent undefined errors
-      };
-      
-      console.log("Submitting registration with data:", { 
-        ...userData, 
-        password: '******' // Don't log actual password
+        avatar
       });
-      
-      const result = await register(userData);
       
       if (result.success) {
         Alert.alert(
@@ -137,9 +129,11 @@ const RegisterScreen = ({ navigation }) => {
           'Your account has been created successfully. Please log in.',
           [{ text: 'OK', onPress: () => navigation.navigate('Login') }]
         );
+      } else {
+        Alert.alert('Registration Failed', result.error);
       }
     } catch (error) {
-      console.log("Registration error details:", error);
+      console.log("Registration error:", error);
       Alert.alert(
         'Registration Failed', 
         error.message || 'Please check your information and try again'

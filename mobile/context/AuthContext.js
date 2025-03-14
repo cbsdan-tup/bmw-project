@@ -6,7 +6,8 @@ import { auth } from '../config/firebase-config'; // Import auth directly
 import { 
   signInWithEmailAndPassword, 
   GoogleAuthProvider,
-  signInWithCredential
+  signInWithCredential,
+  createUserWithEmailAndPassword
 } from 'firebase/auth';
 
 // Create auth context
@@ -182,21 +183,74 @@ export const AuthProvider = ({ children }) => {
 
   // Register function - update to match web implementation
   const register = async (userData) => {
+    const { firstName, lastName, email, password, avatar } = userData;
+    
     setIsLoading(true);
     setError(null);
     
     try {
-      const response = await axios.post(`${API_URL}/register`, userData, {
-        headers: { "Content-Type": "application/json" }
-      });
+      // Step 1: Create user in Firebase Authentication
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+      const idToken = await user.getIdToken();
+      
+      // Step 2: Prepare form data for backend registration
+      const formData = new FormData();
+      formData.append("uid", user.uid);
+      formData.append("firstName", firstName);
+      formData.append("lastName", lastName);
+      formData.append("email", email);
+      
+      // Handle avatar upload if selected
+      if (avatar) {
+        const filename = avatar.split('/').pop();
+        const match = /\.(\w+)$/.exec(filename);
+        const type = match ? `image/${match[1]}` : `image`;
         
+        formData.append("avatar", {
+          uri: Platform.OS === 'ios' ? avatar.replace('file://', '') : avatar,
+          name: filename,
+          type,
+        });
+      }
+      
+      // Step 3: Send data to backend API
+      const config = {
+        headers: {
+          "Content-Type": "multipart/form-data",
+          "Authorization": `Bearer ${idToken}`
+        },
+      };
+      
+      const response = await axios.post(`${API_URL}/register`, formData, config);
+      
       if (response.data.success) {
-        return { success: true, message: response.data.message };
+        return { 
+          success: true, 
+          message: response.data.message || 'Registration successful' 
+        };
       } else {
         throw new Error(response.data.message || 'Registration failed');
       }
     } catch (err) {
-      const errorMsg = err.response?.data?.message || 'Registration failed. Please try again.';
+      console.log("Registration error details:", err);
+      
+      // Handle Firebase-specific errors
+      if (err.code === 'auth/email-already-in-use') {
+        const errorMsg = 'Email is already registered. Please use a different email.';
+        setError(errorMsg);
+        return { success: false, error: errorMsg };
+      } else if (err.code === 'auth/invalid-email') {
+        const errorMsg = 'The email address is not valid.';
+        setError(errorMsg);
+        return { success: false, error: errorMsg };
+      } else if (err.code === 'auth/weak-password') {
+        const errorMsg = 'Password should be at least 6 characters.';
+        setError(errorMsg);
+        return { success: false, error: errorMsg };
+      }
+      
+      const errorMsg = err.response?.data?.message || err.message || 'Registration failed. Please try again.';
       setError(errorMsg);
       return { success: false, error: errorMsg };
     } finally {
