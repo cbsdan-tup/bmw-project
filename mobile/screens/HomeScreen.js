@@ -10,7 +10,8 @@ import {
   StyleSheet,
   RefreshControl,
   FlatList,
-  Platform
+  Platform,
+  Alert
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigation } from '@react-navigation/native';
@@ -28,6 +29,7 @@ import { CAR_IMAGES, COMMON_COLORS } from '../config/constants';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import StarRating from '../components/StarRating';
 import FilterModal from '../components/FilterModal';
+import api from '../services/api';
 
 const HomeScreen = () => {
   const { colors, isDarkMode } = useTheme();
@@ -57,12 +59,38 @@ const HomeScreen = () => {
     navigation.navigate('CarDetails', { carId });
   };
 
-  const handleFavoritePress = (carId) => {
+  const handleFavoritePress = async (carId) => {
     if (!user) {
       navigation.navigate('Login');
       return;
     }
-    dispatch(toggleFavorite(carId));
+    
+    try {
+      const response = await api.post('/favorite-car', {
+        user: user._id,
+        car: carId
+      });
+      
+      // Toggle favorite in Redux store
+      dispatch(toggleFavorite(carId));
+      
+      // Show feedback to user
+      const car = featuredCars.find(car => car._id === carId);
+      if (car && response.data.message.includes('added')) {
+        Alert.alert(
+          'Added to favorites',
+          `${car.brand} ${car.model} was added to your favorites`
+        );
+      } else if (car) {
+        Alert.alert(
+          'Removed from favorites',
+          `${car.brand} ${car.model} was removed from your favorites`
+        );
+      }
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+      Alert.alert('Error', 'Failed to update favorites. Please try again.');
+    }
   };
 
   const handleFilterApply = (newFilters) => {

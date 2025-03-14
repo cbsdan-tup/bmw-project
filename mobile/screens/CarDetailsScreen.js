@@ -18,14 +18,13 @@ import {
 } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 import { useRoute, useNavigation } from "@react-navigation/native";
-import { globalStyles } from "../styles/globalStyles";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { fetchCarByID, toggleFavorite } from "../redux/slices/carSlice";
-import { CAR_IMAGES, COMMON_COLORS } from "../config/constants";
+import { CAR_IMAGES } from "../config/constants";
 import Icon from "react-native-vector-icons/FontAwesome";
 import StarRating from "../components/StarRating";
-
+import api from "../services/api";
 const { width, height } = Dimensions.get("window");
 
 const CarDetailsScreen = () => {
@@ -40,6 +39,7 @@ const CarDetailsScreen = () => {
   const { carId } = route.params || {};
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isImageViewerVisible, setIsImageViewerVisible] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
 
   useEffect(() => {
     if (carId) {
@@ -47,19 +47,41 @@ const CarDetailsScreen = () => {
     }
   }, [carId, dispatch]);
 
-  const handleFavoritePress = () => {
+  useEffect(() => {
+    if (currentCar && favorites) {
+      setIsFavorite(favorites.includes(currentCar._id));
+    }
+  }, [currentCar, favorites]);
+
+  const handleFavoritePress = async () => {
     if (!user) {
-      Alert.alert(
-        "Login Required",
-        "Please login to add this car to your favorites",
-        [
-          { text: "Cancel", style: "cancel" },
-          { text: "Login", onPress: () => navigation.navigate("Login") },
-        ]
-      );
+      navigation.navigate('Login');
       return;
     }
-    dispatch(toggleFavorite(carId));
+    
+    try {
+      const response = await api.post('/favorite-car', {
+        user: user._id,
+        car: currentCar._id
+      });
+      
+      dispatch(toggleFavorite(currentCar._id));
+      
+      if (response.data.message.includes('added')) {
+        Alert.alert(
+          'Added to favorites',
+          `${currentCar.brand} ${currentCar.model} was added to your favorites`
+        );
+      } else {
+        Alert.alert(
+          'Removed from favorites',
+          `${currentCar.brand} ${currentCar.model} was removed from your favorites`
+        );
+      }
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+      Alert.alert('Error', 'Failed to update favorites. Please try again.');
+    }
   };
 
   const handleSharePress = async () => {
@@ -68,7 +90,6 @@ const CarDetailsScreen = () => {
     try {
       await Share.share({
         message: `Check out this ${currentCar.brand} ${currentCar.model} for rent at ₱${currentCar.pricePerDay}/day!`,
-        // Replace with your app's deep link format
         url: `bmwrental://car/${carId}`,
       });
     } catch (error) {
@@ -85,22 +106,18 @@ const CarDetailsScreen = () => {
       return;
     }
 
-    // Navigate to booking screen with car details
     navigation.navigate("BookingScreen", { carId });
   };
 
-  // Function to open image viewer
   const handleImagePress = (index) => {
     setActiveImageIndex(index);
     setIsImageViewerVisible(true);
   };
 
-  // Function to close image viewer
   const closeImageViewer = () => {
     setIsImageViewerVisible(false);
   };
 
-  // Inside the component, add a function to handle navigation to reviews screen
   const handleViewReviews = () => {
     navigation.navigate("Reviews", {
       carId: currentCar._id,
@@ -165,9 +182,6 @@ const CarDetailsScreen = () => {
     );
   }
 
-  const isFavorite = favorites.includes(currentCar._id);
-
-  // Add this component inside your render function before the return statement
   const ImageViewer = () => {
     return (
       <Modal
@@ -274,8 +288,6 @@ const CarDetailsScreen = () => {
                   </TouchableOpacity>
                 )}
               />
-
-              {/* Image pagination indicators */}
               <View style={styles.paginationContainer}>
                 {currentCar.images.map((_, index) => (
                   <View
@@ -352,7 +364,6 @@ const CarDetailsScreen = () => {
           </TouchableOpacity>
         </View>
 
-        {/* Car Info */}
         <View style={styles.infoContainer}>
           <View style={styles.header}>
             <View>
