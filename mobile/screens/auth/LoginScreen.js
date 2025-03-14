@@ -79,7 +79,7 @@ const LoginScreen = ({ navigation }) => {
         // Ensure we navigate to the home screen after login
         navigation.reset({
           index: 0,
-          routes: [{ name: 'Home' }]
+          routes: [{ name: 'MainTabs' }]
         });
       } else {
         Alert.alert(

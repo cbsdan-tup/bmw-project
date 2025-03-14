@@ -86,14 +86,17 @@ const ProfileScreen = () => {
           )}
           <TouchableOpacity 
             style={[styles.editAvatarButton, { backgroundColor: colors.primary }]}
-            onPress={() => navigation.navigate('EditProfile')}
+            onPress={() => navigation.navigate('EditProfile', { 
+              screen: 'Profile', 
+              params: { screen: 'EditProfile' } 
+            })}
           >
             <Icon name="camera" size={14} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
         
         <Text style={[styles.userName, { color: colors.text }]}>
-          {user.firstName} {user.lastName}
+        {user.firstName} {user.lastName}
         </Text>
         <Text style={[styles.userEmail, { color: colors.secondary }]}>
           {user.email}
@@ -101,7 +104,10 @@ const ProfileScreen = () => {
         
         <TouchableOpacity
           style={[styles.editProfileButton, { borderColor: colors.border }]}
-          onPress={() => navigation.navigate('EditProfile')}
+          onPress={() => navigation.navigate('EditProfile', { 
+            screen: 'Profile', 
+            params: { screen: 'EditProfile' } 
+          })}
         >
           <Text style={[styles.editProfileText, { color: colors.primary }]}>
             Edit Profile

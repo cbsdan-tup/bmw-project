@@ -314,18 +314,33 @@ exports.getAllCarsInfinite = async (req, res) => {
 
     const cars = await Cars.find({isActive: true}).populate("owner").skip(skip).limit(resPerPage);
 
-    const carsWithImages = cars.map((car) => {
+    const carsWithRatingsAndImages = await Promise.all(cars.map(async (car) => {
+      const rentals = await Rental.find({ car: car._id });
+      
+      const rentalIds = rentals.map(rental => rental._id);
+      
+      // Fetch all reviews for these rentals
+      const reviews = await Reviews.find({ rental: { $in: rentalIds } });
+      
+      // Calculate average rating and review count
+      const reviewCount = reviews.length;
+      const averageRating = reviewCount > 0 
+        ? Number((reviews.reduce((sum, review) => sum + review.rating, 0) / reviewCount).toFixed(1))
+        : 0;
+        
       return {
         ...car.toObject(),
         images: car.images.map((image) => image.url),
+        averageRating,
+        reviewCount
       };
-    });
+    }));
 
-    const totalCars = await Cars.countDocuments(); 
+    const totalCars = await Cars.countDocuments({isActive: true}); 
     const totalPages = Math.ceil(totalCars / resPerPage);
 
     res.status(200).json({
-      cars: carsWithImages,
+      cars: carsWithRatingsAndImages,
       currentPage: page,
       totalCars,
       totalPages, 

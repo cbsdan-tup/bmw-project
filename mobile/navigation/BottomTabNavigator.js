@@ -5,7 +5,7 @@ import Icon from 'react-native-vector-icons/FontAwesome';
 import { Platform, Text, View } from 'react-native';
 import HomeScreen from '../screens/HomeScreen';
 import CarDetailsScreen from '../screens/CarDetailsScreen';
-import ProfileScreen from '../screens/ProfileScreen';
+import ProfileNavigator from './ProfileNavigator';
 import SearchScreen from '../screens/SearchScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import ReviewsScreen from '../screens/ReviewsScreen';
@@ -154,9 +154,9 @@ const BottomTabNavigator = () => {
           ),
         }}
       />
-      <Tab.Screen
+      <Tab.Screen 
         name="Profile"
-        component={ProfileScreen}
+        component={ProfileNavigator}
         options={{
           tabBarIcon: ({ color, size }) => (
             <Icon name="user" size={size} color={color} />

@@ -7,7 +7,7 @@ import RegisterScreen from '../screens/auth/RegisterScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import { useTheme } from '../context/ThemeContext';
 import BottomTabNavigator from './BottomTabNavigator';
-import HomeScreen from '../screens/HomeScreen';
+import EditProfileScreen from '../screens/EditProfileScreen';
 
 const Stack = createStackNavigator();
 
@@ -54,6 +54,11 @@ const AuthNavigator = () => {
         name="ForgotPassword" 
         component={ForgotPasswordScreen} 
         options={{ title: 'Reset Password' }}
+      />
+      <Stack.Screen
+        name="EditProfile"
+        component={EditProfileScreen}
+        options={{ title: 'Edit Profile' }}
       />
     </Stack.Navigator>
   );

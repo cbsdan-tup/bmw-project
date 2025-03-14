@@ -189,7 +189,7 @@ export const AuthProvider = ({ children }) => {
       const response = await axios.post(`${API_URL}/register`, userData, {
         headers: { "Content-Type": "application/json" }
       });
-      
+        
       if (response.data.success) {
         return { success: true, message: response.data.message };
       } else {
@@ -225,26 +225,41 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Update profile function
-  const updateProfile = async (userData) => {
+  const updateProfile = async (params) => {
+    const { userId, formData, isMultipart } = params;
+    
     setIsLoading(true);
     setError(null);
     
     try {
-      const response = await axios.put(`${API_URL}/users/${user._id}`, userData, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const headers = { 
+        Authorization: `Bearer ${token}`,
+        'Content-Type': isMultipart ? 'multipart/form-data' : 'application/json'
+      };
       
-      const updatedUser = response.data.user;
+      // Use the correct endpoint for update-profile
+      const response = await axios.put(
+        `${API_URL}/update-profile/${userId}`, 
+        formData,
+        { headers }
+      );
       
-      // Update state
-      setUser(updatedUser);
-      
-      // Update AsyncStorage
-      await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
-      
-      return { success: true, user: updatedUser };
+      if (response.data.success) {
+        const updatedUser = response.data.user;
+        
+        // Update state
+        setUser(updatedUser);
+        
+        // Update AsyncStorage
+        await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+        
+        return { success: true, user: updatedUser };
+      } else {
+        throw new Error(response.data.message || 'Failed to update profile');
+      }
     } catch (err) {
-      const errorMsg = err.response?.data?.message || 'Failed to update profile.';
+      console.error('Error in updateProfile:', err);
+      const errorMsg = err.response?.data?.message || err.message || 'Failed to update profile.';
       setError(errorMsg);
       return { success: false, error: errorMsg };
     } finally {
