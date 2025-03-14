@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,6 @@ import {
   ScrollView,
   Image,
   Switch,
-  Alert,
   ActivityIndicator,
   SafeAreaView,
   Platform,
@@ -18,22 +17,32 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigation } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
 import Icon from 'react-native-vector-icons/FontAwesome';
+import { useToast } from '../context/ToastContext';
 
 const ProfileScreen = () => {
   const { colors, isDarkMode, toggleTheme } = useTheme();
   const { user, logout, isLoading, isAuthenticated } = useAuth();
   const navigation = useNavigation();
   const { favorites } = useSelector(state => state.cars);
+  const toast = useToast();
+  const [logoutConfirmPending, setLogoutConfirmPending] = useState(false);
 
   const handleLogout = () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Logout', style: 'destructive', onPress: () => logout() }
-      ]
-    );
+    if (!logoutConfirmPending) {
+      // First tap - show warning toast
+      toast.warning('Tap again to confirm logout');
+      setLogoutConfirmPending(true);
+      
+      // Reset confirmation state after 3 seconds
+      setTimeout(() => {
+        setLogoutConfirmPending(false);
+      }, 3000);
+    } else {
+      // Second tap - perform logout
+      logout();
+      toast.info('You have been logged out');
+      setLogoutConfirmPending(false);
+    }
   };
 
   const ProfileHeader = () => {
@@ -309,7 +318,9 @@ const ProfileScreen = () => {
               onPress={handleLogout}
             >
               <Icon name="sign-out" size={20} color="#FFFFFF" style={{ marginRight: 10 }} />
-              <Text style={styles.logoutText}>Logout</Text>
+              <Text style={styles.logoutText}>
+                {logoutConfirmPending ? 'Tap again to confirm' : 'Logout'}
+              </Text>
             </TouchableOpacity>
           )}
         </View>

@@ -14,6 +14,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import IntroScreen from './components/IntroScreen';
 import { Provider } from 'react-redux';
 import { store } from './redux/store';
+import { ToastProvider } from './context/ToastContext'; 
+import { LogBox } from 'react-native';
+
+LogBox.ignoreLogs(['Warning: ...']);
 
 // Error boundary for navigation container
 const ErrorBoundary = ({ children }) => {
@@ -156,7 +160,9 @@ export default function App() {
         <Provider store={store}>
           <ThemeProvider>
             <AuthProvider>
-              <AppNavigator />
+              <ToastProvider position="bottom">
+                <AppNavigator />
+              </ToastProvider>
             </AuthProvider>
           </ThemeProvider>
         </Provider>

@@ -11,7 +11,6 @@ import {
   RefreshControl,
   FlatList,
   Platform,
-  Alert
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigation } from '@react-navigation/native';
@@ -30,12 +29,14 @@ import Icon from 'react-native-vector-icons/FontAwesome';
 import StarRating from '../components/StarRating';
 import FilterModal from '../components/FilterModal';
 import api from '../services/api';
+import { useToast } from '../context/ToastContext'; 
 
 const HomeScreen = () => {
   const { colors, isDarkMode } = useTheme();
   const { user } = useAuth();
   const navigation = useNavigation();
   const dispatch = useDispatch();
+  const toast = useToast(); 
   const { featuredCars, loading, error, favorites, filterParams } = useSelector(state => state.cars);
   const [refreshing, setRefreshing] = useState(false);
   const [filterVisible, setFilterVisible] = useState(false);
@@ -74,22 +75,15 @@ const HomeScreen = () => {
       // Toggle favorite in Redux store
       dispatch(toggleFavorite(carId));
       
-      // Show feedback to user
       const car = featuredCars.find(car => car._id === carId);
       if (car && response.data.message.includes('added')) {
-        Alert.alert(
-          'Added to favorites',
-          `${car.brand} ${car.model} was added to your favorites`
-        );
+        toast.success(`${car.brand} ${car.model} was added to your favorites`);
       } else if (car) {
-        Alert.alert(
-          'Removed from favorites',
-          `${car.brand} ${car.model} was removed from your favorites`
-        );
+        toast.info(`${car.brand} ${car.model} was removed from your favorites`);
       }
     } catch (error) {
       console.error('Error toggling favorite:', error);
-      Alert.alert('Error', 'Failed to update favorites. Please try again.');
+      toast.error('Failed to update favorites. Please try again.');
     }
   };
 

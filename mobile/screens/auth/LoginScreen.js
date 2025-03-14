@@ -9,7 +9,6 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
-  Alert,
   Image
 } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
@@ -20,30 +19,28 @@ import { buttonStyles } from '../../styles/components/buttonStyles';
 import { globalStyles } from '../../styles/globalStyles';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { GOOGLE_AUTH_CONFIG } from '../../config/google-auth-config';
+import { useToast } from '../../context/ToastContext';
 
-// Configure WebBrowser for Google Sign-In
 WebBrowser.maybeCompleteAuthSession();
 
 const LoginScreen = ({ navigation }) => {
   const { login, googleSignIn, isLoading } = useAuth();
   const { colors } = useTheme();
+  const toast = useToast();
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loginInProgress, setLoginInProgress] = useState(false);
   
-  // Define textInputStyle here
   const textInputStyle = {
     backgroundColor: colors.surface,
     color: colors.text,
     borderColor: colors.border,
   };
   
-  // Define Google auth request hook using the centralized config
   const [request, response, promptAsync] = Google.useAuthRequest(GOOGLE_AUTH_CONFIG);
   
-  // Handle Google Sign-In response
   useEffect(() => {
     if (response?.type === 'success') {
       setLoginInProgress(true);
@@ -57,16 +54,15 @@ const LoginScreen = ({ navigation }) => {
       await googleSignIn(idToken);
     } catch (error) {
       console.log("Google sign in error:", error);
-      Alert.alert('Google Sign In Failed', error.message || 'Please try again later');
+      toast.error(error.message || 'Google sign in failed. Please try again later');
     } finally {
       setLoginInProgress(false);
     }
   };
   
   const handleLogin = async () => {
-    // Basic validation
     if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+      toast.warning('Please fill in all fields');
       return;
     }
     
@@ -76,22 +72,15 @@ const LoginScreen = ({ navigation }) => {
       
       if (result.success) {
         console.log("Login successful, navigating to Home");
-        // Ensure we navigate to the home screen after login
         navigation.reset({
           index: 0,
           routes: [{ name: 'MainTabs' }]
         });
       } else {
-        Alert.alert(
-          'Login Failed', 
-          result.error || 'Please check your credentials and try again'
-        );
+        toast.error(result.error || 'Please check your credentials and try again');
       }
     } catch (error) {
-      Alert.alert(
-        'Login Failed', 
-        error.message || 'Please check your credentials and try again'
-      );
+      toast.error(error.message || 'Please check your credentials and try again');
     } finally {
       setLoginInProgress(false);
     }
@@ -102,7 +91,7 @@ const LoginScreen = ({ navigation }) => {
       await promptAsync();
     } catch (error) {
       console.log("Google sign in prompt error:", error);
-      Alert.alert('Google Sign In Failed', 'Could not start Google authentication');
+      toast.error('Could not start Google authentication');
     }
   };
   

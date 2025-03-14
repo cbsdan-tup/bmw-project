@@ -4,6 +4,7 @@ export const COMMON_COLORS = {
   error: '#FF4444',
   success: '#00C851',
   warning: '#FFBB33',
+  info: '#2196F3',
   starColor: '#FFD700',
 };
 
@@ -23,11 +24,10 @@ export const FONTS = {
   }
 };
 
-// Define theme palettes
 export const lightTheme = {
   background: '#ffffff',
   text: '#000000',
-  primary: COMMON_COLORS.primaryBMW, // Using BMW blue
+  primary: COMMON_COLORS.primaryBMW, 
   secondary: '#777777',
   accent: '#ff6600',
   surface: '#f5f5f5',
@@ -39,6 +39,15 @@ export const lightTheme = {
   success: COMMON_COLORS.success,
   error: COMMON_COLORS.error,
   warning: COMMON_COLORS.warning,
+  info: COMMON_COLORS.info,
+  // Toast specific colors
+  toast: {
+    success: COMMON_COLORS.success,
+    error: COMMON_COLORS.error,
+    warning: COMMON_COLORS.warning,
+    info: COMMON_COLORS.info,
+    text: '#FFFFFF',
+  },
   // Navigation specific
   tabBarBackground: '#ffffff',
   tabBarActive: COMMON_COLORS.primaryBMW,
@@ -78,6 +87,15 @@ export const darkTheme = {
   success: COMMON_COLORS.success,
   error: COMMON_COLORS.error,
   warning: COMMON_COLORS.warning,
+  info: COMMON_COLORS.info, // Added info color
+  // Toast specific colors
+  toast: {
+    success: COMMON_COLORS.success,
+    error: COMMON_COLORS.error,
+    warning: COMMON_COLORS.warning,
+    info: COMMON_COLORS.info, 
+    text: '#FFFFFF',
+  },
   // Navigation specific
   tabBarBackground: '#1e1e1e',
   tabBarActive: '#3399ff',

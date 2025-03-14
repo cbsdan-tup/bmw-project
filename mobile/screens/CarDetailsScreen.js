@@ -9,7 +9,6 @@ import {
   StyleSheet,
   Dimensions,
   ActivityIndicator,
-  Alert,
   Share,
   Platform,
   FlatList,
@@ -25,6 +24,8 @@ import { CAR_IMAGES } from "../config/constants";
 import Icon from "react-native-vector-icons/FontAwesome";
 import StarRating from "../components/StarRating";
 import api from "../services/api";
+import { useToast } from "../context/ToastContext";
+
 const { width, height } = Dimensions.get("window");
 
 const CarDetailsScreen = () => {
@@ -33,6 +34,7 @@ const CarDetailsScreen = () => {
   const route = useRoute();
   const navigation = useNavigation();
   const dispatch = useDispatch();
+  const toast = useToast();
   const { currentCar, loading, error, favorites } = useSelector(
     (state) => state.cars
   );
@@ -68,19 +70,13 @@ const CarDetailsScreen = () => {
       dispatch(toggleFavorite(currentCar._id));
       
       if (response.data.message.includes('added')) {
-        Alert.alert(
-          'Added to favorites',
-          `${currentCar.brand} ${currentCar.model} was added to your favorites`
-        );
+        toast.success(`${currentCar.brand} ${currentCar.model} was added to your favorites`);
       } else {
-        Alert.alert(
-          'Removed from favorites',
-          `${currentCar.brand} ${currentCar.model} was removed from your favorites`
-        );
+        toast.info(`${currentCar.brand} ${currentCar.model} was removed from your favorites`);
       }
     } catch (error) {
       console.error('Error toggling favorite:', error);
-      Alert.alert('Error', 'Failed to update favorites. Please try again.');
+      toast.error('Failed to update favorites. Please try again.');
     }
   };
 
@@ -99,10 +95,8 @@ const CarDetailsScreen = () => {
 
   const handleBookPress = () => {
     if (!user) {
-      Alert.alert("Login Required", "Please login to book this car", [
-        { text: "Cancel", style: "cancel" },
-        { text: "Login", onPress: () => navigation.navigate("Login") },
-      ]);
+      toast.warning('Please login to book this car');
+      navigation.navigate("Login");
       return;
     }
 

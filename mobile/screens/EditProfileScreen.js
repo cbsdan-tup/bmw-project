@@ -9,7 +9,6 @@ import {
   ActivityIndicator,
   SafeAreaView,
   ScrollView,
-  Alert,
   Platform
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -17,11 +16,13 @@ import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { useNavigation } from '@react-navigation/native';
+import { useToast } from '../context/ToastContext'; // Add Toast import
 
 const EditProfileScreen = () => {
   const { colors } = useTheme();
-  const { user, setUser, token, updateProfile: updateUserProfile, isLoading: authLoading } = useAuth();
+  const { user, updateProfile: updateUserProfile, isLoading: authLoading } = useAuth();
   const navigation = useNavigation();
+  const toast = useToast(); 
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -30,7 +31,6 @@ const EditProfileScreen = () => {
   const [error, setError] = useState(null);
   const [imageSelected, setImageSelected] = useState(false);
   
-  // Initialize form with user data
   useEffect(() => {
     if (user) {
       setFirstName(user.firstName || '');
@@ -38,13 +38,12 @@ const EditProfileScreen = () => {
     }
   }, [user]);
   
-  // Request permission to access the photo library
   useEffect(() => {
     (async () => {
       if (Platform.OS !== 'web') {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
-          Alert.alert('Permission needed', 'Sorry, we need camera roll permissions to change your profile picture!');
+          toast.warning('Permission needed to change your profile picture');
         }
       }
     })();
@@ -65,13 +64,13 @@ const EditProfileScreen = () => {
       }
     } catch (error) {
       console.error('Error picking image:', error);
-      Alert.alert('Error', 'Failed to select image');
+      toast.error('Failed to select image');
     }
   };
   
   const handleSubmit = async () => {
     if (firstName.trim() === '' || lastName.trim() === '') {
-      Alert.alert('Validation Error', 'First name and last name are required');
+      toast.warning('First name and last name are required'); 
       return;
     }
     
@@ -95,7 +94,6 @@ const EditProfileScreen = () => {
         });
       }
       
-      // Use updateProfile from AuthContext
       const result = await updateUserProfile({
         userId: user._id,
         formData,
@@ -104,7 +102,7 @@ const EditProfileScreen = () => {
       
       if (result.success) {
         navigation.goBack();
-        Alert.alert('Success', 'Profile updated successfully!');
+        toast.success('Profile updated successfully!');
       } else {
         setError(result.error || 'Failed to update profile. Please try again.');
       }
@@ -116,7 +114,6 @@ const EditProfileScreen = () => {
     }
   };
   
-  // Use combined loading state for button
   const showSpinner = isLoading || authLoading;
 
   return (
