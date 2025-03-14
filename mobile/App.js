@@ -1,6 +1,6 @@
 import 'react-native-gesture-handler';
 import React, { useState, useEffect } from 'react';
-import { StatusBar } from 'react-native';
+import { StatusBar, Platform } from 'react-native'; 
 import { NavigationContainer } from '@react-navigation/native';
 import { ActivityIndicator, View, Text, TouchableOpacity } from 'react-native';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
@@ -12,6 +12,8 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import IntroScreen from './components/IntroScreen';
+import { Provider } from 'react-redux';
+import { store } from './redux/store';
 
 // Error boundary for navigation container
 const ErrorBoundary = ({ children }) => {
@@ -51,10 +53,15 @@ const ErrorBoundary = ({ children }) => {
 // Main App Content with Navigation
 const AppNavigator = () => {
   const { colors, isDarkMode, isLoading: themeLoading } = useTheme();
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, user } = useAuth(); // Add user here for debugging
   const [showIntro, setShowIntro] = useState(true);
   const [isIntroLoading, setIsIntroLoading] = useState(true);
   
+  // Debugging the auth state
+  useEffect(() => {
+    console.log("Auth state changed:", { isAuthenticated, user });
+  }, [isAuthenticated, user]);
+
   useEffect(() => {
     // Check if intro has been viewed before
     const checkIntroStatus = async () => {
@@ -115,6 +122,24 @@ const AppNavigator = () => {
             border: colors.border,
             notification: colors.accent,
           },
+          fonts: {
+            regular: {
+              fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+              fontWeight: '400',
+            },
+            medium: {
+              fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+              fontWeight: '500',
+            },
+            light: {
+              fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+              fontWeight: '300',
+            },
+            thin: {
+              fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+              fontWeight: '100',
+            },
+          }
         }}
       >
         {isAuthenticated ? <BottomTabNavigator /> : <AuthNavigator />}
@@ -128,11 +153,13 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider initialMetrics={initialWindowMetrics}>
-        <ThemeProvider>
-          <AuthProvider>
-            <AppNavigator />
-          </AuthProvider>
-        </ThemeProvider>
+        <Provider store={store}>
+          <ThemeProvider>
+            <AuthProvider>
+              <AppNavigator />
+            </AuthProvider>
+          </ThemeProvider>
+        </Provider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

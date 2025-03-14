@@ -72,8 +72,21 @@ const LoginScreen = ({ navigation }) => {
     
     try {
       setLoginInProgress(true);
-      await login(email, password);
-      // Navigation will be handled in App.js based on auth state
+      const result = await login(email, password);
+      
+      if (result.success) {
+        console.log("Login successful, navigating to Home");
+        // Ensure we navigate to the home screen after login
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Home' }]
+        });
+      } else {
+        Alert.alert(
+          'Login Failed', 
+          result.error || 'Please check your credentials and try again'
+        );
+      }
     } catch (error) {
       Alert.alert(
         'Login Failed', 

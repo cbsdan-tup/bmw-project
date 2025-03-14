@@ -7,13 +7,11 @@ import {
   signInWithCredential 
 } from "firebase/auth";
 import { auth, getAuthToken } from '../config/firebase-config';
-
-// Base URL for API calls
-const BASE_URL = 'http://192.168.68.202:4000/api/v1';
+import baseURL from './baseUrl';
 
 // Create axios instance with base URL
 const api = axios.create({
-  baseURL: BASE_URL,
+  baseURL: baseURL,
   headers: {
     'Content-Type': 'application/json',
   },

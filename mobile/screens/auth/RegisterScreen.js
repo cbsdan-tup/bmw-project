@@ -33,7 +33,6 @@ const RegisterScreen = ({ navigation }) => {
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [avatar, setAvatar] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
   const [registrationInProgress, setRegistrationInProgress] = useState(false);
@@ -102,13 +101,8 @@ const RegisterScreen = ({ navigation }) => {
   
   const handleRegister = async () => {
     // Basic validation
-    if (!firstName || !lastName || !email || !password || !confirmPassword) {
+    if (!firstName || !lastName || !email || !password) {
       Alert.alert('Error', 'Please fill in all required fields');
-      return;
-    }
-    
-    if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
       return;
     }
     
@@ -174,14 +168,7 @@ const RegisterScreen = ({ navigation }) => {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
-          <TouchableOpacity 
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}
-          >
-            <Icon name="arrow-left" size={24} color={colors.text} />
-          </TouchableOpacity>
           <Text style={[styles.title, { color: colors.text }]}>Create Account</Text>
-          <View style={styles.placeholder} />
         </View>
         
         <TouchableOpacity style={styles.avatarContainer} onPress={handlePickAvatar}>
@@ -202,30 +189,37 @@ const RegisterScreen = ({ navigation }) => {
         </Text>
         
         <View style={styles.inputContainer}>
-          {/* First Name */}
-          <Text style={[styles.label, { color: colors.secondary }]}>First Name</Text>
-          <View style={[styles.inputWrapper, textInputStyle]}>
-            <Icon name="account-outline" size={20} color={colors.secondary} style={styles.inputIcon} />
-            <TextInput
-              style={[styles.input, { color: colors.text }]}
-              placeholder="Enter your first name"
-              placeholderTextColor={colors.secondary}
-              value={firstName}
-              onChangeText={setFirstName}
-            />
-          </View>
-          
-          {/* Last Name */}
-          <Text style={[styles.label, { color: colors.secondary, marginTop: 16 }]}>Last Name</Text>
-          <View style={[styles.inputWrapper, textInputStyle]}>
-            <Icon name="account-outline" size={20} color={colors.secondary} style={styles.inputIcon} />
-            <TextInput
-              style={[styles.input, { color: colors.text }]}
-              placeholder="Enter your last name"
-              placeholderTextColor={colors.secondary}
-              value={lastName}
-              onChangeText={setLastName}
-            />
+          {/* First Name and Last Name in one row */}
+          <View style={styles.nameRow}>
+            {/* First Name */}
+            <View style={styles.nameInputGroup}>
+              <Text style={[styles.label, { color: colors.secondary }]}>First Name</Text>
+              <View style={[styles.inputWrapper, textInputStyle]}>
+                <Icon name="account-outline" size={20} color={colors.secondary} style={styles.inputIcon} />
+                <TextInput
+                  style={[styles.input, { color: colors.text }]}
+                  placeholder="First name"
+                  placeholderTextColor={colors.secondary}
+                  value={firstName}
+                  onChangeText={setFirstName}
+                />
+              </View>
+            </View>
+            
+            {/* Last Name */}
+            <View style={[styles.nameInputGroup, { marginLeft: 10 }]}>
+              <Text style={[styles.label, { color: colors.secondary }]}>Last Name</Text>
+              <View style={[styles.inputWrapper, textInputStyle]}>
+                <Icon name="account-outline" size={20} color={colors.secondary} style={styles.inputIcon} />
+                <TextInput
+                  style={[styles.input, { color: colors.text }]}
+                  placeholder="Last name"
+                  placeholderTextColor={colors.secondary}
+                  value={lastName}
+                  onChangeText={setLastName}
+                />
+              </View>
+            </View>
           </View>
           
           {/* Email */}
@@ -262,20 +256,6 @@ const RegisterScreen = ({ navigation }) => {
                 color={colors.secondary}
               />
             </TouchableOpacity>
-          </View>
-          
-          {/* Confirm Password */}
-          <Text style={[styles.label, { color: colors.secondary, marginTop: 16 }]}>Confirm Password</Text>
-          <View style={[styles.inputWrapper, textInputStyle]}>
-            <Icon name="lock-outline" size={20} color={colors.secondary} style={styles.inputIcon} />
-            <TextInput
-              style={[styles.input, { color: colors.text }]}
-              placeholder="Confirm your password"
-              placeholderTextColor={colors.secondary}
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry={!showPassword}
-            />
           </View>
           
           <TouchableOpacity
@@ -335,7 +315,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     marginBottom: 24,
   },
   backButton: {
@@ -377,6 +357,14 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     width: '100%',
+  },
+  // New styles for the name row layout
+  nameRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  nameInputGroup: {
+    flex: 1,
   },
   inputWrapper: {
     flexDirection: 'row',
