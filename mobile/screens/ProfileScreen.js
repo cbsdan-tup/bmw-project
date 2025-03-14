@@ -12,6 +12,7 @@ const ProfileScreen = () => {
   
   useEffect(() => {
     if (user) {
+      console.log("user: ", user);
       setUserData(user);
     }
   }, [user]);
@@ -89,9 +90,9 @@ const ProfileScreen = () => {
             marginBottom: 16,
             overflow: 'hidden'
           }}>
-            {userData?.profileImage ? (
+            {userData?.avatar?.url ? (
               <Image 
-                source={{ uri: userData.profileImage }} 
+                source={{ uri: userData.avatar.url }} 
                 style={{ width: '100%', height: '100%' }} 
                 resizeMode="cover"
               />

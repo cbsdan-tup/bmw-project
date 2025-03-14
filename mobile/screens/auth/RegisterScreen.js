@@ -69,23 +69,34 @@ const RegisterScreen = ({ navigation }) => {
   };
   
   const handlePickAvatar = async () => {
-    // Request permissions
-    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
-    if (permissionResult.granted === false) {
-      Alert.alert('Permission Required', 'You need to allow access to your photos to upload an avatar.');
-      return;
-    }
-    
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-    
-    if (!result.canceled && result.assets && result.assets[0].uri) {
-      setAvatar(result.assets[0]);
+    try {
+      // Request permissions
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (permissionResult.granted === false) {
+        Alert.alert('Permission Required', 'You need to allow access to your photos to upload an avatar.');
+        return;
+      }
+      
+      // Update to use the non-deprecated MediaType property
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaType ? 
+          ImagePicker.MediaType.Images : 
+          ImagePicker.MediaTypeOptions.Images, // Fallback for backward compatibility
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+      
+      if (!result.canceled) {
+        if (result.assets && result.assets.length > 0) {
+          setAvatar(result.assets[0].uri);
+          console.log("Image selected:", result.assets[0].uri);
+        }
+      }
+    } catch (error) {
+      console.error("Error picking image:", error);
+      Alert.alert('Error', 'Failed to pick an image. Please try again.');
     }
   };
   
@@ -108,14 +119,21 @@ const RegisterScreen = ({ navigation }) => {
     
     try {
       setRegistrationInProgress(true);
-      // Prepare user data for registration
+      
+      // Prepare user data for registration - ensure avatar is properly formatted
       const userData = {
         firstName,
         lastName,
         email,
         password,
-        avatar: avatar 
+        // Make sure avatar is properly defined to prevent the split error
+        avatar: avatar || null // Provide a default value to prevent undefined errors
       };
+      
+      console.log("Submitting registration with data:", { 
+        ...userData, 
+        password: '******' // Don't log actual password
+      });
       
       const result = await register(userData);
       
@@ -127,6 +145,7 @@ const RegisterScreen = ({ navigation }) => {
         );
       }
     } catch (error) {
+      console.log("Registration error details:", error);
       Alert.alert(
         'Registration Failed', 
         error.message || 'Please check your information and try again'

@@ -95,14 +95,28 @@ export const authService = {
       
       // Add avatar if present
       if (avatar) {
-        const uriParts = avatar.uri.split('.');
-        const fileType = uriParts[uriParts.length - 1];
-        
-        formData.append("avatar", {
-          uri: avatar.uri,
-          name: `avatar-${user.uid}.${fileType}`,
-          type: `image/${fileType}`,
-        });
+        // Check if avatar is a string (URI) or an object
+        if (typeof avatar === 'string') {
+          // Handle when avatar is already a URI string
+          const uriParts = avatar.split('.');
+          const fileType = uriParts[uriParts.length - 1];
+          
+          formData.append("avatar", {
+            uri: avatar,
+            name: `avatar-${user.uid}.${fileType}`,
+            type: `image/${fileType}`,
+          });
+        } else if (avatar.uri) {
+          // Handle when avatar is an object with uri property (old format)
+          const uriParts = avatar.uri.split('.');
+          const fileType = uriParts[uriParts.length - 1];
+          
+          formData.append("avatar", {
+            uri: avatar.uri,
+            name: `avatar-${user.uid}.${fileType}`,
+            type: `image/${fileType}`,
+          });
+        }
       }
       
       const config = {
