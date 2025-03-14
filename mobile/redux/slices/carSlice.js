@@ -8,7 +8,18 @@ export const fetchFeaturedCars = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await axios.get(`${API_URL}/Cars/featured`);
-      return response.data.cars;
+      
+      // Process each car's images
+      const cars = response.data.cars.map(car => {
+        if (car.images && Array.isArray(car.images)) {
+          car.images = car.images.map(image => 
+            typeof image === 'string' ? image : image.url
+          );
+        }
+        return car;
+      });
+      
+      return cars;
     } catch (error) {
       return rejectWithValue(error.response?.data || 'Failed to fetch featured cars');
     }
@@ -35,7 +46,18 @@ export const fetchCarByID = createAsyncThunk(
   async (carId, { rejectWithValue }) => {
     try {
       const response = await axios.get(`${API_URL}/Cars/${carId}`);
-      return response.data.car;
+      
+      // Transform the car data to ensure images are in the expected format
+      const car = response.data.car;
+      
+      // Process images to ensure consistent format (always use url string)
+      if (car && car.images && Array.isArray(car.images)) {
+        car.images = car.images.map(image => 
+          typeof image === 'string' ? image : image.url
+        );
+      }
+      
+      return car;
     } catch (error) {
       return rejectWithValue(error.response?.data || 'Failed to fetch car details');
     }

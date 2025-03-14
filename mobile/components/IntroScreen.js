@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -12,10 +12,18 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import { FontAwesome, MaterialIcons } from '@expo/vector-icons';
+import { Video } from 'expo-av';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const { width, height } = Dimensions.get('window');
 
 const slides = [
+  {
+    id: '0',
+    title: 'Welcome to\nBorrow My Wheels',
+    subtitle: 'Find your perfect BMW rental',
+    isWelcomeSlide: true, 
+  },
   {
     id: '1',
     title: 'Create a profile',
@@ -66,6 +74,7 @@ const IntroScreen = ({ onComplete }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = useRef();
   const scrollX = useRef(new Animated.Value(0)).current;
+  const videoRef = useRef(null);
 
   const viewabilityConfig = useRef({
     itemVisiblePercentThreshold: 50
@@ -88,6 +97,60 @@ const IntroScreen = ({ onComplete }) => {
   };
 
   const renderItem = ({ item, index }) => {
+    if (item.isWelcomeSlide) {
+      return (
+        <View style={styles.slide}>
+          <Video
+            ref={videoRef}
+            source={require('../assets/videos/car-intro.mp4')} 
+       o    rate={1.0}
+            volume={0.0}
+            isMuted={true}
+            resfaode="cover"
+            shouldPlay
+            isLooping
+            style={styles.backgroundVideo}
+          />
+          
+          <LinearGradient
+            colors={['rgba(0,0,0,0.3)', 'rgba(0,0,0,0.7)']}
+            style={styles.videoOverlay}
+          />
+          
+          <View style={styles.welcomeTextContainer}>
+            <Image 
+              source={require('../assets/bmw-logo.png')}
+              style={styles.welcomeLogo}
+              resizeMode="contain"
+            />
+            
+            <Animated.Text style={styles.welcomeTitle}>
+              {item.title}
+            </Animated.Text>
+            
+            <View style={styles.welcomeTaglineContainer}>
+              <Text style={styles.welcomeSubtitle}>{item.subtitle}</Text>
+            </View>
+            
+            <View style={styles.welcomeFeatures}>
+              <View style={styles.featureItem}>
+                <FontAwesome name="car" size={22} color="#fff" style={styles.featureIcon} />
+                <Text style={styles.featureText}>Approved Car Collection</Text>
+              </View>
+              <View style={styles.featureItem}>
+                <FontAwesome name="map-marker" size={22} color="#fff" style={styles.featureIcon} />
+                <Text style={styles.featureText}>Convenient Locations</Text>
+              </View>
+              <View style={styles.featureItem}>
+                <FontAwesome name="shield" size={22} color="#fff" style={styles.featureIcon} />
+                <Text style={styles.featureText}>Safe & Secure Rentals</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      );
+    }
+    
     return (
       <View style={[styles.slide, { backgroundColor: colors.background }]}>
         <View style={styles.iconContainer}>
@@ -327,6 +390,79 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  backgroundVideo: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: width,
+    height: height,
+  },
+  videoOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: width,
+    height: height,
+    zIndex: 1,
+  },
+  welcomeTextContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2,
+    padding: 20,
+    width: '100%',
+  },
+  welcomeLogo: {
+    width: 100,
+    height: 100,
+    marginBottom: 30,
+  },
+  welcomeTitle: {
+    fontSize: 40,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 20,
+    textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 1, height: 2 },
+    textShadowRadius: 5,
+    letterSpacing: 1,
+  },
+  welcomeTaglineContainer: {
+    backgroundColor: 'rgba(0, 102, 204, 0.7)',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 25,
+    marginBottom: 40,
+  },
+  welcomeSubtitle: {
+    fontSize: 18,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    fontWeight: '600',
+  },
+  welcomeFeatures: {
+    width: '90%',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 15,
+    padding: 20,
+  },
+  featureItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  featureIcon: {
+    marginRight: 15,
+    width: 24,
+    textAlign: 'center',
+  },
+  featureText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '500',
   },
 });
 

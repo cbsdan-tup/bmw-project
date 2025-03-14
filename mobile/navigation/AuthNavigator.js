@@ -36,7 +36,7 @@ const AuthNavigator = () => {
       })}
     >
       <Stack.Screen 
-        name="Home" 
+        name="MainTabs" // Changed from "Home" to "MainTabs" to avoid naming conflict
         component={BottomTabNavigator} 
         options={{ headerShown: false }} 
       />

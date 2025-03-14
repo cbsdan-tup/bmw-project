@@ -140,9 +140,13 @@ const CarDetailsScreen = () => {
         <View style={styles.imageContainer}>
           {currentCar.images && currentCar.images.length > 0 ? (
             <Image 
-              source={{ uri: currentCar.images[0] }}
+              // Fix the image source format - check if it's a string or an object with url property
+              source={{ uri: typeof currentCar.images[0] === 'string' 
+                ? currentCar.images[0] 
+                : currentCar.images[0]?.url || null }}
               style={styles.carImage}
               resizeMode="cover"
+              defaultSource={CAR_IMAGES.placeholder} // Add default source as fallback
             />
           ) : (
             <Image 

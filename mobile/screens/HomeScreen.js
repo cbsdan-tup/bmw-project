@@ -113,11 +113,17 @@ const HomeScreen = () => {
         
         <Image 
           source={car.images && car.images.length > 0 
-            ? { uri: car.images[0] } 
+            ? { 
+                uri: typeof car.images[0] === 'string' 
+                  ? car.images[0] 
+                  : car.images[0]?.url || null 
+              } 
             : CAR_IMAGES.placeholder
           }
           style={styles.carImage}
           resizeMode="cover"
+          defaultSource={CAR_IMAGES.placeholder}
+          onError={(e) => console.log("Image load error:", e.nativeEvent.error)}
         />
         
         <Text style={[globalStyles.subtitle, { color: colors.text, marginBottom: 4 }]}>
