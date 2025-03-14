@@ -10,6 +10,8 @@ import AuthNavigator from './navigation/AuthNavigator';
 import { globalStyles } from './styles/globalStyles';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import IntroScreen from './components/IntroScreen';
 
 // Error boundary for navigation container
 const ErrorBoundary = ({ children }) => {
@@ -50,14 +52,49 @@ const ErrorBoundary = ({ children }) => {
 const AppNavigator = () => {
   const { colors, isDarkMode, isLoading: themeLoading } = useTheme();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const [showIntro, setShowIntro] = useState(true);
+  const [isIntroLoading, setIsIntroLoading] = useState(true);
   
-  // Show loading while checking auth status or theme
-  if (authLoading || themeLoading) {
+  useEffect(() => {
+    // Check if intro has been viewed before
+    const checkIntroStatus = async () => {
+      try {
+        const hasViewedIntro = await AsyncStorage.getItem('hasViewedIntro');
+        if (hasViewedIntro === 'true') {
+          setShowIntro(false);
+        }
+        setIsIntroLoading(false);
+      } catch (error) {
+        console.log('Error checking intro status:', error);
+        setShowIntro(false);
+        setIsIntroLoading(false);
+      }
+    };
+    
+    checkIntroStatus();
+  }, []);
+  
+  const handleIntroComplete = async () => {
+    try {
+      await AsyncStorage.setItem('hasViewedIntro', 'true');
+      setShowIntro(false);
+    } catch (error) {
+      console.log('Error saving intro status:', error);
+      setShowIntro(false);
+    }
+  };
+
+  // Show loading while checking auth status, theme or intro status
+  if (authLoading || themeLoading || isIntroLoading) {
     return (
       <View style={[globalStyles.container, { backgroundColor: isDarkMode ? '#121212' : '#ffffff' }]}>
         <ActivityIndicator size="large" color={isDarkMode ? '#3399ff' : '#0066cc'} />
       </View>
     );
+  }
+
+  if (showIntro) {
+    return <IntroScreen onComplete={handleIntroComplete} />;
   }
 
   return (
