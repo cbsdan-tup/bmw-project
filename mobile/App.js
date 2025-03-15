@@ -16,6 +16,8 @@ import { Provider } from 'react-redux';
 import { store } from './redux/store';
 import { ToastProvider } from './context/ToastContext'; 
 import { LogBox } from 'react-native';
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from './config/firebase-config';
 
 LogBox.ignoreLogs(['Warning: ...']);
 
@@ -150,6 +152,14 @@ const AppNavigator = () => {
 };
 
 export default function App() {
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      console.log("Firebase Auth State Changed:", user ? user.email : "No user");
+    });
+    
+    return () => unsubscribe();
+  }, []);
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider initialMetrics={initialWindowMetrics}>

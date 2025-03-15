@@ -20,15 +20,15 @@ import { useAuth } from '../context/AuthContext';
 import { 
   fetchFeaturedCars, 
   fetchFilteredCars,
+  fetchUserFavorites,
   toggleFavorite, 
   setFilterParams,
   resetFilters
 } from '../redux/slices/carSlice';
-import { CAR_IMAGES, COMMON_COLORS } from '../config/constants';
+import { CAR_IMAGES } from '../config/constants';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import StarRating from '../components/StarRating';
 import FilterModal from '../components/FilterModal';
-import api from '../services/api';
 import { useToast } from '../context/ToastContext'; 
 
 const HomeScreen = () => {
@@ -47,6 +47,7 @@ const HomeScreen = () => {
 
   const loadFeaturedCars = () => {
     dispatch(fetchFeaturedCars());
+    if (user) dispatch(fetchUserFavorites(user?._id));
   };
 
   const onRefresh = () => {
@@ -60,31 +61,31 @@ const HomeScreen = () => {
     navigation.navigate('CarDetails', { carId });
   };
 
-  const handleFavoritePress = async (carId) => {
+  const handleFavoritePress = (carId) => {
     if (!user) {
       navigation.navigate('Login');
       return;
     }
     
-    try {
-      const response = await api.post('/favorite-car', {
-        user: user._id,
-        car: carId
-      });
-      
-      // Toggle favorite in Redux store
-      dispatch(toggleFavorite(carId));
-      
-      const car = featuredCars.find(car => car._id === carId);
-      if (car && response.data.message.includes('added')) {
+    // Find the car to pass full car details
+    const car = featuredCars.find(car => car._id === carId);
+    
+    dispatch(toggleFavorite({ 
+      carId, 
+      userId: user._id, 
+      carDetails: car
+    }))
+    .unwrap()
+    .then((result) => {
+      if (result.isAdded) {
         toast.success(`${car.brand} ${car.model} was added to your favorites`);
-      } else if (car) {
+      } else {
         toast.info(`${car.brand} ${car.model} was removed from your favorites`);
       }
-    } catch (error) {
-      console.error('Error toggling favorite:', error);
-      toast.error('Failed to update favorites. Please try again.');
-    }
+    })
+    .catch((error) => {
+      toast.error(error || 'Failed to update favorites. Please try again.');
+    });
   };
 
   const handleFilterApply = (newFilters) => {

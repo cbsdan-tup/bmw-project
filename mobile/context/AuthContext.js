@@ -31,6 +31,10 @@ export const AuthProvider = ({ children }) => {
       
       if (!tokenExpiration || tokenExpiration < fiveMinutesFromNow) {
         console.log('Token expired or about to expire, refreshing...');
+
+        console.log('User state before refresh:', user?.email || 'null');
+        console.log('Auth state:', auth?.currentUser?.email || 'null');
+
         const newToken = await refreshFirebaseToken();
         
         if (newToken) {
@@ -45,6 +49,13 @@ export const AuthProvider = ({ children }) => {
           axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
           
           return newToken;
+        } else {
+          console.log('Could not refresh token, and token is expired.');
+          if (!token || (tokenExpiration && tokenExpiration < now)) {
+            console.log('Logging user out due to expired token.');
+            logout();
+            return null;
+          }
         }
       }
       
@@ -142,10 +153,9 @@ export const AuthProvider = ({ children }) => {
         await AsyncStorage.setItem('user', JSON.stringify(userData));
         await AsyncStorage.setItem('tokenExpiration', expirationTime.toString());
         
-        // Set the default Authorization header for all requests
         axios.defaults.headers.common['Authorization'] = `Bearer ${idToken}`;
         
-        return { success: true };
+        return { success: true, user: userData };
       } else {
         throw new Error(response.data.message || 'User info not found');
       }

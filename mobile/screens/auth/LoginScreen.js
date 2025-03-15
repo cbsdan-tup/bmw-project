@@ -69,9 +69,9 @@ const LoginScreen = ({ navigation }) => {
     try {
       setLoginInProgress(true);
       const result = await login(email, password);
-      
+      const user = result?.user;
       if (result.success) {
-        console.log("Login successful, navigating to Home");
+        toast.success(`Welcome back ${user?.firstName}!`);
         navigation.reset({
           index: 0,
           routes: [{ name: 'MainTabs' }]

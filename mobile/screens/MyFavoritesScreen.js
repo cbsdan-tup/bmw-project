@@ -1,275 +1,331 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   FlatList,
-  Image,
   TouchableOpacity,
-  ActivityIndicator,
-  Dimensions,
-  SafeAreaView,
+  Image,
+  StyleSheet,
   Platform,
-} from "react-native";
-import { useTheme } from "../context/ThemeContext";
-import { useAuth } from "../context/AuthContext";
-import api from "../services/api";
-import Icon from "react-native-vector-icons/FontAwesome";
-import { useNavigation } from "@react-navigation/native";
-import StarRating from "../components/StarRating";
-import { useToast } from "../context/ToastContext";
+  ActivityIndicator,
+  SafeAreaView,
+  RefreshControl,
+  Alert,
+  Dimensions
+} from 'react-native';
+import { useDispatch, useSelector } from 'react-redux';
+import { useNavigation } from '@react-navigation/native';
+import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
+import { fetchUserFavorites, deleteFavoriteCar } from '../redux/slices/carSlice';
+import { CAR_IMAGES } from '../config/constants';
+import Icon from 'react-native-vector-icons/FontAwesome';
+import StarRating from '../components/StarRating';
+import { useToast } from '../context/ToastContext';
 
 const { width } = Dimensions.get("window");
 const cardWidth = width - 32;
 
 const MyFavoritesScreen = () => {
   const { colors } = useTheme();
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
+  const dispatch = useDispatch();
   const navigation = useNavigation();
   const toast = useToast();
-  const [favoriteCars, setFavoriteCars] = useState([]);
+  
+  const { favoriteCarsData, loading: reduxLoading, error: reduxError } = useSelector(state => state.cars);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const fetchFavoriteCars = async () => {
-    try {
-      setLoading(true);
+  useEffect(() => {
+    if (isAuthenticated && user && user._id) {
+      loadFavorites();
+    } else if (!isAuthenticated) {
+      setLoading(false);
+    }
+  }, [isAuthenticated, user]);
 
-      if (!user) {
-        setError("You need to be logged in to view favorites");
+  const loadFavorites = () => {
+    if (!user || !user._id) {
+      setError("User not authenticated");
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    
+    dispatch(fetchUserFavorites(user._id))
+      .unwrap()
+      .then(() => {
         setLoading(false);
-        return;
-      }
+      })
+      .catch((err) => {
+        console.error("Error loading favorites:", err);
+        setError(err?.message || "Failed to load your favorite cars");
+        setLoading(false);
+      });
+  };
 
-      const response = await api.get(`/favorite-cars/${user._id}`);
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadFavorites();
+    setRefreshing(false);
+  };
 
-      setFavoriteCars(response.data.favoriteCars || []);
-      setError(null);
-    } catch (err) {
-      console.error("Error fetching favorite cars:", err);
-
-      if (err.response && err.response.status === 401) {
-        setError("Session expired. Please log in again.");
-      } else {
-        setError("Failed to load favorite cars");
-      }
-    } finally {
-      setLoading(false);
+  const handleDeleteFavorite = (favorite) => {
+    if (!favorite || !favorite._id) {
+      toast.error("Cannot remove this item. Invalid favorite data.");
+      return;
     }
+    
+    Alert.alert(
+      'Remove from Favorites',
+      `Are you sure you want to remove ${favorite.car?.brand || ''} ${favorite.car?.model || ''} from your favorites?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: () => {
+            dispatch(deleteFavoriteCar({
+              favoriteId: favorite._id,
+              carDetails: favorite
+            }))
+            .unwrap()
+            .then(() => {
+              toast.success(`${favorite.car?.brand || ''} ${favorite.car?.model || ''} was removed from favorites`);
+            })
+            .catch((err) => {
+              toast.error(err || 'Failed to remove from favorites');
+            });
+          }
+        }
+      ]
+    );
   };
 
-  useEffect(() => {
-    fetchFavoriteCars();
-  }, []);
-
-  useEffect(() => {
-    const unsubscribe = navigation.addListener("focus", () => {
-      fetchFavoriteCars();
-    });
-    return unsubscribe;
-  }, [navigation]);
-
-  const removeFavorite = async (favoriteId) => {
-    removeFavoriteConfirmed(favoriteId);
+  const handleCarPress = (carId) => {
+    if (!carId) return;
+    navigation.navigate('Home', { screen: "CarDetails", params: {carId: carId} });
   };
 
-  const removeFavoriteConfirmed = async (favoriteId) => {
-    try {
-      setLoading(true);
-      await api.delete(`/favorite-car/${favoriteId}`);
-      setFavoriteCars((prevFavorites) =>
-        prevFavorites.filter((fav) => fav._id !== favoriteId)
-      );
-      toast.success("Car removed from favorites");
-    } catch (err) {
-      console.error("Error removing favorite:", err);
-      toast.error("Failed to remove car from favorites");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const navigateToCarDetails = (carId) => {
-    navigation.navigate("Home", {
-      screen: "CarDetails",
-      params: { carId: carId },
-    });
-  };
-
-  const renderCarItem = ({ item }) => {
-    const car = item.car;
+  // Render a single favorite car item
+  const renderFavoriteItem = ({ item }) => {
+    if (!item || !item.car) return null;
+    
     return (
       <View style={[styles.cardContainer, { backgroundColor: colors.card }]}>
         <TouchableOpacity
-          style={styles.cardImageContainer}
-          onPress={() => navigateToCarDetails(car._id)}
           activeOpacity={0.9}
+          onPress={() => handleCarPress(item.car._id)}
         >
-          <Image
-            source={{ uri: car.images[0]?.url }}
-            style={styles.cardImage}
-            resizeMode="cover"
-          />
-          <View style={styles.imageOverlay}>
-            <View style={styles.carBadge}>
-              <Text style={styles.carBadgeText}>{car.year || "New"}</Text>
-            </View>
-          </View>
-        </TouchableOpacity>
-
-        <View style={styles.cardContent}>
-          <View style={styles.cardHeader}>
-            <View>
-              <Text style={[styles.cardTitle, { color: colors.text }]}>
-                {car.brand} {car.model}
-              </Text>
-
-              <View style={styles.ratingContainer}>
-                <StarRating rating={car.averageRating || 0} size={12} />
-                <Text style={[styles.reviewCount, { color: colors.secondary }]}>
-                  ({car.reviewCount || 0} reviews)
+          <View style={styles.cardImageContainer}>
+            <Image
+              source={
+                item.car.images && item.car.images.length > 0
+                  ? { uri: item.car.images[0]?.url }
+                  : CAR_IMAGES.placeholder
+              }
+              style={styles.cardImage}
+              resizeMode="cover"
+            />
+            <View style={styles.imageOverlay}>
+              <View style={styles.carBadge}>
+                <Text style={styles.carBadgeText}>
+                  {item.car.vehicleType || "Car"}
                 </Text>
               </View>
             </View>
-
-            <TouchableOpacity
-              style={[styles.favoriteButton, { backgroundColor: colors.error }]}
-              onPress={() => removeFavorite(item._id)}
-            >
-              <Icon name="trash" size={16} color="#FFFFFF" />
-            </TouchableOpacity>
           </View>
-
-          <View style={styles.divider} />
-
-          <View style={styles.specRow}>
-            <View style={styles.specItem}>
-              <Icon
-                name="tachometer"
-                size={14}
-                color={colors.primary}
-                style={styles.specIcon}
-              />
-              <Text style={[styles.specText, { color: colors.secondary }]}>
-                {car.mileage || "N/A"} Km/L
+          
+          <View style={styles.cardContent}>
+            <View style={styles.cardHeader}>
+              <Text style={[styles.cardTitle, { color: colors.text }]}>
+                {item.car.brand} {item.car.model}
               </Text>
-            </View>
-
-            <View style={styles.specItem}>
-              <Icon
-                name="gear"
-                size={14}
-                color={colors.primary}
-                style={styles.specIcon}
-              />
-              <Text style={[styles.specText, { color: colors.secondary }]}>
-                {car.transmission || "Auto"}
-              </Text>
-            </View>
-
-            <View style={styles.specItem}>
-              <Icon
-                name="users"
-                size={14}
-                color={colors.primary}
-                style={styles.specIcon}
-              />
-              <Text style={[styles.specText, { color: colors.secondary }]}>
-                {car.seatCapacity || "5"} Seats
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.footer}>
-            <View style={styles.locationContainer}>
-              <Icon name="map-marker" size={14} color={colors.secondary} />
-              <Text
-                style={[styles.locationText, { color: colors.secondary }]}
-                numberOfLines={1}
+              <TouchableOpacity 
+                onPress={() => handleDeleteFavorite(item)}
+                style={[styles.favoriteButton, { backgroundColor: colors.error + '20' }]}
               >
-                {car.pickUpLocation}
+                <Icon name="trash" size={18} color={colors.error} />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.ratingContainer}>
+              <StarRating 
+                rating={item.car.averageRating || 0} 
+                size={14} 
+              />
+              <Text style={[styles.reviewCount, { color: colors.secondary }]}>
+                ({item.car.reviewCount || 0})
               </Text>
             </View>
-
-            <View style={styles.priceContainer}>
-              <Text style={[styles.priceLabel, { color: colors.secondary }]}>
-                Daily Rate
-              </Text>
-              <Text style={[styles.priceValue, { color: colors.primary }]}>
-                ${car.pricePerDay}/day
-              </Text>
+            
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+            
+            <View style={styles.specRow}>
+              <View style={styles.specItem}>
+                <Icon 
+                  name="users" 
+                  size={14} 
+                  color={colors.secondary}
+                  style={styles.specIcon}
+                />
+                <Text style={[styles.specText, { color: colors.secondary }]}>
+                  {item.car.seatCapacity || 5} Seats
+                </Text>
+              </View>
+              
+              <View style={styles.specItem}>
+                <Icon 
+                  name="cog" 
+                  size={14} 
+                  color={colors.secondary}
+                  style={styles.specIcon}
+                />
+                <Text style={[styles.specText, { color: colors.secondary }]}>
+                  {item.car.transmission || "Auto"}
+                </Text>
+              </View>
+            </View>
+            
+            <View style={styles.specRow}>
+              <View style={styles.specItem}>
+                <Icon 
+                  name="tachometer" 
+                  size={14} 
+                  color={colors.secondary}
+                  style={styles.specIcon}
+                />
+                <Text style={[styles.specText, { color: colors.secondary }]}>
+                  {item.car.mileage || "N/A"} km/L
+                </Text>
+              </View>
+              
+              <View style={styles.specItem}>
+                <Icon 
+                  name="calendar" 
+                  size={14} 
+                  color={colors.secondary}
+                  style={styles.specIcon}
+                />
+                <Text style={[styles.specText, { color: colors.secondary }]}>
+                  {item.car.year || "N/A"}
+                </Text>
+              </View>
+            </View>
+            
+            <View style={styles.footer}>
+              <View style={styles.locationContainer}>
+                <Icon 
+                  name="map-marker" 
+                  size={14} 
+                  color={colors.secondary} 
+                />
+                <Text 
+                  style={[styles.locationText, { color: colors.secondary }]}
+                  numberOfLines={1}
+                >
+                  {item.car.pickUpLocation || "Location unavailable"}
+                </Text>
+              </View>
+              
+              <View style={styles.priceContainer}>
+                <Text style={[styles.priceLabel, { color: colors.secondary }]}>Price</Text>
+                <Text style={[styles.priceValue, { color: colors.primary }]}>
+                  ₱{item.car.pricePerDay || 0}/day
+                </Text>
+              </View>
             </View>
           </View>
-        </View>
+        </TouchableOpacity>
       </View>
     );
   };
-
-  const EmptyListComponent = () => (
-    <View style={styles.emptyContainer}>
-      {error ? (
-        <>
-          <Icon name="warning" size={60} color={colors.error} />
-          <Text style={[styles.emptyTitle, { color: colors.text }]}>Error</Text>
-          <Text style={[styles.emptySubtitle, { color: colors.secondary }]}>
-            {error}
-          </Text>
-          <TouchableOpacity
-            style={[styles.browseButton, { backgroundColor: colors.primary }]}
-            onPress={fetchFavoriteCars}
-          >
-            <Text style={styles.browseButtonText}>Try Again</Text>
-          </TouchableOpacity>
-        </>
-      ) : (
-        <>
-          <Icon name="heart-o" size={80} color={colors.secondary} />
-          <Text style={[styles.emptyTitle, { color: colors.text }]}>
-            No favorites yet
-          </Text>
-          <Text style={[styles.emptySubtitle, { color: colors.secondary }]}>
-            Find your perfect BMW and add it to favorites
-          </Text>
-          <TouchableOpacity
-            style={[styles.browseButton, { backgroundColor: colors.primary }]}
-            onPress={() => navigation.navigate("Search")}
-          >
-            <Text style={styles.browseButtonText}>Browse Cars</Text>
-          </TouchableOpacity>
-        </>
-      )}
-    </View>
-  );
-
-  if (loading && favoriteCars.length === 0) {
+  
+  // If not authenticated
+  if (!isAuthenticated || !user) {
     return (
-      <View
-        style={[
-          styles.container,
-          { backgroundColor: colors.background, justifyContent: "center" },
-        ]}
-      >
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={styles.emptyContainer}>
+          <Icon name="user-circle" size={60} color={colors.secondary} />
+          <Text style={[styles.emptyTitle, { color: colors.text }]}>
+            Not Logged In
+          </Text>
+          <Text style={[styles.emptySubtitle, { color: colors.secondary }]}>
+            Please login to view your favorite cars
+          </Text>
+          <TouchableOpacity 
+            style={[styles.browseButton, { backgroundColor: colors.primary }]}
+            onPress={() => navigation.navigate('Login')}
+          >
+            <Text style={styles.browseButtonText}>Login</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
     );
   }
 
+  // Content to render
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: colors.background }]}
-    >
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <FlatList
-        data={favoriteCars}
-        renderItem={renderCarItem}
-        keyExtractor={(item) => item._id}
-        numColumns={1}
-        key="single-column"
+        data={favoriteCarsData}
+        renderItem={renderFavoriteItem}
+        keyExtractor={(item, index) => item?._id || index.toString()}
         contentContainerStyle={styles.listContainer}
-        ListEmptyComponent={EmptyListComponent}
-        refreshing={loading}
-        onRefresh={fetchFavoriteCars}
-        showsVerticalScrollIndicator={false}
-        ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
+        refreshControl={
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
+        }
+        ListEmptyComponent={
+          loading ? (
+            <View style={styles.emptyContainer}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={[styles.emptySubtitle, { color: colors.secondary }]}>
+                Loading your favorites...
+              </Text>
+            </View>
+          ) : error ? (
+            <View style={styles.emptyContainer}>
+              <Icon name="exclamation-circle" size={60} color={colors.error} />
+              <Text style={[styles.emptyTitle, { color: colors.text }]}>
+                Something went wrong
+              </Text>
+              <Text style={[styles.emptySubtitle, { color: colors.error }]}>
+                {error}
+              </Text>
+              <TouchableOpacity 
+                style={[styles.browseButton, { backgroundColor: colors.primary }]}
+                onPress={loadFavorites}
+              >
+                <Text style={styles.browseButtonText}>Try Again</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Icon name="heart-o" size={60} color={colors.secondary} />
+              <Text style={[styles.emptyTitle, { color: colors.text }]}>
+                No Favorites Yet
+              </Text>
+              <Text style={[styles.emptySubtitle, { color: colors.secondary }]}>
+                Cars you add to favorites will appear here
+              </Text>
+              <TouchableOpacity 
+                style={[styles.browseButton, { backgroundColor: colors.primary }]}
+                onPress={() => navigation.navigate('Home')}
+              >
+                <Text style={styles.browseButtonText}>Browse Cars</Text>
+              </TouchableOpacity>
+            </View>
+          )
+        }
       />
     </SafeAreaView>
   );

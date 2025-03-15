@@ -23,7 +23,6 @@ import { fetchCarByID, toggleFavorite } from "../redux/slices/carSlice";
 import { CAR_IMAGES } from "../config/constants";
 import Icon from "react-native-vector-icons/FontAwesome";
 import StarRating from "../components/StarRating";
-import api from "../services/api";
 import { useToast } from "../context/ToastContext";
 
 const { width, height } = Dimensions.get("window");
@@ -55,29 +54,28 @@ const CarDetailsScreen = () => {
     }
   }, [currentCar, favorites]);
 
-  const handleFavoritePress = async () => {
+  const handleFavoritePress = () => {
     if (!user) {
       navigation.navigate('Login');
       return;
     }
     
-    try {
-      const response = await api.post('/favorite-car', {
-        user: user._id,
-        car: currentCar._id
-      });
-      
-      dispatch(toggleFavorite(currentCar._id));
-      
-      if (response.data.message.includes('added')) {
+    dispatch(toggleFavorite({ 
+      carId: currentCar._id, 
+      userId: user._id,
+      carDetails: currentCar
+    }))
+    .unwrap()
+    .then((result) => {
+      if (result.isAdded) {
         toast.success(`${currentCar.brand} ${currentCar.model} was added to your favorites`);
       } else {
         toast.info(`${currentCar.brand} ${currentCar.model} was removed from your favorites`);
       }
-    } catch (error) {
-      console.error('Error toggling favorite:', error);
-      toast.error('Failed to update favorites. Please try again.');
-    }
+    })
+    .catch((error) => {
+      toast.error(error || 'Failed to update favorites. Please try again.');
+    });
   };
 
   const handleSharePress = async () => {
@@ -479,6 +477,23 @@ const CarDetailsScreen = () => {
             </View>
           )}
 
+          {/* Owner Terms and Condition */}
+          {currentCar.description && (
+            <View
+              style={[
+                styles.sectionContainer,
+                { borderBottomColor: colors.border },
+              ]}
+            >
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                Terms and Condition
+              </Text>
+              <Text style={[styles.descriptionText, { color: colors.text }]}>
+                {currentCar.termsAndConditions}
+              </Text>
+            </View>
+          )}
+          
           {/* Location */}
           <View
             style={[
