@@ -15,10 +15,24 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Initialize Auth with proper persistence for React Native
 export const auth = initializeAuth(app, {
   persistence: getReactNativePersistence(AsyncStorage)
 });
+
+export const refreshFirebaseToken = async () => {
+  if (auth.currentUser) {
+    try {
+      const newToken = await auth.currentUser.getIdToken(true);
+      return newToken;
+    } catch (error) {
+      console.error("Error refreshing token:", error);
+      throw error;
+    }
+  } else {
+    console.log("No user signed in.");
+    return null;
+  }
+};
 
 // Helper functions for authentication
 export const getAuthToken = async () => {

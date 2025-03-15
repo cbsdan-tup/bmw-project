@@ -54,20 +54,18 @@ const ErrorBoundary = ({ children }) => {
   );
 };
 
-// Main App Content with Navigation
 const AppNavigator = () => {
   const { colors, isDarkMode, isLoading: themeLoading } = useTheme();
-  const { isAuthenticated, isLoading: authLoading, user } = useAuth(); // Add user here for debugging
+  const { isAuthenticated, isLoading: authLoading, user, token } = useAuth(); 
   const [showIntro, setShowIntro] = useState(true);
   const [isIntroLoading, setIsIntroLoading] = useState(true);
   
-  // Debugging the auth state
   useEffect(() => {
-    console.log("Auth state changed:", { isAuthenticated, user });
+    console.log("User:", user?.email);
+    console.log("User Token:", token);
   }, [isAuthenticated, user]);
 
   useEffect(() => {
-    // Check if intro has been viewed before
     const checkIntroStatus = async () => {
       try {
         const hasViewedIntro = await AsyncStorage.getItem('hasViewedIntro');
@@ -95,7 +93,6 @@ const AppNavigator = () => {
     }
   };
 
-  // Show loading while checking auth status, theme or intro status
   if (authLoading || themeLoading || isIntroLoading) {
     return (
       <View style={[globalStyles.container, { backgroundColor: isDarkMode ? '#121212' : '#ffffff' }]}>
@@ -152,7 +149,6 @@ const AppNavigator = () => {
   );
 };
 
-// App Component
 export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

@@ -2,13 +2,14 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { API_URL } from '../config/constants';
-import { auth } from '../config/firebase-config'; // Import auth directly
+import { auth, refreshFirebaseToken } from '../config/firebase-config';
 import { 
   signInWithEmailAndPassword, 
   GoogleAuthProvider,
   signInWithCredential,
   createUserWithEmailAndPassword
 } from 'firebase/auth';
+import { AppState } from 'react-native';
 
 // Create auth context
 export const AuthContext = createContext();
@@ -19,23 +20,76 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
+  const [tokenExpiration, setTokenExpiration] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const verifyAndRefreshToken = async () => {
+    try {
+      const now = Date.now();
+      const fiveMinutesFromNow = now + 5 * 60 * 1000;
+      
+      if (!tokenExpiration || tokenExpiration < fiveMinutesFromNow) {
+        console.log('Token expired or about to expire, refreshing...');
+        const newToken = await refreshFirebaseToken();
+        
+        if (newToken) {
+          const newExpiration = now + 3600 * 1000; 
+          
+          setToken(newToken);
+          setTokenExpiration(newExpiration);
+          
+          await AsyncStorage.setItem('token', newToken);
+          await AsyncStorage.setItem('tokenExpiration', newExpiration.toString());
+          
+          axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+          
+          return newToken;
+        }
+      }
+      
+      return token;
+    } catch (error) {
+      console.error('Error verifying token:', error);
+      if (error.code === 'auth/user-token-expired' || error.code === 'auth/user-not-found') {
+        logout();
+      }
+      throw error;
+    }
+  };
+
   useEffect(() => {
-    // Load token and user info from AsyncStorage
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      if (nextAppState === 'active' && user) {
+        console.log('App has come to the foreground, checking token...');
+        verifyAndRefreshToken();
+      }
+    });
+
     const loadUserFromStorage = async () => {
       setIsLoading(true);
       try {
         const storedToken = await AsyncStorage.getItem('token');
         const storedUser = await AsyncStorage.getItem('user');
+        const storedExpiration = await AsyncStorage.getItem('tokenExpiration');
         
         if (storedToken && storedUser) {
-          setToken(storedToken);
-          setUser(JSON.parse(storedUser));
+          const parsedUser = JSON.parse(storedUser);
+          setUser(parsedUser);
           
-          // Set the default Authorization header for all requests
-          axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
+          // If token expiration is stored, set it
+          if (storedExpiration) {
+            setTokenExpiration(parseInt(storedExpiration));
+          }
+          
+          try {
+            const validToken = await verifyAndRefreshToken();
+            setToken(validToken);
+            axios.defaults.headers.common['Authorization'] = `Bearer ${validToken}`;
+          } catch (e) {
+            console.log('Token verification failed, user will need to login again');
+            await AsyncStorage.multiRemove(['token', 'user', 'tokenExpiration']);
+          }
         }
       } catch (err) {
         console.error('Error loading user data from storage:', err);
@@ -46,6 +100,11 @@ export const AuthProvider = ({ children }) => {
     };
 
     loadUserFromStorage();
+    
+    return () => {
+      // Clean up the subscription
+      subscription.remove();
+    };
   }, []);
 
   // Login function
@@ -54,9 +113,10 @@ export const AuthProvider = ({ children }) => {
     setError(null);
     
     try {
-      // Use the imported auth directly
       const result = await signInWithEmailAndPassword(auth, email, password);
       const idToken = await result.user.getIdToken();
+      
+      const expirationTime = Date.now() + 3600 * 1000;
       
       // Get user info from backend using Firebase UID
       const response = await axios.post(`${API_URL}/getUserInfo`, { 
@@ -75,10 +135,12 @@ export const AuthProvider = ({ children }) => {
         // Save to state
         setToken(idToken);
         setUser(userData);
+        setTokenExpiration(expirationTime);
         
         // Save to AsyncStorage
         await AsyncStorage.setItem('token', idToken);
         await AsyncStorage.setItem('user', JSON.stringify(userData));
+        await AsyncStorage.setItem('tokenExpiration', expirationTime.toString());
         
         // Set the default Authorization header for all requests
         axios.defaults.headers.common['Authorization'] = `Bearer ${idToken}`;
@@ -103,14 +165,11 @@ export const AuthProvider = ({ children }) => {
     setError(null);
     
     try {
-      // Create a credential from the Google ID token
       const credential = GoogleAuthProvider.credential(idToken);
       
-      // Sign in with the credential using the imported auth
       const result = await signInWithCredential(auth, credential);
       const firebaseToken = await result.user.getIdToken();
       
-      // Get user info from backend using Firebase UID
       try {
         const response = await axios.post(`${API_URL}/getUserInfo`, { 
           uid: result.user.uid 
@@ -123,20 +182,16 @@ export const AuthProvider = ({ children }) => {
         if (response.data.success && response.data.user) {
           const userData = response.data.user;
           
-          // Save to state
           setToken(firebaseToken);
           setUser(userData);
           
-          // Save to AsyncStorage
           await AsyncStorage.setItem('token', firebaseToken);
           await AsyncStorage.setItem('user', JSON.stringify(userData));
           
-          // Set the default Authorization header for all requests
           axios.defaults.headers.common['Authorization'] = `Bearer ${firebaseToken}`;
           
           return { success: true };
         } else {
-          // User doesn't exist, create new user
           const userInfo = {
             uid: result.user.uid,
             email: result.user.email,
@@ -145,7 +200,6 @@ export const AuthProvider = ({ children }) => {
             profilePicture: result.user.photoURL
           };
           
-          // Register the user
           const registerResponse = await axios.post(`${API_URL}/register`, userInfo, {
             headers: { "Content-Type": "application/json" }
           });
@@ -153,7 +207,6 @@ export const AuthProvider = ({ children }) => {
           if (registerResponse.data.success) {
             const newUser = registerResponse.data.user;
             
-            // Save new user data
             setToken(firebaseToken);
             setUser(newUser);
             
@@ -265,9 +318,10 @@ export const AuthProvider = ({ children }) => {
       // Clear auth state
       setUser(null);
       setToken(null);
+      setTokenExpiration(null);
       
       // Remove from AsyncStorage
-      await AsyncStorage.multiRemove(['token', 'user']);
+      await AsyncStorage.multiRemove(['token', 'user', 'tokenExpiration']);
       
       // Remove Authorization header
       delete axios.defaults.headers.common['Authorization'];
@@ -360,6 +414,7 @@ export const AuthProvider = ({ children }) => {
     updateProfile,
     refreshUserData,
     googleSignIn,
+    refreshToken: verifyAndRefreshToken,
   };
 
   return (
