@@ -4,6 +4,9 @@ import { useTheme } from '../context/ThemeContext';
 import ProfileScreen from '../screens/ProfileScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
 import MyFavoritesScreen from '../screens/MyFavoritesScreen';
+import MyBookingsScreen from '../screens/MyBookingsScreen';
+import AboutUsScreen from '../screens/AboutUsScreen';
+import TermsConditionsScreen from '../screens/TermsConditionsScreen';
 
 const Stack = createStackNavigator();
 
@@ -38,6 +41,30 @@ const ProfileNavigator = () => {
         options={{ 
           headerShown: true,
           title: 'My Favorites' 
+        }}
+      />
+      <Stack.Screen
+        name="MyBookings"
+        component={MyBookingsScreen}
+        options={{ 
+          headerShown: true,
+          title: 'My Bookings' 
+        }}
+      />
+      <Stack.Screen
+        name="AboutUs"
+        component={AboutUsScreen}
+        options={{ 
+          headerShown: true,
+          title: 'About Us' 
+        }}
+      />
+      <Stack.Screen
+        name="TermsConditions"
+        component={TermsConditionsScreen}
+        options={{ 
+          headerShown: true,
+          title: 'Terms & Conditions' 
         }}
       />
     </Stack.Navigator>
