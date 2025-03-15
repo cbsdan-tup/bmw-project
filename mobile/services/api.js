@@ -6,61 +6,38 @@ import {
   GoogleAuthProvider,
   signInWithCredential 
 } from "firebase/auth";
-import { auth, getAuthToken } from '../config/firebase-config';
-import baseURL from './baseUrl';
+import { auth, getAuthToken, refreshFirebaseToken } from '../config/firebase-config';
+import { API_URL } from '../config/constants';
 
-// Create axios instance with base URL
 const api = axios.create({
-  baseURL: baseURL,
+  baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Add request interceptor to handle token refresh
 api.interceptors.request.use(
   async (config) => {
     try {
-      // Get token from AsyncStorage
       const token = await AsyncStorage.getItem('token');
-      const tokenExpiration = await AsyncStorage.getItem('tokenExpiration');
       
       if (token) {
-        // Check if token is expired or about to expire (within 5 mins)
-        const now = Date.now();
-        const expiration = parseInt(tokenExpiration || '0');
-        const fiveMinutesFromNow = now + 5 * 60 * 1000;
-        
-        if (!expiration || expiration < fiveMinutesFromNow) {
-          console.log('Token expired or about to expire, refreshing before API call...');
-          const { refreshFirebaseToken } = await import('../config/firebase-config');
-          const newToken = await refreshFirebaseToken();
-          
-          if (newToken) {
-            const newExpiration = now + 3600 * 1000;
-            await AsyncStorage.setItem('token', newToken);
-            await AsyncStorage.setItem('tokenExpiration', newExpiration.toString());
-            
-            // Use new token for this request
-            config.headers.Authorization = `Bearer ${newToken}`;
-            return config;
-          }
-        }
-        
-        // Use existing token
-        config.headers.Authorization = `Bearer ${token}`;
+        config.headers['Authorization'] = `Bearer ${token}`;
       }
-      return config;
     } catch (error) {
-      console.error('Error in API interceptor:', error);
-      return config;
+      console.error("Error setting auth token in request:", error);
     }
+    return config;
   },
-  (error) => Promise.reject(error)
+  (error) => {
+    return Promise.reject(error);
+  }
 );
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config;
     
@@ -68,22 +45,17 @@ api.interceptors.response.use(
       originalRequest._retry = true;
       
       try {
-        const { refreshFirebaseToken } = await import('../config/firebase-config');
         const newToken = await refreshFirebaseToken();
         
         if (newToken) {
-          const newExpiration = Date.now() + 3600 * 1000;
-          await AsyncStorage.setItem('token', newToken);
-          await AsyncStorage.setItem('tokenExpiration', newExpiration.toString());
+          originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
           
-          originalRequest.headers.Authorization = `Bearer ${newToken}`;
+          await AsyncStorage.setItem('token', newToken);
           
           return api(originalRequest);
         }
       } catch (refreshError) {
-        console.error('Error refreshing token in response interceptor:', refreshError);
-        
-        await AsyncStorage.multiRemove(['token', 'user', 'tokenExpiration']);
+        console.error("Error refreshing token:", refreshError);
       }
     }
     
