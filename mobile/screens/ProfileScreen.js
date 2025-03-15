@@ -24,7 +24,7 @@ const ProfileScreen = () => {
   const { user, logout, isLoading, isAuthenticated } = useAuth();
   const navigation = useNavigation();
   const { favorites } = useSelector((state) => state.cars);
-  const { bookingsCount } = useSelector((state) => state.bookings.bookingsCount);
+  const { bookingsCount } = useSelector((state) => state.bookings);
   const toast = useToast();
   const [logoutConfirmPending, setLogoutConfirmPending] = useState(false);
 

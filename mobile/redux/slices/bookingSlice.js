@@ -5,9 +5,7 @@ export const fetchUserBookings = createAsyncThunk(
   'bookings/fetchUserBookings',
   async (userId, { rejectWithValue }) => {
     try {
-      const response = await api.get(`/my-rentals/${userId}`);
-      console.log('User bookings:', response.data);
-      
+      const response = await api.get(`/my-rentals/${userId}`);      
       return response.data;
     } catch (error) {
       return rejectWithValue(

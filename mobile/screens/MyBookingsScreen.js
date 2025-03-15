@@ -250,7 +250,7 @@ const BookingDetailsModal = ({ visible, booking, onClose }) => {
                   <View style={styles.detailItem}>
                     <Text style={[styles.detailItemLabel, { color: colors.secondary }]}>Email:</Text>
                     <Text style={[styles.detailItemValue, { color: colors.text }]}>
-                      {booking.car.owner.email}
+                      {booking.car.owner.email} 
                     </Text>
                   </View>
 
@@ -290,8 +290,30 @@ const MyBookingsScreen = () => {
   const dispatch = useDispatch();
   const toast = useToast();
   const [modalVisible, setModalVisible] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('All');
   
   const { bookings, loading, error, selectedBooking } = useSelector(state => state.bookings);
+
+  // Available status options for filtering
+  const statusOptions = ['All', 'Pending', 'Confirmed', 'Active', 'Returned', 'Canceled'];
+
+  // Filter and sort bookings
+  const getFilteredAndSortedBookings = useCallback(() => {
+    // First filter the bookings based on selected status
+    const filtered = statusFilter === 'All' 
+      ? bookings 
+      : bookings.filter(booking => booking.status === statusFilter);
+    
+    // Then sort them with Pending status at the top, followed by others in alphabetical order
+    return [...filtered].sort((a, b) => {
+      // Always put Pending at the top
+      if (a.status === 'Pending' && b.status !== 'Pending') return -1;
+      if (a.status !== 'Pending' && b.status === 'Pending') return 1;
+      
+      // For other statuses, sort by status alphabetically
+      return a.status.localeCompare(b.status);
+    });
+  }, [bookings, statusFilter]);
 
   useEffect(() => {
     let isMounted = true;
@@ -330,6 +352,11 @@ const MyBookingsScreen = () => {
     }, 0);
   }, [dispatch]);
 
+  // Filter selection handler
+  const handleFilterChange = (status) => {
+    setStatusFilter(status);
+  };
+
   if (loading && bookings.length === 0) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -341,10 +368,46 @@ const MyBookingsScreen = () => {
     );
   }
 
+  // Get filtered and sorted bookings
+  const filteredAndSortedBookings = getFilteredAndSortedBookings();
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Status Filter Section */}
+      <View style={styles.filterContainer}>
+        <Text style={[styles.filterLabel, { color: colors.text }]}>Filter by status:</Text>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filtersScrollContent}
+        >
+          {statusOptions.map((status) => (
+            <TouchableOpacity
+              key={status}
+              style={[
+                styles.filterChip,
+                { 
+                  backgroundColor: statusFilter === status ? colors.primary : colors.surface,
+                  borderColor: colors.border 
+                }
+              ]}
+              onPress={() => handleFilterChange(status)}
+            >
+              <Text 
+                style={[
+                  styles.filterChipText, 
+                  { color: statusFilter === status ? '#FFFFFF' : colors.text }
+                ]}
+              >
+                {status}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+
       <FlatList
-        data={bookings}
+        data={filteredAndSortedBookings}
         renderItem={({ item }) => <BookingCard booking={item} onPress={handleBookingPress} />}
         keyExtractor={item => item._id}
         contentContainerStyle={styles.listContainer}
@@ -353,9 +416,13 @@ const MyBookingsScreen = () => {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Icon name="calendar-o" size={70} color={colors.secondary} style={styles.emptyIcon} />
-            <Text style={[styles.emptyText, { color: colors.text }]}>No bookings yet</Text>
+            <Text style={[styles.emptyText, { color: colors.text }]}>
+              {statusFilter === 'All' ? 'No bookings yet' : `No ${statusFilter.toLowerCase()} bookings`}
+            </Text>
             <Text style={[styles.emptySubText, { color: colors.secondary }]}>
-              Your car bookings will appear here
+              {statusFilter === 'All' 
+                ? 'Your car bookings will appear here' 
+                : 'Try selecting a different filter'}
             </Text>
           </View>
         }
@@ -582,6 +649,32 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  filterContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e1e1e1',
+  },
+  filterLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 8,
+  },
+  filtersScrollContent: {
+    paddingRight: 16,
+    paddingBottom: 4,
+  },
+  filterChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginRight: 8,
+    borderWidth: 1,
+  },
+  filterChipText: {
+    fontSize: 14,
+    fontWeight: '500',
   }
 });
 
