@@ -11,43 +11,22 @@ import {
   ActivityIndicator,
   Image
 } from 'react-native';
-import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { buttonStyles } from '../../styles/components/buttonStyles';
 import { globalStyles } from '../../styles/globalStyles';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { GOOGLE_AUTH_CONFIG } from '../../config/google-auth-config';
+import { GOOGLE_SIGNIN_CONFIG } from '../../config/google-auth-config';
 import { useToast } from '../../context/ToastContext';
-import 'expo-dev-client'
+import 'expo-dev-client';
 
 import auth from '@react-native-firebase/auth';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 
-WebBrowser.maybeCompleteAuthSession();
+// Initialize Google Sign-in
+GoogleSignin.configure(GOOGLE_SIGNIN_CONFIG);
 
 const LoginScreen = ({ navigation }) => {
-  GoogleSignin.configure({
-    webClientId: '14654770851-58gpdt67ckrtl2s3feuj7u9phjh2btua.apps.googleusercontent.com',
-  });
-
-  const onGoogleButtonPress = async () => {
-    // Get the users ID token
-    const { idToken } = await GoogleSignin.signIn();
-
-    // Create a Google credential with the token
-    const googleCredential = auth.GoogleAuthProvider.credential(idToken);
-
-    // Sign-in the user with the credential
-    const user_sign_in = auth().signInWithCredential(googleCredential);
-    user_sign_in.then((user) => {
-      console.log('User signed in with Google!', user);
-    }).catch((error) => {
-      console.log('Error signing in with Google:', error);
-    });
-  }
-
   const { login, googleSignIn, isLoading } = useAuth();
   const { colors } = useTheme();
   const toast = useToast();
@@ -63,22 +42,102 @@ const LoginScreen = ({ navigation }) => {
     borderColor: colors.border,
   };
   
-  const [request, response, promptAsync] = Google.useAuthRequest(GOOGLE_AUTH_CONFIG);
-  
-  useEffect(() => {
-    if (response?.type === 'success') {
-      setLoginInProgress(true);
-      const { id_token } = response.params;
-      handleGoogleSignInComplete(id_token);
-    }
-  }, [response]);
-  
-  const handleGoogleSignInComplete = async (idToken) => {
+  const handleGoogleSignIn = async () => {
     try {
-      await googleSignIn(idToken);
+      setLoginInProgress(true);
+      console.log('Starting Google Sign-in process...');
+      
+      // Check if your device has Google Play Services installed
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      console.log('Google Play Services check passed');
+      
+      // Get the user ID token
+      console.log('Requesting Google sign-in...');
+      const signInResult = await GoogleSignin.signIn();
+      console.log('Google sign-in successful, full result:', JSON.stringify(signInResult));
+      
+      // The idToken is nested inside the data property, not directly on the result
+      const idToken = signInResult.data?.idToken;
+      
+      if (!idToken) {
+        throw new Error('Failed to get ID token from Google Sign-in');
+      }
+      
+      console.log('Successfully retrieved idToken');
+      
+      // Create a Firebase credential with the token
+      console.log('Creating Firebase credential');
+      const googleCredential = auth.GoogleAuthProvider.credential(idToken);
+      
+      // Sign in with credential to Firebase
+      console.log('Signing in to Firebase');
+      const userCredential = await auth().signInWithCredential(googleCredential);
+      const firebaseUser = userCredential.user;
+      
+      console.log('Firebase User UID:', firebaseUser.uid);
+      console.log('Firebase User Email:', firebaseUser.email);
+      console.log('Firebase User DisplayName:', firebaseUser.displayName);
+      
+      // Use our auth context's googleSignIn method to properly save the user data
+      console.log('Calling auth context googleSignIn method');
+      const result = await googleSignIn(idToken);
+      console.log('Auth context googleSignIn completed:', result);
+      
+      if (result && result.success) {
+        // Show success message with user's name
+        const displayName = result.user?.firstName || firebaseUser.displayName || 'User';
+        toast.success(`Welcome ${displayName}!`);
+        
+        // Navigate to main app
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'MainTabs' }]
+        });
+      } else {
+        const errorMsg = result?.error || 'Authentication failed';
+        console.error('Authentication failed in auth context:', errorMsg);
+        toast.error(errorMsg);
+      }
+      
     } catch (error) {
-      console.log("Google sign in error:", error);
-      toast.error(error.message || 'Google sign in failed. Please try again later');
+      // Comprehensive error logging
+      console.error('Google sign in error details:', error);
+      console.error('Error type:', typeof error);
+      console.error('Error toString:', String(error));
+      console.error('Error constructor:', error && error.constructor ? error.constructor.name : 'unknown');
+      
+      for (const key in error) {
+        try {
+          console.error(`Error property [${key}]:`, error[key]);
+        } catch (e) {
+          console.error(`Error accessing property [${key}]`);
+        }
+      }
+      
+      // Safe error message extraction
+      let errorMessage = 'Google sign in failed. Please try again.';
+      
+      if (error) {
+        if (typeof error === 'object') {
+          if (error.message) {
+            errorMessage = `Google sign in error: ${error.message}`;
+          }
+          // Only check code if we know it exists
+          if ('code' in error) {
+            if (error.code === 'CANCELED') {
+              errorMessage = 'Sign in was canceled';
+            } else if (error.code === 'PLAY_SERVICES_NOT_AVAILABLE') {
+              errorMessage = 'Google Play Services is not available';
+            } else {
+              errorMessage = `Google sign in error (${error.code})`;
+            }
+          }
+        } else if (typeof error === 'string') {
+          errorMessage = error;
+        }
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setLoginInProgress(false);
     }
@@ -107,15 +166,6 @@ const LoginScreen = ({ navigation }) => {
       toast.error(error.message || 'Please check your credentials and try again');
     } finally {
       setLoginInProgress(false);
-    }
-  };
-  
-  const handleGoogleSignIn = async () => {
-    try {
-      await promptAsync();
-    } catch (error) {
-      console.log("Google sign in prompt error:", error);
-      toast.error('Could not start Google authentication');
     }
   };
   
@@ -203,7 +253,7 @@ const LoginScreen = ({ navigation }) => {
               borderColor: colors.border,
               backgroundColor: colors.surface,
             }]}
-            onPress={()=>onGoogleButtonPress().then(() => console.log('Signed in with Google!'))}
+            onPress={handleGoogleSignIn}
             disabled={isLoading || loginInProgress}
           >
             <View style={styles.googleButtonContent}>

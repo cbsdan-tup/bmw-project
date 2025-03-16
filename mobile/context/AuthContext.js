@@ -179,8 +179,10 @@ export const AuthProvider = ({ children }) => {
       
       const result = await signInWithCredential(auth, credential);
       const firebaseToken = await result.user.getIdToken();
+      const firebaseUser = result.user;
       
       try {
+        // First try to get user info from backend
         const response = await axios.post(`${API_URL}/getUserInfo`, { 
           uid: result.user.uid 
         }, {
@@ -190,6 +192,7 @@ export const AuthProvider = ({ children }) => {
         });
         
         if (response.data.success && response.data.user) {
+          // User exists, set up the session
           const userData = response.data.user;
           
           setToken(firebaseToken);
@@ -200,40 +203,70 @@ export const AuthProvider = ({ children }) => {
           
           axios.defaults.headers.common['Authorization'] = `Bearer ${firebaseToken}`;
           
-          return { success: true };
+          return { success: true, user: userData };
         } else {
-          const userInfo = {
-            uid: result.user.uid,
-            email: result.user.email,
-            firstName: result.user.displayName?.split(' ')[0] || '',
-            lastName: result.user.displayName?.split(' ').slice(1).join(' ') || '',
-            profilePicture: result.user.photoURL
-          };
-          
-          const registerResponse = await axios.post(`${API_URL}/register`, userInfo, {
-            headers: { "Content-Type": "application/json" }
-          });
-          
-          if (registerResponse.data.success) {
-            const newUser = registerResponse.data.user;
-            
-            setToken(firebaseToken);
-            setUser(newUser);
-            
-            await AsyncStorage.setItem('token', firebaseToken);
-            await AsyncStorage.setItem('user', JSON.stringify(newUser));
-            
-            axios.defaults.headers.common['Authorization'] = `Bearer ${firebaseToken}`;
-            
-            return { success: true };
-          } else {
-            throw new Error('Failed to register new user');
-          }
+          // User not found, create a new user
+          console.log("User not found in database, creating new user...");
         }
       } catch (error) {
-        // Handle error with getUserInfo or registration
-        console.error("Error in user processing:", error);
-        throw error;
+        // If getUserInfo fails with 404, create a new user
+        if (error.response && error.response.status === 404) {
+          console.log("User not found (404), proceeding with registration...");
+        } else {
+          // For other errors, rethrow
+          throw error;
+        }
+      }
+      
+      // Handle registration of new Google user
+      try {
+        console.log("Registering new Google user...");
+        
+        const userInfo = {
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          firstName: firebaseUser.displayName?.split(' ')[0] || '',
+          lastName: firebaseUser.displayName?.split(' ').slice(1).join(' ') || '',
+          profilePicture: firebaseUser.photoURL
+        };
+        
+        console.log("New user data:", userInfo);
+        
+        // Use FormData for registration
+        const formData = new FormData();
+        formData.append("uid", userInfo.uid);
+        formData.append("email", userInfo.email);
+        formData.append("firstName", userInfo.firstName);
+        formData.append("lastName", userInfo.lastName);
+        if (userInfo.profilePicture) {
+          formData.append("photoURL", userInfo.profilePicture);
+        }
+        
+        const registerResponse = await axios.post(`${API_URL}/register`, formData, {
+          headers: { 
+            "Content-Type": "multipart/form-data",
+            "Authorization": `Bearer ${firebaseToken}`
+          }
+        });
+        
+        if (registerResponse.data.success) {
+          const newUser = registerResponse.data.user;
+          
+          setToken(firebaseToken);
+          setUser(newUser);
+          
+          await AsyncStorage.setItem('token', firebaseToken);
+          await AsyncStorage.setItem('user', JSON.stringify(newUser));
+          
+          axios.defaults.headers.common['Authorization'] = `Bearer ${firebaseToken}`;
+          
+          return { success: true, user: newUser };
+        } else {
+          throw new Error(registerResponse.data.message || 'Failed to register new user');
+        }
+      } catch (registerError) {
+        console.log("Registration error:", registerError);
+        throw registerError;
       }
     } catch (err) {
       const errorMsg = err.message || 'Google sign-in failed. Please try again.';
