@@ -1,15 +1,17 @@
-import React from 'react';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { createStackNavigator } from '@react-navigation/stack';
-import Icon from 'react-native-vector-icons/FontAwesome';
-import { Platform, Text, View } from 'react-native';
-import HomeScreen from '../screens/HomeScreen';
-import CarDetailsScreen from '../screens/CarDetailsScreen';
-import ProfileNavigator from './ProfileNavigator';
-import SearchScreen from '../screens/SearchScreen';
-import NotificationsScreen from '../screens/NotificationsScreen';
-import ReviewsScreen from '../screens/ReviewsScreen';
-import { useTheme } from '../context/ThemeContext';
+import React from "react";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { createStackNavigator } from "@react-navigation/stack";
+import Icon from "react-native-vector-icons/FontAwesome";
+import { Platform, Text, View } from "react-native";
+import HomeScreen from "../screens/HomeScreen";
+import CarDetailsScreen from "../screens/CarDetailsScreen";
+import ProfileScreen from "../screens/ProfileScreen";
+import SearchScreen from "../screens/SearchScreen";
+import NotificationsScreen from "../screens/NotificationsScreen";
+import ReviewsScreen from "../screens/ReviewsScreen";
+import ChatScreen from "../screens/ChatScreen";
+import { useTheme } from "../context/ThemeContext";
+import ProfileNavigator from "./ProfileNavigator";
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -26,41 +28,43 @@ const HomeStack = () => {
         },
         headerTintColor: colors.headerText,
         headerTitleStyle: {
-          fontWeight: 'bold',
-        }
+          fontWeight: "bold",
+        },
       }}
     >
-      <Stack.Screen 
-        name="HomeScreen" 
-        component={HomeScreen} 
+      <Stack.Screen
+        name="HomeScreen"
+        component={HomeScreen}
         options={{ headerShown: false }}
       />
-      <Stack.Screen 
-        name="CarDetails" 
-        component={CarDetailsScreen} 
+      <Stack.Screen
+        name="CarDetails"
+        component={CarDetailsScreen}
         options={{ headerShown: false }}
       />
-      <Stack.Screen 
-        name="AllCars" 
-        component={SearchScreen} 
-        options={{ title: 'All Cars' }}
+      <Stack.Screen
+        name="AllCars"
+        component={SearchScreen}
+        options={{ title: "All Cars" }}
       />
-      <Stack.Screen 
-        name="Reviews" 
-        component={ReviewsScreen} 
+      <Stack.Screen
+        name="Reviews"
+        component={ReviewsScreen}
         options={({ route }) => ({
-          title: route.params?.carTitle ? `Reviews for ${route.params.carTitle}` : 'Reviews'
+          title: route.params?.carTitle
+            ? `Reviews for ${route.params.carTitle}`
+            : "Reviews",
         })}
       />
-      <Stack.Screen 
-        name="BookingScreen" 
-        component={BookingScreen} 
-        options={{ title: 'Book a Car' }}
+      <Stack.Screen
+        name="BookingScreen"
+        component={BookingScreen}
+        options={{ title: "Book a Car" }}
       />
-      <Stack.Screen 
-        name="ChatScreen" 
-        component={ChatScreen} 
-        options={({ route }) => ({ title: route.params?.chatName || 'Chat' })}
+      <Stack.Screen
+        name="ChatScreen"
+        component={ChatScreen}
+        options={({ route }) => ({ title: route.params?.chatName || "Chat" })}
       />
     </Stack.Navigator>
   );
@@ -78,31 +82,33 @@ const SearchStack = () => {
         },
         headerTintColor: colors.headerText,
         headerTitleStyle: {
-          fontWeight: 'bold',
-        }
+          fontWeight: "bold",
+        },
       }}
     >
-      <Stack.Screen 
-        name="SearchScreen" 
-        component={SearchScreen} 
-        options={{ title: 'Search Cars' }}
+      <Stack.Screen
+        name="SearchScreen"
+        component={SearchScreen}
+        options={{ title: "Search Cars" }}
       />
-      <Stack.Screen 
-        name="CarDetails" 
-        component={CarDetailsScreen} 
+      <Stack.Screen
+        name="CarDetails"
+        component={CarDetailsScreen}
         options={{ headerShown: false }}
       />
-      <Stack.Screen 
-        name="Reviews" 
-        component={ReviewsScreen} 
+      <Stack.Screen
+        name="Reviews"
+        component={ReviewsScreen}
         options={({ route }) => ({
-          title: route.params?.carTitle ? `Reviews for ${route.params.carTitle}` : 'Reviews'
+          title: route.params?.carTitle
+            ? `Reviews for ${route.params.carTitle}`
+            : "Reviews",
         })}
       />
-      <Stack.Screen 
-        name="BookingScreen" 
-        component={BookingScreen} 
-        options={{ title: 'Book a Car' }}
+      <Stack.Screen
+        name="BookingScreen"
+        component={BookingScreen}
+        options={{ title: "Book a Car" }}
       />
     </Stack.Navigator>
   );
@@ -120,9 +126,9 @@ const BottomTabNavigator = () => {
         tabBarStyle: {
           backgroundColor: colors.tabBarBackground,
           borderTopColor: colors.tabBarBorder,
-          paddingBottom: Platform.OS === 'ios' ? 25 : 10,
+          paddingBottom: Platform.OS === "ios" ? 25 : 10,
           paddingTop: 10,
-          height: Platform.OS === 'ios' ? 85 : 70,
+          height: Platform.OS === "ios" ? 85 : 70,
         },
         headerShown: false,
       }}
@@ -138,7 +144,7 @@ const BottomTabNavigator = () => {
       />
       <Tab.Screen
         name="Search"
-        component={SearchStack}  // Use SearchStack instead of directly using SearchScreen
+        component={SearchStack} // Use SearchStack instead of directly using SearchScreen
         options={{
           tabBarIcon: ({ color, size }) => (
             <Icon name="search" size={size} color={color} />
@@ -154,7 +160,7 @@ const BottomTabNavigator = () => {
           ),
         }}
       />
-      <Tab.Screen 
+      <Tab.Screen
         name="Profile"
         component={ProfileNavigator}
         options={{
@@ -167,7 +173,10 @@ const BottomTabNavigator = () => {
   );
 };
 
-const BookingScreen = () => <View style={{ flex: 1 }}><Text>Booking Screen</Text></View>;
-const ChatScreen = () => <View style={{ flex: 1 }}><Text>Chat Screen</Text></View>;
+const BookingScreen = () => (
+  <View style={{ flex: 1 }}>
+    <Text>Booking Screen</Text>
+  </View>
+);
 
 export default BottomTabNavigator;

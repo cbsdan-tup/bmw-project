@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,118 +9,148 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
-  Image
-} from 'react-native';
-import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
-import { useAuth } from '../../context/AuthContext';
-import { useTheme } from '../../context/ThemeContext';
-import { buttonStyles } from '../../styles/components/buttonStyles';
-import { globalStyles } from '../../styles/globalStyles';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { GOOGLE_AUTH_CONFIG } from '../../config/google-auth-config';
-import { useToast } from '../../context/ToastContext';
+  Alert,
+  Image,
+} from "react-native";
+import * as WebBrowser from "expo-web-browser";
+import * as Google from "expo-auth-session/providers/google";
+import { useAuth } from "../../context/AuthContext";
+import { useTheme } from "../../context/ThemeContext";
+import { buttonStyles } from "../../styles/components/buttonStyles";
+import { globalStyles } from "../../styles/globalStyles";
+import Icon from "react-native-vector-icons/MaterialCommunityIcons";
+import { GOOGLE_AUTH_CONFIG } from "../../config/google-auth-config";
 
+// Configure WebBrowser for Google Sign-In
 WebBrowser.maybeCompleteAuthSession();
 
 const LoginScreen = ({ navigation }) => {
   const { login, googleSignIn, isLoading } = useAuth();
   const { colors } = useTheme();
-  const toast = useToast();
-  
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loginInProgress, setLoginInProgress] = useState(false);
-  
+
+  // Define textInputStyle here
   const textInputStyle = {
     backgroundColor: colors.surface,
     color: colors.text,
     borderColor: colors.border,
   };
-  
-  const [request, response, promptAsync] = Google.useAuthRequest(GOOGLE_AUTH_CONFIG);
-  
+
+  // Define Google auth request hook using the centralized config
+  const [request, response, promptAsync] =
+    Google.useAuthRequest(GOOGLE_AUTH_CONFIG);
+
+  // Handle Google Sign-In response
   useEffect(() => {
-    if (response?.type === 'success') {
+    if (response?.type === "success") {
       setLoginInProgress(true);
       const { id_token } = response.params;
       handleGoogleSignInComplete(id_token);
     }
   }, [response]);
-  
+
   const handleGoogleSignInComplete = async (idToken) => {
     try {
       await googleSignIn(idToken);
     } catch (error) {
       console.log("Google sign in error:", error);
-      toast.error(error.message || 'Google sign in failed. Please try again later');
+      Alert.alert(
+        "Google Sign In Failed",
+        error.message || "Please try again later"
+      );
     } finally {
       setLoginInProgress(false);
     }
   };
-  
+
   const handleLogin = async () => {
+    // Basic validation
     if (!email || !password) {
-      toast.warning('Please fill in all fields');
+      Alert.alert("Error", "Please fill in all fields");
       return;
     }
-    
+
     try {
       setLoginInProgress(true);
       const result = await login(email, password);
-      const user = result?.user;
+
       if (result.success) {
-        toast.success(`Welcome back ${user?.firstName}!`);
+        console.log("Login successful, navigating to Home");
+        // Ensure we navigate to the home screen after login
         navigation.reset({
           index: 0,
-          routes: [{ name: 'MainTabs' }]
+          routes: [{ name: "Home" }],
         });
       } else {
-        toast.error(result.error || 'Please check your credentials and try again');
+        Alert.alert(
+          "Login Failed",
+          result.error || "Please check your credentials and try again"
+        );
       }
     } catch (error) {
-      toast.error(error.message || 'Please check your credentials and try again');
+      Alert.alert(
+        "Login Failed",
+        error.message || "Please check your credentials and try again"
+      );
     } finally {
       setLoginInProgress(false);
     }
   };
-  
+
   const handleGoogleSignIn = async () => {
     try {
       await promptAsync();
     } catch (error) {
       console.log("Google sign in prompt error:", error);
-      toast.error('Could not start Google authentication');
+      Alert.alert(
+        "Google Sign In Failed",
+        "Could not start Google authentication"
+      );
     }
   };
-  
+
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={[styles.container, { backgroundColor: colors.background }]}
     >
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={styles.scrollContainer}
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.logoContainer}>
           <Image
-            source={require('../../assets/bmw-logo.png')}
+            source={require("../../assets/bmw-logo.png")}
             style={styles.logo}
             resizeMode="contain"
           />
-          <Text style={[styles.title, { color: colors.text }]}>BMW Rentals</Text>
+          <Text style={[styles.title, { color: colors.text }]}>
+            BMW Rentals
+          </Text>
         </View>
-        
-        <Text style={[globalStyles.subtitle, { color: colors.text, alignSelf: 'center', marginBottom: 24 }]}>
+
+        <Text
+          style={[
+            globalStyles.subtitle,
+            { color: colors.text, alignSelf: "center", marginBottom: 24 },
+          ]}
+        >
           Log in to your account
         </Text>
-        
+
         <View style={styles.inputContainer}>
           <Text style={[styles.label, { color: colors.secondary }]}>Email</Text>
           <View style={[styles.inputWrapper, textInputStyle]}>
-            <Icon name="email-outline" size={20} color={colors.secondary} style={styles.inputIcon} />
+            <Icon
+              name="email-outline"
+              size={20}
+              color={colors.secondary}
+              style={styles.inputIcon}
+            />
             <TextInput
               style={[styles.input, { color: colors.text }]}
               placeholder="Enter your email"
@@ -131,10 +161,19 @@ const LoginScreen = ({ navigation }) => {
               keyboardType="email-address"
             />
           </View>
-          
-          <Text style={[styles.label, { color: colors.secondary, marginTop: 16 }]}>Password</Text>
+
+          <Text
+            style={[styles.label, { color: colors.secondary, marginTop: 16 }]}
+          >
+            Password
+          </Text>
           <View style={[styles.inputWrapper, textInputStyle]}>
-            <Icon name="lock-outline" size={20} color={colors.secondary} style={styles.inputIcon} />
+            <Icon
+              name="lock-outline"
+              size={20}
+              color={colors.secondary}
+              style={styles.inputIcon}
+            />
             <TextInput
               style={[styles.input, { color: colors.text }]}
               placeholder="Enter your password"
@@ -145,55 +184,76 @@ const LoginScreen = ({ navigation }) => {
             />
             <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
               <Icon
-                name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                name={showPassword ? "eye-off-outline" : "eye-outline"}
                 size={20}
                 color={colors.secondary}
               />
             </TouchableOpacity>
           </View>
-          
+
           <TouchableOpacity style={styles.forgotPassword}>
             <Text style={{ color: colors.primary }}>Forgot Password?</Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity
-            style={[buttonStyles.primary, { backgroundColor: colors.primary, marginTop: 24 }]}
+            style={[
+              buttonStyles.primary,
+              { backgroundColor: colors.primary, marginTop: 24 },
+            ]}
             onPress={handleLogin}
             disabled={isLoading || loginInProgress}
           >
             {isLoading || loginInProgress ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>Log In</Text>
+              <Text style={{ color: "#fff", fontWeight: "bold", fontSize: 16 }}>
+                Log In
+              </Text>
             )}
           </TouchableOpacity>
-          
+
           <View style={styles.orContainer}>
-            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+            <View
+              style={[styles.divider, { backgroundColor: colors.border }]}
+            />
             <Text style={[styles.orText, { color: colors.secondary }]}>OR</Text>
-            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+            <View
+              style={[styles.divider, { backgroundColor: colors.border }]}
+            />
           </View>
-          
+
           <TouchableOpacity
-            style={[buttonStyles.secondary, { 
-              borderColor: colors.border,
-              backgroundColor: colors.surface,
-            }]}
+            style={[
+              buttonStyles.secondary,
+              {
+                borderColor: colors.border,
+                backgroundColor: colors.surface,
+              },
+            ]}
             onPress={handleGoogleSignIn}
             disabled={isLoading || loginInProgress}
           >
             <View style={styles.googleButtonContent}>
-              <Icon name="google" size={20} color="#DB4437" style={{ marginRight: 10 }} />
-              <Text style={{ color: colors.text, fontWeight: '600' }}>
+              <Icon
+                name="google"
+                size={20}
+                color="#DB4437"
+                style={{ marginRight: 10 }}
+              />
+              <Text style={{ color: colors.text, fontWeight: "600" }}>
                 Continue with Google
               </Text>
             </View>
           </TouchableOpacity>
-          
+
           <View style={styles.registerContainer}>
-            <Text style={{ color: colors.secondary }}>Don't have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-              <Text style={{ color: colors.primary, fontWeight: 'bold' }}>Register</Text>
+            <Text style={{ color: colors.secondary }}>
+              Don't have an account?{" "}
+            </Text>
+            <TouchableOpacity onPress={() => navigation.navigate("Register")}>
+              <Text style={{ color: colors.primary, fontWeight: "bold" }}>
+                Register
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -211,7 +271,7 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   logoContainer: {
-    alignItems: 'center',
+    alignItems: "center",
     marginVertical: 30,
   },
   logo: {
@@ -221,14 +281,14 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   inputContainer: {
-    width: '100%',
+    width: "100%",
   },
   inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     borderWidth: 1,
     borderRadius: 8,
     height: 50,
@@ -245,15 +305,15 @@ const styles = StyleSheet.create({
   label: {
     marginBottom: 8,
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   forgotPassword: {
-    alignSelf: 'flex-end',
+    alignSelf: "flex-end",
     marginTop: 12,
   },
   orContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginVertical: 20,
   },
   divider: {
@@ -262,18 +322,18 @@ const styles = StyleSheet.create({
   },
   orText: {
     marginHorizontal: 10,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   googleButtonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
   },
   registerContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+    flexDirection: "row",
+    justifyContent: "center",
     marginTop: 24,
-  }
+  },
 });
 
 export default LoginScreen;

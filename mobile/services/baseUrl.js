@@ -1,16 +1,16 @@
 const environments = {
   development: {
-    androidEmulator: 'http://10.0.2.2:4000/api/v1',
-    iOSSimulator: 'http://localhost:4000/api/v1',
-    deviceLocal: 'http://192.168.68.202:4000/api/v1',
-    staging: 'https://staging-api.bmw-rentals.com/api/v1'
+    androidEmulator: "http://192.168.1.21:4000/api/v1",
+    iOSSimulator: "http://localhost:4000/api/v1",
+    deviceLocal: "http://192.168.1.21:4000/api/v1",
+    staging: "https://staging-api.bmw-rentals.com/api/v1",
   },
-  production: 'https://api.bmw-rentals.com/api/v1'
+  production: "https://api.bmw-rentals.com/api/v1",
 };
 
 const getBaseUrl = () => {
   const isDev = __DEV__;
-  
+
   if (isDev) {
     return environments.development.deviceLocal;
   } else {

@@ -1,7 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 import { API_URL } from '../../config/constants';
-import api from '../../services/api';
 
 // Async thunks for API calls
 export const fetchFeaturedCars = createAsyncThunk(
@@ -20,6 +19,7 @@ export const fetchFeaturedCars = createAsyncThunk(
         return car;
       });
       
+      console.log("Cars:", cars);
       return cars;
     } catch (error) {
       return rejectWithValue(error.response?.data || 'Failed to fetch featured cars');
@@ -65,78 +65,11 @@ export const fetchCarByID = createAsyncThunk(
   }
 );
 
-export const toggleFavorite = createAsyncThunk(
-  'cars/toggleFavorite',
-  async ({ carId, userId, carDetails }, { rejectWithValue }) => {
-    try {
-      const response = await api.post('/favorite-car', {
-        user: userId,
-        car: carId
-      });
-            
-      return { 
-        carId, 
-        isAdded: response.data.message.includes('added'),
-        carDetails
-      };
-    } catch (error) {
-      console.error('Error toggling favorite:', error);
-      return rejectWithValue(
-        error?.message || 'Failed to update favorites. Please try again.'
-      );
-    }
-  }
-);
-
-export const fetchUserFavorites = createAsyncThunk(
-  'cars/fetchUserFavorites',
-  async (userId, { rejectWithValue }) => {
-    try {
-      if (!userId) {
-        throw new Error('User ID is required');
-      }
-      
-      const response = await api.get(`/favorite-cars/${userId}`);
-      
-      // Extract favorite car IDs for the favorites array
-      const favoriteIds = response.data.favoriteCars.map(fav => fav.car._id);
-      
-      return {
-        favoriteCarsData: response.data.favoriteCars,
-        favoriteIds
-      };
-    } catch (error) {
-      console.error('Error fetching favorite cars:', error);
-      return rejectWithValue(error.response?.data || 'Failed to fetch favorite cars');
-    }
-  }
-);
-
-export const deleteFavoriteCar = createAsyncThunk(
-  'cars/deleteFavoriteCar',
-  async ({ favoriteId, carDetails }, { rejectWithValue }) => {
-    try {
-      await api.delete(`/favorite-car/${favoriteId}`);
-      
-      return { 
-        favoriteId,
-        carDetails
-      };
-    } catch (error) {
-      console.error('Error deleting favorite car:', error);
-      return rejectWithValue(
-        error?.message || 'Failed to delete favorite car. Please try again.'
-      );
-    }
-  }
-);
-
 const initialState = {
   featuredCars: [],
   filteredCars: [],
   currentCar: null,
   favorites: [],
-  favoriteCarsData: [], 
   loading: false,
   error: null,
   filterParams: {
@@ -159,12 +92,22 @@ const carSlice = createSlice({
     resetFilters: (state) => {
       state.filterParams = initialState.filterParams;
     },
+    toggleFavorite: (state, action) => {
+      const carId = action.payload;
+      const index = state.favorites.indexOf(carId);
+      if (index !== -1) {
+        state.favorites.splice(index, 1);
+      } else {
+        state.favorites.push(carId);
+      }
+    },
     clearError: (state) => {
       state.error = null;
     }
   },
   extraReducers: (builder) => {
     builder
+      // Featured cars
       .addCase(fetchFeaturedCars.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -177,8 +120,7 @@ const carSlice = createSlice({
         state.loading = false;
         state.error = action.payload || 'Failed to fetch featured cars';
       })
-
-      // Fetch Filtered Cars
+      // Filtered cars
       .addCase(fetchFilteredCars.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -191,8 +133,7 @@ const carSlice = createSlice({
         state.loading = false;
         state.error = action.payload || 'Failed to fetch filtered cars';
       })
-
-      //Fetch Car by ID
+      // Car by ID
       .addCase(fetchCarByID.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -204,62 +145,6 @@ const carSlice = createSlice({
       .addCase(fetchCarByID.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload || 'Failed to fetch car details';
-      })
-
-      //Toggle Favorite
-      .addCase(toggleFavorite.pending, (state) => {
-        state.error = null;
-      })
-      .addCase(toggleFavorite.fulfilled, (state, action) => {
-        const { carId } = action.payload;
-        const index = state.favorites.indexOf(carId);
-        if (index !== -1) {
-          state.favorites.splice(index, 1);
-        } else {
-          state.favorites.push(carId);
-        }
-        state.error = null;
-      })
-      .addCase(toggleFavorite.rejected, (state, action) => {
-        state.error = action.payload || 'Failed to toggle favorite';
-      })
-
-      // Fetch User Favorites
-      .addCase(fetchUserFavorites.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(fetchUserFavorites.fulfilled, (state, action) => {
-        state.loading = false;
-        state.favorites = action.payload.favoriteIds;
-        state.favoriteCarsData = action.payload.favoriteCarsData;
-      })
-      .addCase(fetchUserFavorites.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload || 'Failed to fetch favorite cars';
-      })
-
-      //Deletion of Favorite Car
-      .addCase(deleteFavoriteCar.pending, (state) => {
-        state.error = null;
-      })
-      .addCase(deleteFavoriteCar.fulfilled, (state, action) => {
-        const { favoriteId, carDetails } = action.payload;
-        
-        state.favoriteCarsData = state.favoriteCarsData.filter(
-          fav => fav._id !== favoriteId
-        );
-        
-        if (carDetails && carDetails.car) {
-          const carId = carDetails.car._id;
-          const index = state.favorites.indexOf(carId);
-          if (index !== -1) {
-            state.favorites.splice(index, 1);
-          }
-        }
-      })
-      .addCase(deleteFavoriteCar.rejected, (state, action) => {
-        state.error = action.payload || 'Failed to delete favorite car';
       });
   }
 });
@@ -267,6 +152,7 @@ const carSlice = createSlice({
 export const { 
   setFilterParams,
   resetFilters,
+  toggleFavorite,
   clearError
 } = carSlice.actions;
 

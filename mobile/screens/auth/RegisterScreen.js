@@ -9,6 +9,7 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  Alert,
   Image
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -20,14 +21,13 @@ import { useTheme } from '../../context/ThemeContext';
 import { buttonStyles } from '../../styles/components/buttonStyles';
 import { globalStyles } from '../../styles/globalStyles';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useToast } from '../../context/ToastContext';
 
+// Configure WebBrowser for Google Sign-In
 WebBrowser.maybeCompleteAuthSession();
 
 const RegisterScreen = ({ navigation }) => {
   const { register, googleSignIn, isLoading } = useAuth();
   const { colors } = useTheme();
-  const toast = useToast();
   
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -37,12 +37,14 @@ const RegisterScreen = ({ navigation }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [registrationInProgress, setRegistrationInProgress] = useState(false);
   
+  // Define textInputStyle here before using it
   const textInputStyle = {
     backgroundColor: colors.surface,
     color: colors.text,
     borderColor: colors.border,
   };
   
+  // Define Google auth request hook using the centralized config
   const [request, response, promptAsync] = Google.useAuthRequest(GOOGLE_AUTH_CONFIG);
   
   // Handle Google Sign-In response
@@ -59,7 +61,7 @@ const RegisterScreen = ({ navigation }) => {
       await googleSignIn(idToken);
     } catch (error) {
       console.log("Google sign in error:", error);
-      toast.error(error.message || 'Google sign in failed. Please try again later');
+      Alert.alert('Google Sign In Failed', error.message || 'Please try again later');
     } finally {
       setRegistrationInProgress(false);
     }
@@ -67,17 +69,19 @@ const RegisterScreen = ({ navigation }) => {
   
   const handlePickAvatar = async () => {
     try {
+      // Request permissions
       const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
       
       if (permissionResult.granted === false) {
-        toast.warning('You need to allow access to your photos to upload an avatar.');
+        Alert.alert('Permission Required', 'You need to allow access to your photos to upload an avatar.');
         return;
       }
       
+      // Update to use the non-deprecated MediaType property
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaType ? 
           ImagePicker.MediaType.Images : 
-          ImagePicker.MediaTypeOptions.Images, 
+          ImagePicker.MediaTypeOptions.Images, // Fallback for backward compatibility
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
@@ -91,41 +95,55 @@ const RegisterScreen = ({ navigation }) => {
       }
     } catch (error) {
       console.error("Error picking image:", error);
-      toast.error('Failed to pick an image. Please try again.');
+      Alert.alert('Error', 'Failed to pick an image. Please try again.');
     }
   };
   
   const handleRegister = async () => {
+    // Basic validation
     if (!firstName || !lastName || !email || !password) {
-      toast.warning('Please fill in all required fields');
+      Alert.alert('Error', 'Please fill in all required fields');
       return;
     }
     
     if (password.length < 6) {
-      toast.warning('Password must be at least 6 characters long');
+      Alert.alert('Error', 'Password must be at least 6 characters long');
       return;
     }
     
     try {
       setRegistrationInProgress(true);
       
-      const result = await register({
+      // Prepare user data for registration - ensure avatar is properly formatted
+      const userData = {
         firstName,
         lastName,
         email,
         password,
-        avatar
+        // Make sure avatar is properly defined to prevent the split error
+        avatar: avatar || null // Provide a default value to prevent undefined errors
+      };
+      
+      console.log("Submitting registration with data:", { 
+        ...userData, 
+        password: '******' // Don't log actual password
       });
       
+      const result = await register(userData);
+      
       if (result.success) {
-        toast.success('Your account has been created successfully');
-        navigation.navigate('Login');
-      } else {
-        toast.error(result.error || 'Registration failed');
+        Alert.alert(
+          'Registration Successful',
+          'Your account has been created successfully. Please log in.',
+          [{ text: 'OK', onPress: () => navigation.navigate('Login') }]
+        );
       }
     } catch (error) {
-      console.log("Registration error:", error);
-      toast.error(error.message || 'Please check your information and try again');
+      console.log("Registration error details:", error);
+      Alert.alert(
+        'Registration Failed', 
+        error.message || 'Please check your information and try again'
+      );
     } finally {
       setRegistrationInProgress(false);
     }
@@ -136,7 +154,7 @@ const RegisterScreen = ({ navigation }) => {
       await promptAsync();
     } catch (error) {
       console.log("Google sign in prompt error:", error);
-      toast.error('Could not start Google authentication');
+      Alert.alert('Google Sign In Failed', 'Could not start Google authentication');
     }
   };
   
@@ -340,6 +358,7 @@ const styles = StyleSheet.create({
   inputContainer: {
     width: '100%',
   },
+  // New styles for the name row layout
   nameRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
