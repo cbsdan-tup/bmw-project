@@ -24,6 +24,7 @@ import {
 } from '../redux/slices/bookingSlice';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { useToast } from '../context/ToastContext';
+import { calculateRentalDays } from '../helper/utils';
 
 const BookingStatusBadge = ({ status, style }) => {
   const { colors } = useTheme();
@@ -54,6 +55,28 @@ const BookingCard = ({ booking, onPress }) => {
     return new Date(dateString).toLocaleDateString(undefined, options);
   };
 
+  // Handle cases where booking.car might be undefined
+  if (!booking || !booking.car) {
+    return (
+      <TouchableOpacity
+        style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
+        onPress={() => onPress && onPress(booking)}
+      >
+        <View style={styles.cardHeader}>
+          <View style={styles.cardTitleContainer}>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>Booking Information</Text>
+            {booking && <BookingStatusBadge status={booking.status || "Unknown"} />}
+          </View>
+        </View>
+        <View style={styles.cardContent}>
+          <View style={styles.bookingDetails}>
+            <Text style={[styles.detailValue, { color: colors.text }]}>Car details unavailable</Text>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  }
+
   return (
     <TouchableOpacity
       style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
@@ -62,14 +85,14 @@ const BookingCard = ({ booking, onPress }) => {
       <View style={styles.cardHeader}>
         <View style={styles.cardTitleContainer}>
           <Text style={[styles.cardTitle, { color: colors.text }]}>
-            {booking.car.brand} {booking.car.model}
+            {booking.car.brand || "Unknown"} {booking.car.model || ""}
           </Text>
           <BookingStatusBadge status={booking.status} />
         </View>
       </View>
       
       <View style={styles.cardContent}>
-        {booking.car.images && booking.car.images.length > 0 && (
+        {booking.car.images && booking.car.images.length > 0 && booking.car.images[0] && (
           <Image 
             source={{ uri: booking.car.images[0].url }} 
             style={styles.carImage} 
@@ -93,7 +116,7 @@ const BookingCard = ({ booking, onPress }) => {
           <View style={styles.detailRow}>
             <Icon name="money" size={16} color={colors.primary} style={styles.icon} />
             <Text style={[styles.detailLabel, { color: colors.secondary }]}>Total:</Text>
-            <Text style={[styles.detailValue, { color: colors.text }]}>${booking.totalPrice}</Text>
+            <Text style={[styles.detailValue, { color: colors.text }]}>₱{booking?.car?.pricePerDay * calculateRentalDays(booking.pickUpDate, booking.returnDate)}</Text>
           </View>
         </View>
       </View>
@@ -146,7 +169,7 @@ const BookingDetailsModal = ({ visible, booking, onClose }) => {
             contentContainerStyle={styles.modalScrollContent}
             showsVerticalScrollIndicator={true}
           >
-            {booking.car.images && booking.car.images.length > 0 && (
+            {booking.car && booking.car.images && booking.car.images.length > 0 && booking.car.images[0] && (
               <Image 
                 source={{ uri: booking.car.images[0].url }} 
                 style={styles.modalImage} 
@@ -154,9 +177,11 @@ const BookingDetailsModal = ({ visible, booking, onClose }) => {
               />
             )}
             
-            <Text style={[styles.carTitle, { color: colors.text }]}>
-              {booking.car.brand} {booking.car.model}
-            </Text>
+            {booking.car && (
+              <Text style={[styles.carTitle, { color: colors.text }]}>
+                {booking.car.brand || "Unknown"} {booking.car.model || ""}
+              </Text>
+            )}
             
             <View style={styles.detailSection}>
               <Text style={[styles.sectionTitle, { color: colors.primary }]}>Booking Information</Text>
@@ -299,19 +324,27 @@ const MyBookingsScreen = () => {
 
   // Filter and sort bookings
   const getFilteredAndSortedBookings = useCallback(() => {
+    if (!bookings || !Array.isArray(bookings)) return [];
+    
     // First filter the bookings based on selected status
     const filtered = statusFilter === 'All' 
       ? bookings 
-      : bookings.filter(booking => booking.status === statusFilter);
+      : bookings.filter(booking => booking && booking.status === statusFilter);
     
     // Then sort them with Pending status at the top, followed by others in alphabetical order
     return [...filtered].sort((a, b) => {
+      // Skip problematic items
+      if (!a || !b) return 0;
+      
       // Always put Pending at the top
       if (a.status === 'Pending' && b.status !== 'Pending') return -1;
       if (a.status !== 'Pending' && b.status === 'Pending') return 1;
       
       // For other statuses, sort by status alphabetically
-      return a.status.localeCompare(b.status);
+      if (!a.status || !b.status) return 0;
+      
+      // Use safe comparison to avoid errors with undefined
+      return (a.status || '').localeCompare(b.status || '');
     });
   }, [bookings, statusFilter]);
 
@@ -409,7 +442,7 @@ const MyBookingsScreen = () => {
       <FlatList
         data={filteredAndSortedBookings}
         renderItem={({ item }) => <BookingCard booking={item} onPress={handleBookingPress} />}
-        keyExtractor={item => item._id}
+        keyExtractor={item => item && item._id ? item._id.toString() : Math.random().toString(36).substring(7)}
         contentContainerStyle={styles.listContainer}
         refreshing={loading}
         onRefresh={handleRefresh}

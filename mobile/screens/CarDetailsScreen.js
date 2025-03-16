@@ -20,10 +20,13 @@ import { useRoute, useNavigation } from "@react-navigation/native";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { fetchCarByID, toggleFavorite } from "../redux/slices/carSlice";
+import { createBooking, resetBookingSuccess, fetchUserBookings } from "../redux/slices/bookingSlice";
 import { CAR_IMAGES } from "../config/constants";
 import Icon from "react-native-vector-icons/FontAwesome";
 import StarRating from "../components/StarRating";
 import { useToast } from "../context/ToastContext";
+import DateTimePickerModal from "react-native-modal-datetime-picker";
+import { Picker } from "@react-native-picker/picker";
 
 const { width, height } = Dimensions.get("window");
 
@@ -37,10 +40,22 @@ const CarDetailsScreen = () => {
   const { currentCar, loading, error, favorites } = useSelector(
     (state) => state.cars
   );
+  const { loading: bookingLoading, error: bookingError, bookingSuccess } = useSelector(
+    (state) => state.bookings
+  );
   const { carId } = route.params || {};
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isImageViewerVisible, setIsImageViewerVisible] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
+
+  const [pickupDate, setPickupDate] = useState(null);
+  const [returnDate, setReturnDate] = useState(null);
+  const [isPickupDatePickerVisible, setPickupDatePickerVisibility] = useState(false);
+  const [isReturnDatePickerVisible, setReturnDatePickerVisibility] = useState(false);
+  const [paymentMode, setPaymentMode] = useState("");
+  const [rentalDays, setRentalDays] = useState(0);
+  const [confirmDialogVisible, setConfirmDialogVisible] = useState(false);
+  const [showBookingModal, setShowBookingModal] = useState(false);
 
   useEffect(() => {
     if (carId) {
@@ -53,6 +68,35 @@ const CarDetailsScreen = () => {
       setIsFavorite(favorites.includes(currentCar._id));
     }
   }, [currentCar, favorites]);
+
+  useEffect(() => {
+    if (bookingSuccess) {
+      toast.success("Booking confirmed! Please wait for owner approval");
+      dispatch(resetBookingSuccess());
+      dispatch(fetchUserBookings(user?._id));
+      resetBookingState();
+      
+      navigation.navigate("Profile", { 
+        screen: "MyBookings" 
+      });
+    }
+  }, [bookingSuccess, dispatch, navigation, toast]);
+
+  useEffect(() => {
+    if (bookingError) {
+      toast.error(bookingError);
+    }
+  }, [bookingError, toast]);
+
+  useEffect(() => {
+    if (pickupDate && returnDate) {
+      const pickupTime = new Date(pickupDate).getTime();
+      const returnTime = new Date(returnDate).getTime();
+      const diffTime = returnTime - pickupTime;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      setRentalDays(diffDays > 0 ? diffDays : 0);
+    }
+  }, [pickupDate, returnDate]);
 
   const handleFavoritePress = () => {
     if (!user) {
@@ -91,14 +135,93 @@ const CarDetailsScreen = () => {
     }
   };
 
+  const showPickupDatePicker = () => {
+    setPickupDatePickerVisibility(true);
+  };
+
+  const hidePickupDatePicker = () => {
+    setPickupDatePickerVisibility(false);
+  };
+
+  const showReturnDatePicker = () => {
+    setReturnDatePickerVisibility(true);
+  };
+
+  const hideReturnDatePicker = () => {
+    setReturnDatePickerVisibility(false);
+  };
+
+  const handleConfirmPickupDate = (date) => {
+    setPickupDate(date);
+    hidePickupDatePicker();
+  };
+
+  const handleConfirmReturnDate = (date) => {
+    setReturnDate(date);
+    hideReturnDatePicker();
+  };
+
   const handleBookPress = () => {
     if (!user) {
       toast.warning('Please login to book this car');
       navigation.navigate("Login");
       return;
     }
+    
+    setShowBookingModal(true);
+    if (!pickupDate && !returnDate) {
+      setPaymentMode("");
+      setRentalDays(0);
+    }
+  };
 
-    navigation.navigate("BookingScreen", { carId });
+  const validateBookingForm = () => {
+    if (!pickupDate) {
+      toast.error("Please select a pickup date");
+      return false;
+    }
+    
+    if (!returnDate) {
+      toast.error("Please select a return date");
+      return false;
+    }
+    
+    if (!paymentMode) {
+      toast.error("Please select a payment method");
+      return false;
+    }
+    
+    if (rentalDays <= 0) {
+      toast.error("Invalid rental period");
+      return false;
+    }
+    
+    return true;
+  };
+
+  const handleShowConfirmation = () => {
+    if (!validateBookingForm()) return;
+    setConfirmDialogVisible(true);
+  };
+
+  const handleConfirmBooking = () => {
+    const bookingData = {
+      car: carId,
+      renter: user._id,
+      pickUpDate: pickupDate.toISOString(),
+      returnDate: returnDate.toISOString(),
+      status: "Pending",
+      paymentMethod: paymentMode,
+      paymentStatus: "Paid",
+    };
+    
+    dispatch(createBooking(bookingData))
+      .unwrap()
+      .then(() => {
+      })
+      .catch((err) => {
+        console.log("Booking error:", err);
+      });
   };
 
   const handleImagePress = (index) => {
@@ -242,13 +365,227 @@ const CarDetailsScreen = () => {
     );
   };
 
+  const BookingConfirmDialog = () => {
+    if (!confirmDialogVisible) {
+      return null;
+    }
+    
+    return (
+      <Modal
+        visible={true}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setConfirmDialogVisible(false)}
+        statusBarTranslucent
+      >
+        <View style={[styles.confirmModalOverlay]}>
+          <View style={[styles.confirmDialog, { backgroundColor: colors.card }]}>
+            <Text style={[styles.dialogTitle, { color: colors.text }]}>Confirm Your Booking</Text>
+            
+            <View style={styles.dialogContent}>
+              <View style={styles.dialogSection}>
+                <Text style={[styles.dialogSectionTitle, { color: colors.text }]}>Car</Text>
+                <Text style={[styles.dialogText, { color: colors.text }]}>
+                  {currentCar.brand} {currentCar.model} ({currentCar.year})
+                </Text>
+                <Text style={[styles.dialogText, { color: colors.text }]}>
+                  {currentCar.vehicleType} - {currentCar.seatCapacity} Seats
+                </Text>
+              </View>
+              
+              <View style={styles.dialogSection}>
+                <Text style={[styles.dialogSectionTitle, { color: colors.text }]}>Booking Details</Text>
+                <View style={styles.dialogRow}>
+                  <Text style={[styles.dialogLabel, { color: colors.secondary }]}>Pick-up:</Text>
+                  <Text style={[styles.dialogValue, { color: colors.text }]}>
+
+                    {pickupDate?.toLocaleString()}
+                  </Text>
+                </View>
+                
+                <View style={styles.dialogRow}>
+                  <Text style={[styles.dialogLabel, { color: colors.secondary }]}>Return:</Text>
+                  <Text style={[styles.dialogValue, { color: colors.text }]}>
+                    {returnDate?.toLocaleString()}
+                  </Text>
+                </View>
+                
+                <View style={styles.dialogRow}>
+                  <Text style={[styles.dialogLabel, { color: colors.secondary }]}>Days:</Text>
+                  <Text style={[styles.dialogValue, { color: colors.text }]}>{rentalDays}</Text>
+                </View>
+                
+                <View style={styles.dialogRow}>
+                  <Text style={[styles.dialogLabel, { color: colors.secondary }]}>Pick-up Location:</Text>
+                  <Text style={[styles.dialogValue, { color: colors.text }]}>
+                    {currentCar?.pickUpLocation}
+                  </Text>
+                </View>
+
+                <View style={styles.dialogRow}>
+                  <Text style={[styles.dialogLabel, { color: colors.secondary }]}>Payment:</Text>
+                  <Text style={[styles.dialogValue, { color: colors.text }]}>{paymentMode}</Text>
+                </View>
+              </View>
+              
+              <View style={[styles.totalSection, { borderTopColor: colors.border }]}>
+
+                <Text style={[styles.totalLabel, { color: colors.secondary }]}>Total Payment:</Text>
+                <Text style={[styles.totalValue, { color: colors.primary }]}>₱{rentalDays * currentCar.pricePerDay}</Text>
+              </View>
+            </View>
+            
+            <View style={styles.dialogActions}>
+              <TouchableOpacity
+                style={[styles.dialogButton, { backgroundColor: '#f44336' }]}
+                onPress={() => setConfirmDialogVisible(false)}
+              >
+                <Text style={styles.dialogButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.dialogButton, { backgroundColor: colors.primary }]}
+                onPress={handleConfirmBooking}
+                disabled={bookingLoading}
+              >
+                {bookingLoading ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.dialogButtonText}>Confirm</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    );
+  };
+
+  const BookingFormModal = () => {
+    if (!showBookingModal || confirmDialogVisible) {
+      return null;
+    }
+    
+    return (
+      <Modal
+        visible={true}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowBookingModal(false)}
+        statusBarTranslucent
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.bookingFormModal, { backgroundColor: colors.card }]}>
+            <View style={styles.bookingFormHandle} />
+            
+            <Text style={[styles.bookingFormTitle, { color: colors.text }]}>Book This Car</Text>
+            
+            <TouchableOpacity 
+              style={[styles.datePicker, { borderColor: colors.border }]} 
+              onPress={showPickupDatePicker}
+            >
+              <Icon name="calendar" size={18} color={colors.primary} style={styles.datePickerIcon} />
+              <Text style={[styles.datePickerText, { color: pickupDate ? colors.text : colors.secondary }]}>
+
+                {pickupDate ? pickupDate.toLocaleString() : "Select Pick-up Date"}
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.datePicker, { borderColor: colors.border }]} 
+              onPress={showReturnDatePicker}
+            >
+              <Icon name="calendar" size={18} color={colors.primary} style={styles.datePickerIcon} />
+              <Text style={[styles.datePickerText, { color: returnDate ? colors.text : colors.secondary }]}>
+
+                {returnDate ? returnDate.toLocaleString() : "Select Return Date"}
+              </Text>
+            </TouchableOpacity>
+            
+            <View style={[styles.pickerContainer, { borderColor: colors.border }]}>
+              <Picker
+                selectedValue={paymentMode}
+                onValueChange={(itemValue) => setPaymentMode(itemValue)}
+                style={[styles.picker, { color: colors.text }]}
+                dropdownIconColor={colors.text}
+              >
+                <Picker.Item label="Select Payment Method" value="" />
+                <Picker.Item label="Credit Card" value="Credit Card" />
+                <Picker.Item label="GCash" value="GCash" />
+                <Picker.Item label="Cash" value="Cash" />
+              </Picker>
+            </View>
+            
+            {(pickupDate && returnDate) && (
+              <View style={styles.summaryContainer}>
+                <View style={styles.summaryRow}>
+                  <Text style={[styles.summaryLabel, { color: colors.secondary }]}>Price per day:</Text>
+                  <Text style={[styles.summaryValue, { color: colors.text }]}>₱{currentCar.pricePerDay}</Text>
+                </View>
+                
+                <View style={styles.summaryRow}>
+                  <Text style={[styles.summaryLabel, { color: colors.secondary }]}>Rental days:</Text>
+                  <Text style={[styles.summaryValue, { color: colors.text }]}>{rentalDays}</Text>
+                </View>
+                
+                <View style={[styles.totalRow, { borderTopColor: colors.border }]}>
+
+                  <Text style={[styles.totalLabel, { color: colors.text }]}>Total:</Text>
+                  <Text style={[styles.totalAmount, { color: colors.primary }]}>₱{rentalDays * currentCar.pricePerDay}</Text>
+                </View>
+              </View>
+            )}
+            
+            <TouchableOpacity
+              style={[styles.confirmButton, { backgroundColor: colors.primary }]}
+              onPress={handleShowConfirmation}
+            >
+              <Text style={styles.confirmButtonText}>Continue to Book</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.cancelButton} 
+              onPress={() => setShowBookingModal(false)}
+            >
+              <Text style={{ color: colors.secondary }}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    );
+  };
+
+  const DatePickerModals = () => (
+    <>
+      <DateTimePickerModal
+        isVisible={isPickupDatePickerVisible}
+        mode="datetime"
+        onConfirm={handleConfirmPickupDate}
+        onCancel={hidePickupDatePicker}
+        minimumDate={new Date()}
+      />
+      
+      <DateTimePickerModal
+        isVisible={isReturnDatePickerVisible}
+        mode="datetime"
+        onConfirm={handleConfirmReturnDate}
+        onCancel={hideReturnDatePicker}
+        minimumDate={pickupDate || new Date()}
+      />
+    </>
+  );
+
+  const resetBookingState = () => {
+    setConfirmDialogVisible(false);
+    setShowBookingModal(false);
+  };
+
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: colors.background }]}
     >
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Car Image */}
-        <View style={styles.imageContainer}>
+        <View style={[styles.imageContainer, {marginTop: 15}]}>
           {currentCar.images && currentCar.images.length > 0 ? (
             <>
               <FlatList
@@ -416,6 +753,38 @@ const CarDetailsScreen = () => {
             </TouchableOpacity>
           </View>
 
+          {
+            currentCar.isOnRental !== true ? (
+              <TouchableOpacity
+                style={[styles.bookButton, { backgroundColor: colors.primary, marginBottom: 15 }]}
+                onPress={handleBookPress}
+              >
+                <Icon
+                  name="calendar-check-o"
+                  size={18}
+                  color="#FFFFFF"
+                  style={{ marginRight: 8 }}
+                />
+                <Text style={styles.bookButtonText}>Book Now</Text>
+              </TouchableOpacity>
+            ) : (
+              <View
+              style={[
+                styles.sectionContainer,
+                { borderBottomColor: colors.border },
+              ]}
+            >
+              <View
+                style={[styles.locationBox, { backgroundColor: colors.card }]}
+              >
+                <Text style={[styles.locationText, { color: colors.text, textAlign: 'center' }]}>
+                  This Car is currently on Rental
+                </Text>
+              </View>
+            </View>
+            )
+          }
+
           {/* Car Features */}
           <View
             style={[
@@ -519,7 +888,6 @@ const CarDetailsScreen = () => {
             </View>
           </View>
 
-          {/* Owner Info */}
           {currentCar.owner && (
             <View style={styles.sectionContainer}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>
@@ -574,23 +942,12 @@ const CarDetailsScreen = () => {
               </View>
             </View>
           )}
-
-          {/* Book Now Button */}
-          <TouchableOpacity
-            style={[styles.bookButton, { backgroundColor: colors.primary }]}
-            onPress={handleBookPress}
-          >
-            <Icon
-              name="calendar-check-o"
-              size={18}
-              color="#FFFFFF"
-              style={{ marginRight: 8 }}
-            />
-            <Text style={styles.bookButtonText}>Book Now</Text>
-          </TouchableOpacity>
         </View>
       </ScrollView>
       <ImageViewer />
+      <BookingConfirmDialog />
+      <BookingFormModal />
+      <DatePickerModals />
     </SafeAreaView>
   );
 };
@@ -713,7 +1070,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   ratingContainer: {
-    marginBottom: 16,
+    marginBottom: 0,
   },
   ratingRow: {
     flexDirection: "row",
@@ -837,7 +1194,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
-    marginVertical: 16,
+    marginVertical: 10,
   },
   bookButtonText: {
     color: "#fff",
@@ -868,6 +1225,206 @@ const styles = StyleSheet.create({
   fullScreenImage: {
     width: width,
     height: height * 0.8,
+  },
+  // Add new styles for booking form
+  bookingForm: {
+    padding: 16,
+    borderRadius: 8,
+    marginVertical: 16,
+  },
+  bookingFormTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    marginBottom: 16,
+  },
+  datePicker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  datePickerIcon: {
+    marginRight: 10,
+  },
+  datePickerText: {
+    flex: 1,
+  },
+  pickerContainer: {
+    borderWidth: 1,
+    borderRadius: 8,
+    marginBottom: 16,
+    overflow: 'hidden',
+  },
+  picker: {
+    height: 50,
+  },
+  summaryContainer: {
+    marginVertical: 16,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingTop: 8,
+    marginTop: 8,
+    borderTopWidth: 1,
+  },
+  totalLabel: {
+    fontWeight: 'bold',
+  },
+  totalAmount: {
+    fontWeight: 'bold',
+    fontSize: 18,
+  },
+  confirmButton: {
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  confirmButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  cancelButton: {
+    padding: 16,
+    alignItems: 'center',
+  },
+  
+  // Confirmation dialog styles
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end', // Makes modal appear from bottom
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    zIndex: 1000,
+  },
+  confirmModalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    zIndex: 2000, // Higher than booking form modal
+  },
+  confirmDialog: {
+    width: '90%',
+    maxHeight: '80%',
+    borderRadius: 12,
+    padding: 20,
+    elevation: 25, // Higher elevation for Android
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    zIndex: 2000
+  },
+  bookingFormModal: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    paddingTop: 10,
+    maxHeight: '90%',
+    elevation: 20,
+    zIndex: 1000,
+    position: 'relative'
+  },
+  // Update and add styles for the modal booking form
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end', // Makes modal appear from bottom
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  bookingFormModal: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    paddingTop: 10,
+    maxHeight: '90%', // Limit height to 90% of screen
+  },
+  bookingFormHandle: {
+    alignSelf: 'center',
+    width: 40,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: '#ccc',
+    marginBottom: 15,
+  },
+  bookingFormTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  dialogTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 20,
+  },
+  dialogContent: {
+    marginBottom: 20,
+  },
+  dialogSection: {
+    marginBottom: 16,
+  },
+  dialogSectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  dialogText: {
+    fontSize: 16,
+    marginBottom: 4,
+  },
+  dialogRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  dialogLabel: {
+    fontSize: 16,
+  },
+  dialogValue: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  dialogActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 20,
+  },
+  dialogButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    marginLeft: 10,
+  },
+  dialogButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  totalSection: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 16,
+    marginTop: 16,
+    borderTopWidth: 1,
+  },
+  totalLabel: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  totalValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
   },
 });
 

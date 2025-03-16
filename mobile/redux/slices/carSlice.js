@@ -48,10 +48,8 @@ export const fetchCarByID = createAsyncThunk(
     try {
       const response = await axios.get(`${API_URL}/Cars/${carId}`);
       
-      // Transform the car data to ensure images are in the expected format
       const car = response.data.car;
       
-      // Process images to ensure consistent format (always use url string)
       if (car && car.images && Array.isArray(car.images)) {
         car.images = car.images.map(image => 
           typeof image === 'string' ? image : image.url

@@ -32,12 +32,27 @@ export const cancelBooking = createAsyncThunk(
   }
 );
 
+export const createBooking = createAsyncThunk(
+  'bookings/createBooking',
+  async (bookingData, { rejectWithValue }) => {
+    try {
+      const response = await api.post('/createRental', bookingData);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || 'Failed to create booking'
+      );
+    }
+  }
+);
+
 const initialState = {
   bookings: [],
   bookingsCount: 0,
   loading: false,
   error: null,
   selectedBooking: null,
+  bookingSuccess: false,
 };
 
 const bookingSlice = createSlice({
@@ -55,7 +70,10 @@ const bookingSlice = createSlice({
     },
     setBookingsCount: (state, action) => {
       state.bookingsCount = action.payload;
-    }
+    },
+    resetBookingSuccess: (state) => {
+      state.bookingSuccess = false;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -94,14 +112,34 @@ const bookingSlice = createSlice({
       .addCase(cancelBooking.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
-      });
+      })
+
+      // Create booking
+      .addCase(createBooking.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+        state.bookingSuccess = false;
+      })
+      .addCase(createBooking.fulfilled, (state, action) => {
+        state.loading = false;
+        state.bookings.push(action.payload);
+        state.bookingsCount = state.bookings.length;
+        state.bookingSuccess = true;
+      })
+      .addCase(createBooking.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+        state.bookingSuccess = false;
+      })
+
   },
 });
 
 export const { 
   setSelectedBooking, 
   clearSelectedBooking,
-  resetBookingError 
+  resetBookingError,
+  resetBookingSuccess
 } = bookingSlice.actions;
 
 export default bookingSlice.reducer;

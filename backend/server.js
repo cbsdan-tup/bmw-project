@@ -39,7 +39,7 @@ app.use(express.urlencoded({limit: "50mb", extended: true }));
 app.use(logger)
 
 app.use(cors({
-    origin: ["https://borrow-my-wheel.vercel.app", "http://localhost:5173"],
+    origin: ["https://borrow-my-wheel.vercel.app", "http://localhost:5173", "http://localhost:8081"],
     methods: ["POST", "GET", "PUT", "DELETE"],
     credentials: true
 }))

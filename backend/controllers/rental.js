@@ -540,6 +540,35 @@ const getMonthlyIncome = async (req, res) => {
   }
 };
 
+
+// Check if car has active rentals
+const checkCarRentalStatus = async (req, res) => {
+  try {
+    const { carId } = req.params;
+    
+    if (!carId) {
+      return res.status(400).json({ message: 'Car ID is required' });
+    }
+
+    // Find rentals with the specified car ID and active statuses
+    const activeRentals = await Rental.find({
+      car: carId,
+      status: { $in: ['Pending', 'Confirmed', 'Active'] }
+    });
+
+    // Return true if active rentals exist, false otherwise
+    return res.status(200).json({
+      success: true,
+      isOnRental: activeRentals.length > 0,
+      activeRentals: activeRentals.length,
+      rentals: activeRentals.length > 0 ? activeRentals : []
+    });
+  } catch (error) {
+    console.error('Error checking car rental status:', error);
+    res.status(500).json({ message: 'Error checking car rental status', error: error.message });
+  }
+};
+
 module.exports = {
   createRent,
   updateRent,
@@ -552,4 +581,5 @@ module.exports = {
   getMonthlyIncome,
   calculateSalesChart,
   top3CarsController,
+  checkCarRentalStatus
 };

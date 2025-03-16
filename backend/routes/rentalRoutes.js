@@ -14,6 +14,7 @@ const {
   getMonthlyIncome,
   calculateSalesChart,
   top3CarsController,
+  checkCarRentalStatus
 } = require("../controllers/rental");
 
 router.get("/rentals", isAuthenticatedUser, getAllRentDetails);
@@ -25,6 +26,7 @@ router.get("/my-car-rentals/:ownerId", isAuthenticatedUser, myCarRental);
 router.get("/top3cars", isAdmin, top3CarsController);
 router.get("/sales", isAdmin, calculateSalesChart);
 router.get("/car-rentals/:carId", getRentalsByCarId);
+router.get('/car-rental-status/:carId', checkCarRentalStatus);
 router
   .route("/rentals/:id")
   .put(isAuthenticatedUser, updateRent)

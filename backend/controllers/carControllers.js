@@ -550,15 +550,38 @@ exports.getCarAvailability = async (req, res) => {
 
 exports.getFeaturedCars = async (req, res) => {
   try {
-    const featuredCars = await Cars.find({ 
+    const allActiveCars = await Cars.find({ 
       isActive: true,
-    })
-    .limit(20); 
+    });
 
-    if (!featuredCars || featuredCars.length === 0) {
+    if (!allActiveCars || allActiveCars.length === 0) {
       return res.status(404).json({
         success: false,
         message: "No featured cars found"
+      });
+    }
+
+    const availableCars = [];
+    
+    for (const car of allActiveCars) {
+      const activeRentals = await Rental.find({ 
+        car: car._id,
+        status: { $in: ["Pending", "Confirmed", "Active"] }
+      });
+      
+      // Only include cars with no active rentals
+      if (activeRentals.length === 0) {
+        availableCars.push(car);
+      }
+    }
+
+    // Limit to 20 available cars
+    const featuredCars = availableCars.slice(0, 20);
+
+    if (featuredCars.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No available featured cars found"
       });
     }
 
@@ -594,7 +617,6 @@ exports.getFeaturedCars = async (req, res) => {
       cars: topRatedCars,
     });
   } catch (error) {
-    // ...existing code...
     console.error("Error fetching featured cars:", error);
     return res.status(500).json({
       success: false,
