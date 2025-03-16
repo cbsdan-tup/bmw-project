@@ -20,10 +20,34 @@ import { globalStyles } from '../../styles/globalStyles';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { GOOGLE_AUTH_CONFIG } from '../../config/google-auth-config';
 import { useToast } from '../../context/ToastContext';
+import 'expo-dev-client'
+
+import auth from '@react-native-firebase/auth';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 
 WebBrowser.maybeCompleteAuthSession();
 
 const LoginScreen = ({ navigation }) => {
+  GoogleSignin.configure({
+    webClientId: '14654770851-58gpdt67ckrtl2s3feuj7u9phjh2btua.apps.googleusercontent.com',
+  });
+
+  const onGoogleButtonPress = async () => {
+    // Get the users ID token
+    const { idToken } = await GoogleSignin.signIn();
+
+    // Create a Google credential with the token
+    const googleCredential = auth.GoogleAuthProvider.credential(idToken);
+
+    // Sign-in the user with the credential
+    const user_sign_in = auth().signInWithCredential(googleCredential);
+    user_sign_in.then((user) => {
+      console.log('User signed in with Google!', user);
+    }).catch((error) => {
+      console.log('Error signing in with Google:', error);
+    });
+  }
+
   const { login, googleSignIn, isLoading } = useAuth();
   const { colors } = useTheme();
   const toast = useToast();
@@ -179,7 +203,7 @@ const LoginScreen = ({ navigation }) => {
               borderColor: colors.border,
               backgroundColor: colors.surface,
             }]}
-            onPress={handleGoogleSignIn}
+            onPress={()=>onGoogleButtonPress().then(() => console.log('Signed in with Google!'))}
             disabled={isLoading || loginInProgress}
           >
             <View style={styles.googleButtonContent}>

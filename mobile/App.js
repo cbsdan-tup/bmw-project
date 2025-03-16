@@ -19,9 +19,17 @@ import { LogBox } from 'react-native';
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from './config/firebase-config';
 import {fetchUserBookings} from './redux/slices/bookingSlice';
-import {fetchUserFavorites} from './redux/slices/carSlice';
+import {fetchUserFavorites}from './redux/slices/carSlice';
 import { fetchUserReviews } from './redux/slices/reviewSlice';
+import firebase from '@react-native-firebase/app';
 LogBox.ignoreLogs(['Warning: ...']);
+
+// Initialize Firebase at app startup
+if (!firebase.apps.length) {
+  // Your web app's Firebase configuration is automatically loaded from google-services.json
+  // on Android and GoogleService-Info.plist on iOS
+  firebase.initializeApp();
+}
 
 // Error boundary for navigation container
 const ErrorBoundary = ({ children }) => {
