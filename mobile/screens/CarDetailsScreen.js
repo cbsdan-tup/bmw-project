@@ -20,7 +20,11 @@ import { useRoute, useNavigation } from "@react-navigation/native";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { fetchCarByID, toggleFavorite } from "../redux/slices/carSlice";
-import { createBooking, resetBookingSuccess, fetchUserBookings } from "../redux/slices/bookingSlice";
+import {
+  createBooking,
+  resetBookingSuccess,
+  fetchUserBookings,
+} from "../redux/slices/bookingSlice";
 import { CAR_IMAGES } from "../config/constants";
 import Icon from "react-native-vector-icons/FontAwesome";
 import StarRating from "../components/StarRating";
@@ -40,9 +44,11 @@ const CarDetailsScreen = () => {
   const { currentCar, loading, error, favorites } = useSelector(
     (state) => state.cars
   );
-  const { loading: bookingLoading, error: bookingError, bookingSuccess } = useSelector(
-    (state) => state.bookings
-  );
+  const {
+    loading: bookingLoading,
+    error: bookingError,
+    bookingSuccess,
+  } = useSelector((state) => state.bookings);
   const { carId } = route.params || {};
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isImageViewerVisible, setIsImageViewerVisible] = useState(false);
@@ -50,8 +56,10 @@ const CarDetailsScreen = () => {
 
   const [pickupDate, setPickupDate] = useState(null);
   const [returnDate, setReturnDate] = useState(null);
-  const [isPickupDatePickerVisible, setPickupDatePickerVisibility] = useState(false);
-  const [isReturnDatePickerVisible, setReturnDatePickerVisibility] = useState(false);
+  const [isPickupDatePickerVisible, setPickupDatePickerVisibility] =
+    useState(false);
+  const [isReturnDatePickerVisible, setReturnDatePickerVisibility] =
+    useState(false);
   const [paymentMode, setPaymentMode] = useState("");
   const [rentalDays, setRentalDays] = useState(0);
   const [confirmDialogVisible, setConfirmDialogVisible] = useState(false);
@@ -75,9 +83,9 @@ const CarDetailsScreen = () => {
       dispatch(resetBookingSuccess());
       dispatch(fetchUserBookings(user?._id));
       resetBookingState();
-      
-      navigation.navigate("Profile", { 
-        screen: "MyBookings" 
+
+      navigation.navigate("Profile", {
+        screen: "MyBookings",
       });
     }
   }, [bookingSuccess, dispatch, navigation, toast]);
@@ -100,26 +108,32 @@ const CarDetailsScreen = () => {
 
   const handleFavoritePress = () => {
     if (!user) {
-      navigation.navigate('Login');
+      navigation.navigate("Login");
       return;
     }
-    
-    dispatch(toggleFavorite({ 
-      carId: currentCar._id, 
-      userId: user._id,
-      carDetails: currentCar
-    }))
-    .unwrap()
-    .then((result) => {
-      if (result.isAdded) {
-        toast.success(`${currentCar.brand} ${currentCar.model} was added to your favorites`);
-      } else {
-        toast.info(`${currentCar.brand} ${currentCar.model} was removed from your favorites`);
-      }
-    })
-    .catch((error) => {
-      toast.error(error || 'Failed to update favorites. Please try again.');
-    });
+
+    dispatch(
+      toggleFavorite({
+        carId: currentCar._id,
+        userId: user._id,
+        carDetails: currentCar,
+      })
+    )
+      .unwrap()
+      .then((result) => {
+        if (result.isAdded) {
+          toast.success(
+            `${currentCar.brand} ${currentCar.model} was added to your favorites`
+          );
+        } else {
+          toast.info(
+            `${currentCar.brand} ${currentCar.model} was removed from your favorites`
+          );
+        }
+      })
+      .catch((error) => {
+        toast.error(error || "Failed to update favorites. Please try again.");
+      });
   };
 
   const handleSharePress = async () => {
@@ -163,11 +177,11 @@ const CarDetailsScreen = () => {
 
   const handleBookPress = () => {
     if (!user) {
-      toast.warning('Please login to book this car');
+      toast.warning("Please login to book this car");
       navigation.navigate("Login");
       return;
     }
-    
+
     setShowBookingModal(true);
     if (!pickupDate && !returnDate) {
       setPaymentMode("");
@@ -180,22 +194,22 @@ const CarDetailsScreen = () => {
       toast.error("Please select a pickup date");
       return false;
     }
-    
+
     if (!returnDate) {
       toast.error("Please select a return date");
       return false;
     }
-    
+
     if (!paymentMode) {
       toast.error("Please select a payment method");
       return false;
     }
-    
+
     if (rentalDays <= 0) {
       toast.error("Invalid rental period");
       return false;
     }
-    
+
     return true;
   };
 
@@ -214,11 +228,10 @@ const CarDetailsScreen = () => {
       paymentMethod: paymentMode,
       paymentStatus: "Paid",
     };
-    
+
     dispatch(createBooking(bookingData))
       .unwrap()
-      .then(() => {
-      })
+      .then(() => {})
       .catch((err) => {
         console.log("Booking error:", err);
       });
@@ -369,7 +382,7 @@ const CarDetailsScreen = () => {
     if (!confirmDialogVisible) {
       return null;
     }
-    
+
     return (
       <Modal
         visible={true}
@@ -379,12 +392,20 @@ const CarDetailsScreen = () => {
         statusBarTranslucent
       >
         <View style={[styles.confirmModalOverlay]}>
-          <View style={[styles.confirmDialog, { backgroundColor: colors.card }]}>
-            <Text style={[styles.dialogTitle, { color: colors.text }]}>Confirm Your Booking</Text>
-            
+          <View
+            style={[styles.confirmDialog, { backgroundColor: colors.card }]}
+          >
+            <Text style={[styles.dialogTitle, { color: colors.text }]}>
+              Confirm Your Booking
+            </Text>
+
             <View style={styles.dialogContent}>
               <View style={styles.dialogSection}>
-                <Text style={[styles.dialogSectionTitle, { color: colors.text }]}>Car</Text>
+                <Text
+                  style={[styles.dialogSectionTitle, { color: colors.text }]}
+                >
+                  Car
+                </Text>
                 <Text style={[styles.dialogText, { color: colors.text }]}>
                   {currentCar.brand} {currentCar.model} ({currentCar.year})
                 </Text>
@@ -392,59 +413,94 @@ const CarDetailsScreen = () => {
                   {currentCar.vehicleType} - {currentCar.seatCapacity} Seats
                 </Text>
               </View>
-              
-              <View style={styles.dialogSection}>
-                <Text style={[styles.dialogSectionTitle, { color: colors.text }]}>Booking Details</Text>
-                <View style={styles.dialogRow}>
-                  <Text style={[styles.dialogLabel, { color: colors.secondary }]}>Pick-up:</Text>
-                  <Text style={[styles.dialogValue, { color: colors.text }]}>
 
+              <View style={styles.dialogSection}>
+                <Text
+                  style={[styles.dialogSectionTitle, { color: colors.text }]}
+                >
+                  Booking Details
+                </Text>
+                <View style={styles.dialogRow}>
+                  <Text
+                    style={[styles.dialogLabel, { color: colors.secondary }]}
+                  >
+                    Pick-up:
+                  </Text>
+                  <Text style={[styles.dialogValue, { color: colors.text }]}>
                     {pickupDate?.toLocaleString()}
                   </Text>
                 </View>
-                
+
                 <View style={styles.dialogRow}>
-                  <Text style={[styles.dialogLabel, { color: colors.secondary }]}>Return:</Text>
+                  <Text
+                    style={[styles.dialogLabel, { color: colors.secondary }]}
+                  >
+                    Return:
+                  </Text>
                   <Text style={[styles.dialogValue, { color: colors.text }]}>
                     {returnDate?.toLocaleString()}
                   </Text>
                 </View>
-                
+
                 <View style={styles.dialogRow}>
-                  <Text style={[styles.dialogLabel, { color: colors.secondary }]}>Days:</Text>
-                  <Text style={[styles.dialogValue, { color: colors.text }]}>{rentalDays}</Text>
+                  <Text
+                    style={[styles.dialogLabel, { color: colors.secondary }]}
+                  >
+                    Days:
+                  </Text>
+                  <Text style={[styles.dialogValue, { color: colors.text }]}>
+                    {rentalDays}
+                  </Text>
                 </View>
-                
+
                 <View style={styles.dialogRow}>
-                  <Text style={[styles.dialogLabel, { color: colors.secondary }]}>Pick-up Location:</Text>
+                  <Text
+                    style={[styles.dialogLabel, { color: colors.secondary }]}
+                  >
+                    Pick-up Location:
+                  </Text>
                   <Text style={[styles.dialogValue, { color: colors.text }]}>
                     {currentCar?.pickUpLocation}
                   </Text>
                 </View>
 
                 <View style={styles.dialogRow}>
-                  <Text style={[styles.dialogLabel, { color: colors.secondary }]}>Payment:</Text>
-                  <Text style={[styles.dialogValue, { color: colors.text }]}>{paymentMode}</Text>
+                  <Text
+                    style={[styles.dialogLabel, { color: colors.secondary }]}
+                  >
+                    Payment:
+                  </Text>
+                  <Text style={[styles.dialogValue, { color: colors.text }]}>
+                    {paymentMode}
+                  </Text>
                 </View>
               </View>
-              
-              <View style={[styles.totalSection, { borderTopColor: colors.border }]}>
 
-                <Text style={[styles.totalLabel, { color: colors.secondary }]}>Total Payment:</Text>
-                <Text style={[styles.totalValue, { color: colors.primary }]}>₱{rentalDays * currentCar.pricePerDay}</Text>
+              <View
+                style={[styles.totalSection, { borderTopColor: colors.border }]}
+              >
+                <Text style={[styles.totalLabel, { color: colors.secondary }]}>
+                  Total Payment:
+                </Text>
+                <Text style={[styles.totalValue, { color: colors.primary }]}>
+                  ₱{rentalDays * currentCar.pricePerDay}
+                </Text>
               </View>
             </View>
-            
+
             <View style={styles.dialogActions}>
               <TouchableOpacity
-                style={[styles.dialogButton, { backgroundColor: '#f44336' }]}
+                style={[styles.dialogButton, { backgroundColor: "#f44336" }]}
                 onPress={() => setConfirmDialogVisible(false)}
               >
                 <Text style={styles.dialogButtonText}>Cancel</Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity
-                style={[styles.dialogButton, { backgroundColor: colors.primary }]}
+                style={[
+                  styles.dialogButton,
+                  { backgroundColor: colors.primary },
+                ]}
                 onPress={handleConfirmBooking}
                 disabled={bookingLoading}
               >
@@ -465,7 +521,7 @@ const CarDetailsScreen = () => {
     if (!showBookingModal || confirmDialogVisible) {
       return null;
     }
-    
+
     return (
       <Modal
         visible={true}
@@ -475,34 +531,62 @@ const CarDetailsScreen = () => {
         statusBarTranslucent
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.bookingFormModal, { backgroundColor: colors.card }]}>
+          <View
+            style={[styles.bookingFormModal, { backgroundColor: colors.card }]}
+          >
             <View style={styles.bookingFormHandle} />
-            
-            <Text style={[styles.bookingFormTitle, { color: colors.text }]}>Book This Car</Text>
-            
-            <TouchableOpacity 
-              style={[styles.datePicker, { borderColor: colors.border }]} 
+
+            <Text style={[styles.bookingFormTitle, { color: colors.text }]}>
+              Book This Car
+            </Text>
+
+            <TouchableOpacity
+              style={[styles.datePicker, { borderColor: colors.border }]}
               onPress={showPickupDatePicker}
             >
-              <Icon name="calendar" size={18} color={colors.primary} style={styles.datePickerIcon} />
-              <Text style={[styles.datePickerText, { color: pickupDate ? colors.text : colors.secondary }]}>
-
-                {pickupDate ? pickupDate.toLocaleString() : "Select Pick-up Date"}
+              <Icon
+                name="calendar"
+                size={18}
+                color={colors.primary}
+                style={styles.datePickerIcon}
+              />
+              <Text
+                style={[
+                  styles.datePickerText,
+                  { color: pickupDate ? colors.text : colors.secondary },
+                ]}
+              >
+                {pickupDate
+                  ? pickupDate.toLocaleString()
+                  : "Select Pick-up Date"}
               </Text>
             </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.datePicker, { borderColor: colors.border }]} 
+
+            <TouchableOpacity
+              style={[styles.datePicker, { borderColor: colors.border }]}
               onPress={showReturnDatePicker}
             >
-              <Icon name="calendar" size={18} color={colors.primary} style={styles.datePickerIcon} />
-              <Text style={[styles.datePickerText, { color: returnDate ? colors.text : colors.secondary }]}>
-
-                {returnDate ? returnDate.toLocaleString() : "Select Return Date"}
+              <Icon
+                name="calendar"
+                size={18}
+                color={colors.primary}
+                style={styles.datePickerIcon}
+              />
+              <Text
+                style={[
+                  styles.datePickerText,
+                  { color: returnDate ? colors.text : colors.secondary },
+                ]}
+              >
+                {returnDate
+                  ? returnDate.toLocaleString()
+                  : "Select Return Date"}
               </Text>
             </TouchableOpacity>
-            
-            <View style={[styles.pickerContainer, { borderColor: colors.border }]}>
+
+            <View
+              style={[styles.pickerContainer, { borderColor: colors.border }]}
+            >
               <Picker
                 selectedValue={paymentMode}
                 onValueChange={(itemValue) => setPaymentMode(itemValue)}
@@ -515,36 +599,56 @@ const CarDetailsScreen = () => {
                 <Picker.Item label="Cash" value="Cash" />
               </Picker>
             </View>
-            
-            {(pickupDate && returnDate) && (
+
+            {pickupDate && returnDate && (
               <View style={styles.summaryContainer}>
                 <View style={styles.summaryRow}>
-                  <Text style={[styles.summaryLabel, { color: colors.secondary }]}>Price per day:</Text>
-                  <Text style={[styles.summaryValue, { color: colors.text }]}>₱{currentCar.pricePerDay}</Text>
+                  <Text
+                    style={[styles.summaryLabel, { color: colors.secondary }]}
+                  >
+                    Price per day:
+                  </Text>
+                  <Text style={[styles.summaryValue, { color: colors.text }]}>
+                    ₱{currentCar.pricePerDay}
+                  </Text>
                 </View>
-                
-                <View style={styles.summaryRow}>
-                  <Text style={[styles.summaryLabel, { color: colors.secondary }]}>Rental days:</Text>
-                  <Text style={[styles.summaryValue, { color: colors.text }]}>{rentalDays}</Text>
-                </View>
-                
-                <View style={[styles.totalRow, { borderTopColor: colors.border }]}>
 
-                  <Text style={[styles.totalLabel, { color: colors.text }]}>Total:</Text>
-                  <Text style={[styles.totalAmount, { color: colors.primary }]}>₱{rentalDays * currentCar.pricePerDay}</Text>
+                <View style={styles.summaryRow}>
+                  <Text
+                    style={[styles.summaryLabel, { color: colors.secondary }]}
+                  >
+                    Rental days:
+                  </Text>
+                  <Text style={[styles.summaryValue, { color: colors.text }]}>
+                    {rentalDays}
+                  </Text>
+                </View>
+
+                <View
+                  style={[styles.totalRow, { borderTopColor: colors.border }]}
+                >
+                  <Text style={[styles.totalLabel, { color: colors.text }]}>
+                    Total:
+                  </Text>
+                  <Text style={[styles.totalAmount, { color: colors.primary }]}>
+                    ₱{rentalDays * currentCar.pricePerDay}
+                  </Text>
                 </View>
               </View>
             )}
-            
+
             <TouchableOpacity
-              style={[styles.confirmButton, { backgroundColor: colors.primary }]}
+              style={[
+                styles.confirmButton,
+                { backgroundColor: colors.primary },
+              ]}
               onPress={handleShowConfirmation}
             >
               <Text style={styles.confirmButtonText}>Continue to Book</Text>
             </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.cancelButton} 
+
+            <TouchableOpacity
+              style={styles.cancelButton}
               onPress={() => setShowBookingModal(false)}
             >
               <Text style={{ color: colors.secondary }}>Cancel</Text>
@@ -564,7 +668,7 @@ const CarDetailsScreen = () => {
         onCancel={hidePickupDatePicker}
         minimumDate={new Date()}
       />
-      
+
       <DateTimePickerModal
         isVisible={isReturnDatePickerVisible}
         mode="datetime"
@@ -585,7 +689,7 @@ const CarDetailsScreen = () => {
       style={[styles.container, { backgroundColor: colors.background }]}
     >
       <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={[styles.imageContainer, {marginTop: 15}]}>
+        <View style={[styles.imageContainer, { marginTop: 15 }]}>
           {currentCar.images && currentCar.images.length > 0 ? (
             <>
               <FlatList
@@ -753,22 +857,26 @@ const CarDetailsScreen = () => {
             </TouchableOpacity>
           </View>
 
-          {
-            currentCar.isOnRental !== true ? (
-              <TouchableOpacity
-                style={[styles.bookButton, { backgroundColor: colors.primary, marginBottom: 15 }]}
-                onPress={handleBookPress}
-              >
-                <Icon
-                  name="calendar-check-o"
-                  size={18}
-                  color="#FFFFFF"
-                  style={{ marginRight: 8 }}
-                />
-                <Text style={styles.bookButtonText}>Book Now</Text>
-              </TouchableOpacity>
-            ) : (
-              <View
+          {user &&
+          currentCar.isOnRental !== true &&
+          currentCar?.owner?._id !== user?._id ? (
+            <TouchableOpacity
+              style={[
+                styles.bookButton,
+                { backgroundColor: colors.primary, marginBottom: 15 },
+              ]}
+              onPress={handleBookPress}
+            >
+              <Icon
+                name="calendar-check-o"
+                size={18}
+                color="#FFFFFF"
+                style={{ marginRight: 8 }}
+              />
+              <Text style={styles.bookButtonText}>Book Now</Text>
+            </TouchableOpacity>
+          ) : user && currentCar?.owner?._id === user?._id ? (
+            <View
               style={[
                 styles.sectionContainer,
                 { borderBottomColor: colors.border },
@@ -777,13 +885,37 @@ const CarDetailsScreen = () => {
               <View
                 style={[styles.locationBox, { backgroundColor: colors.card }]}
               >
-                <Text style={[styles.locationText, { color: colors.text, textAlign: 'center' }]}>
+                <Text
+                  style={[
+                    styles.locationText,
+                    { color: colors.text, textAlign: "center" },
+                  ]}
+                >
+                  You owned this vehicle.
+                </Text>
+              </View>
+            </View>
+          ) : (
+            <View
+              style={[
+                styles.sectionContainer,
+                { borderBottomColor: colors.border },
+              ]}
+            >
+              <View
+                style={[styles.locationBox, { backgroundColor: colors.card }]}
+              >
+                <Text
+                  style={[
+                    styles.locationText,
+                    { color: colors.text, textAlign: "center" },
+                  ]}
+                >
                   This Car is currently on Rental
                 </Text>
               </View>
             </View>
-            )
-          }
+          )}
 
           {/* Car Features */}
           <View
@@ -862,7 +994,7 @@ const CarDetailsScreen = () => {
               </Text>
             </View>
           )}
-          
+
           {/* Location */}
           <View
             style={[
@@ -926,19 +1058,23 @@ const CarDetailsScreen = () => {
                       : "2022"}
                   </Text>
                 </View>
-                <TouchableOpacity
-                  style={[
-                    styles.contactButton,
-                    { backgroundColor: colors.primary },
-                  ]}
-                  onPress={() =>
-                    navigation.navigate("ChatScreen", {
-                      recipientId: currentCar.owner._id,
-                    })
-                  }
-                >
-                  <Text style={styles.contactButtonText}>Contact</Text>
-                </TouchableOpacity>
+                {user &&
+                  currentCar?.owner?._id !== user?._id &&
+                  currentCar.isOnRental !== true && (
+                    <TouchableOpacity
+                      style={[
+                        styles.contactButton,
+                        { backgroundColor: colors.primary },
+                      ]}
+                      onPress={() =>
+                        navigation.navigate("ChatScreen", {
+                          recipientId: currentCar.owner._id,
+                        })
+                      }
+                    >
+                      <Text style={styles.contactButtonText}>Contact</Text>
+                    </TouchableOpacity>
+                  )}
               </View>
             </View>
           )}
@@ -1238,8 +1374,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   datePicker: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: 12,
     paddingHorizontal: 10,
     borderWidth: 1,
@@ -1256,7 +1392,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 8,
     marginBottom: 16,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   picker: {
     height: 50,
@@ -1265,56 +1401,56 @@ const styles = StyleSheet.create({
     marginVertical: 16,
   },
   summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginBottom: 8,
   },
   totalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     paddingTop: 8,
     marginTop: 8,
     borderTopWidth: 1,
   },
   totalLabel: {
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   totalAmount: {
-    fontWeight: 'bold',
+    fontWeight: "bold",
     fontSize: 18,
   },
   confirmButton: {
     padding: 16,
     borderRadius: 8,
-    alignItems: 'center',
+    alignItems: "center",
   },
   confirmButtonText: {
-    color: '#fff',
-    fontWeight: '600',
+    color: "#fff",
+    fontWeight: "600",
     fontSize: 16,
   },
   cancelButton: {
     padding: 16,
-    alignItems: 'center',
+    alignItems: "center",
   },
-  
+
   // Confirmation dialog styles
   modalOverlay: {
     flex: 1,
-    justifyContent: 'flex-end', // Makes modal appear from bottom
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: "flex-end", // Makes modal appear from bottom
+    backgroundColor: "rgba(0,0,0,0.5)",
     zIndex: 1000,
   },
   confirmModalOverlay: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.5)",
     zIndex: 2000, // Higher than booking form modal
   },
   confirmDialog: {
-    width: '90%',
-    maxHeight: '80%',
+    width: "90%",
+    maxHeight: "80%",
     borderRadius: 12,
     padding: 20,
     elevation: 25, // Higher elevation for Android
@@ -1322,48 +1458,48 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
-    zIndex: 2000
+    zIndex: 2000,
   },
   bookingFormModal: {
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
     paddingTop: 10,
-    maxHeight: '90%',
+    maxHeight: "90%",
     elevation: 20,
     zIndex: 1000,
-    position: 'relative'
+    position: "relative",
   },
   // Update and add styles for the modal booking form
   modalOverlay: {
     flex: 1,
-    justifyContent: 'flex-end', // Makes modal appear from bottom
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: "flex-end", // Makes modal appear from bottom
+    backgroundColor: "rgba(0,0,0,0.5)",
   },
   bookingFormModal: {
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
     paddingTop: 10,
-    maxHeight: '90%', // Limit height to 90% of screen
+    maxHeight: "90%", // Limit height to 90% of screen
   },
   bookingFormHandle: {
-    alignSelf: 'center',
+    alignSelf: "center",
     width: 40,
     height: 5,
     borderRadius: 3,
-    backgroundColor: '#ccc',
+    backgroundColor: "#ccc",
     marginBottom: 15,
   },
   bookingFormTitle: {
     fontSize: 20,
     fontWeight: "600",
     marginBottom: 16,
-    textAlign: 'center',
+    textAlign: "center",
   },
   dialogTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 20,
   },
   dialogContent: {
@@ -1374,7 +1510,7 @@ const styles = StyleSheet.create({
   },
   dialogSectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: "600",
     marginBottom: 8,
   },
   dialogText: {
@@ -1382,9 +1518,9 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   dialogRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 8,
   },
   dialogLabel: {
@@ -1392,11 +1528,11 @@ const styles = StyleSheet.create({
   },
   dialogValue: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   dialogActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
+    flexDirection: "row",
+    justifyContent: "flex-end",
     marginTop: 20,
   },
   dialogButton: {
@@ -1406,25 +1542,25 @@ const styles = StyleSheet.create({
     marginLeft: 10,
   },
   dialogButtonText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   totalSection: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingTop: 16,
     marginTop: 16,
     borderTopWidth: 1,
   },
   totalLabel: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   totalValue: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
 });
 

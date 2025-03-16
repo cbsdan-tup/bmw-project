@@ -208,6 +208,13 @@ exports.getSingleCar = async (req, res) => {
     // Fetch all rentals for this car
     const rentals = await Rental.find({ car: id });
     
+    // Check if the car is currently on rental
+    const activeRental = rentals.find(rental => 
+      ["Pending", "Active", "Confirmed"].includes(rental.status)
+    );
+    
+    const isOnRental = activeRental ? true : false;
+    
     // Get all rental IDs
     const rentalIds = rentals.map(rental => rental._id);
     
@@ -261,7 +268,8 @@ exports.getSingleCar = async (req, res) => {
         owner,
         images,
         averageRating,
-        reviewCount
+        reviewCount,
+        isOnRental
       },
     });
   } catch (error) {
@@ -446,7 +454,7 @@ exports.filterCars = async (req, res) => {
       {
         $group: {
           _id: "$_id",
-          make: { $first: "$make" }, 
+          brand: { $first: "$brand" }, 
           model: { $first: "$model" },
           transmission: { $first: "$transmission" }, 
           pricePerDay: { $first: "$pricePerDay" },
