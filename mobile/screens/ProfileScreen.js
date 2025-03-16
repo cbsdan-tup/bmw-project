@@ -25,6 +25,7 @@ const ProfileScreen = () => {
   const navigation = useNavigation();
   const { favorites } = useSelector((state) => state.cars);
   const { bookingsCount } = useSelector((state) => state.bookings);
+  const { userReviewsCount } = useSelector((state) => state.reviews);
   const toast = useToast();
   const [logoutConfirmPending, setLogoutConfirmPending] = useState(false);
 
@@ -173,7 +174,7 @@ const ProfileScreen = () => {
         />
         <View style={styles.statItem}>
           <Text style={[styles.statValue, { color: colors.primary }]}>
-            {user.reviews?.length || 0}
+            {userReviewsCount || 0}
           </Text>
           <Text style={[styles.statLabel, { color: colors.secondary }]}>
             Reviews
@@ -223,6 +224,24 @@ const ProfileScreen = () => {
             />
             <Text style={[styles.menuItemText, { color: colors.text }]}>
               My Bookings
+            </Text>
+          </View>
+          <Icon name="angle-right" size={20} color={colors.secondary} />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.menuItem, { borderBottomColor: colors.border }]}
+          onPress={() => navigation.navigate("MyReviews", { userId: user._id })}
+        >
+          <View style={styles.menuItemLeft}>
+            <Icon
+              name="star"
+              size={20}
+              color={colors.primary}
+              style={styles.menuIcon}
+            />
+            <Text style={[styles.menuItemText, { color: colors.text }]}>
+              My Reviews
             </Text>
           </View>
           <Icon name="angle-right" size={20} color={colors.secondary} />

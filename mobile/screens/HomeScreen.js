@@ -33,7 +33,7 @@ import { useToast } from '../context/ToastContext';
 
 const HomeScreen = () => {
   const { colors, isDarkMode } = useTheme();
-  const { user, firebaseInitialized } = useAuth();
+  const { user } = useAuth();
   const navigation = useNavigation();
   const dispatch = useDispatch();
   const toast = useToast(); 
@@ -44,18 +44,9 @@ const HomeScreen = () => {
   useEffect(() => {
     loadFeaturedCars();
   }, []);
-  
-  // New effect that depends on auth status
-  useEffect(() => {
-    if (user && user._id && firebaseInitialized) {
-      dispatch(fetchUserFavorites(user._id));
-    }
-  }, [user, firebaseInitialized, dispatch]);
 
   const loadFeaturedCars = () => {
     dispatch(fetchFeaturedCars());
-    // Remove this to avoid race condition
-    // if (user) dispatch(fetchUserFavorites(user?._id));
   };
 
   const onRefresh = () => {
@@ -484,6 +475,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FFFFFF',
     marginBottom: 16,
+    textAlign: 'center',
   },
   searchBar: {
     flexDirection: 'row',

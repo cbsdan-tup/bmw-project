@@ -113,7 +113,7 @@ const MyCarRental = () => {
                       </Link>
                     </td>
                     <td>
-                      {rental.renter.firstName} {rental.renter.lastName}
+                      {rental?.renter?.firstName} {rental?.renter?.lastName}
                     </td>
                     <td>{rental.status}</td>
                     <td>{formatDate(rental.pickUpDate)}</td>

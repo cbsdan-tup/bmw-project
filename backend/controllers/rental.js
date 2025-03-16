@@ -405,6 +405,7 @@ const myRentals = async (req, res) => {
           renter: renterId,
         });
 
+        const hasReview = reviews.length > 0;
         const averageRating = reviews.length
           ? reviews.reduce((sum, review) => sum + review.rating, 0) /
             reviews.length
@@ -413,7 +414,8 @@ const myRentals = async (req, res) => {
         return {
           ...rental.toObject(),
           reviews, 
-          averageRating, 
+          averageRating,
+          hasReview
         };
       })
     );

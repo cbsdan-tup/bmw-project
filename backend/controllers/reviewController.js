@@ -1,8 +1,8 @@
 const Review = require("../models/Review");
 const Rental = require("../models/Rental");
-const Filter = require('bad-words');
+const Filter = require("bad-words");
 const cloudinary = require("cloudinary").v2;
- 
+
 const getAllReview = async (req, res) => {
   try {
     const reviews = await Review.find()
@@ -29,7 +29,9 @@ const getReviews = async (req, res) => {
     const rentals = await Rental.find({ car: carId });
 
     if (!rentals.length) {
-      return res.status(200).json({ message: "Fetched reviews successfully", reviews: [] });
+      return res
+        .status(200)
+        .json({ message: "Fetched reviews successfully", reviews: [] });
     }
 
     const rentalIds = rentals.map((rental) => rental._id);
@@ -63,31 +65,71 @@ const getReview = async (req, res) => {
 const createReview = async (req, res) => {
   try {
     const { rental, renter, rating } = req.body;
-    let {comment} = req.body
-    
-    const uploadedImages = await Promise.all(
-      req.files.map((file) =>
-        cloudinary.uploader.upload(file.path, {
-          folder: "reviews",
-          width: 600,
-          crop: "scale",
-        })
-      )
-    );
-    const images = uploadedImages.map((result) => ({
-      public_id: result.public_id,
-      url: result.secure_url,
-    }));
+    let { comment } = req.body;
 
+    console.log('Creating review with data:', { 
+      rental, 
+      renter, 
+      rating, 
+      comment, 
+      files: req.files?.length || 0 
+    });
+
+    if (!rental || !renter || !rating) {
+      return res.status(400).json({ 
+        message: "Missing required fields", 
+        required: ["rental", "renter", "rating"],
+        received: { rental, renter, rating }
+      });
+    }
+
+    // Check if a review already exists for this rental
+    const existingReview = await Review.findOne({ rental });
+    if (existingReview) {
+      return res.status(400).json({
+        message: "You have already reviewed this rental",
+        reviewId: existingReview._id
+      });
+    }
+
+    // Set a default comment if none provided
+    if (!comment || comment.trim() === '') {
+      comment = "Good experience";
+    }
+
+    let images = [];
+    if (req.files && req.files.length > 0) {
+      console.log(`Processing ${req.files.length} uploaded images`);
+      try {
+        const uploadedImages = await Promise.all(
+          req.files.map((file) =>
+            cloudinary.uploader.upload(file.path, {
+              folder: "reviews",
+              width: 600,
+              crop: "scale",
+            })
+          )
+        );
+        images = uploadedImages.map((result) => ({
+          public_id: result.public_id,
+          url: result.secure_url,
+        }));
+      } catch (uploadError) {
+        console.error('Error uploading images:', uploadError);
+        // Continue creating the review even if image upload fails
+      }
+    }
+    
     const filter = new Filter();
     const filteredComment = filter.clean(comment);
-    comment = filteredComment
+    comment = filteredComment;
+    
     const review = new Review({
       rental,
       renter,
       rating,
       comment,
-      images,
+      images 
     });
 
     const error = review.validateSync();
@@ -99,8 +141,10 @@ const createReview = async (req, res) => {
     }
 
     await review.save();
+    console.log('Review created successfully:', review._id);
     res.status(201).json({ message: "Review created successfully", review });
   } catch (err) {
+    console.error('Error creating review:', err);
     res
       .status(500)
       .json({ message: "Error creating review", error: err.message });
@@ -110,7 +154,7 @@ const createReview = async (req, res) => {
 const updateReview = async (req, res) => {
   try {
     const { reviewId } = req.params;
-    const { rating, comment } = req.body;
+    const { rating, comment, retainedImages } = req.body;
 
     const updates = {};
     if (rating) updates.rating = rating;
@@ -119,10 +163,35 @@ const updateReview = async (req, res) => {
       const filteredComment = filter.clean(comment);
       updates.comment = filteredComment;
     }
+
     const review = await Review.findById(reviewId);
     if (!review) return res.status(404).json({ message: "Review not found" });
 
-    if (review.images && review.images.length > 0) {
+    let imagesToKeep = [];
+    if (retainedImages) {
+      try {
+        const parsedRetainedImages =
+          typeof retainedImages === "string"
+            ? JSON.parse(retainedImages)
+            : retainedImages;
+
+        const imagesToDelete = review.images.filter(
+          (image) => !parsedRetainedImages.includes(image.public_id)
+        );
+
+        await Promise.all(
+          imagesToDelete.map(async (image) => {
+            await cloudinary.uploader.destroy(image.public_id);
+          })
+        );
+
+        imagesToKeep = review.images.filter((image) =>
+          parsedRetainedImages.includes(image.public_id)
+        );
+      } catch (error) {
+        console.error("Error processing retained images:", error);
+      }
+    } else if (review.images && review.images.length > 0) {
       await Promise.all(
         review.images.map(async (image) => {
           await cloudinary.uploader.destroy(image.public_id);
@@ -130,7 +199,8 @@ const updateReview = async (req, res) => {
       );
     }
 
-    if (req.files) {
+    let newImages = [];
+    if (req.files && req.files.length > 0) {
       const uploadedImages = await Promise.all(
         req.files.map(async (file) => {
           const result = await cloudinary.uploader.upload(file.path, {
@@ -144,8 +214,10 @@ const updateReview = async (req, res) => {
           };
         })
       );
-      updates.images = uploadedImages;
+      newImages = uploadedImages;
     }
+
+    updates.images = [...imagesToKeep, ...newImages];
 
     const updatedReview = await Review.findByIdAndUpdate(reviewId, updates, {
       new: true,
@@ -243,6 +315,36 @@ const getReviewsByRentalId = async (req, res) => {
   }
 };
 
+const getUserReviews = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const reviews = await Review.find({ renter: userId })
+      .populate({
+        path: "rental",
+        populate: {
+          path: "car",
+        },
+      })
+      .populate("renter")
+      .sort({ createdAt: -1 });
+
+    if (!reviews.length) {
+      return res
+        .status(200)
+        .json({ message: "No reviews found for this user", reviews: [] });
+    }
+
+    res
+      .status(200)
+      .json({ message: "Fetched user reviews successfully", reviews });
+  } catch (err) {
+    res
+      .status(500)
+      .json({ message: "Error fetching user reviews", error: err.message });
+  }
+};
+
 module.exports = {
   getAllReview,
   getReviews,
@@ -252,4 +354,5 @@ module.exports = {
   deleteReview,
   getReviewsByCarId,
   getReviewsByRentalId,
+  getUserReviews,
 };

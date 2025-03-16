@@ -7,6 +7,7 @@ import MyFavoritesScreen from '../screens/MyFavoritesScreen';
 import MyBookingsScreen from '../screens/MyBookingsScreen';
 import AboutUsScreen from '../screens/AboutUsScreen';
 import TermsConditionsScreen from '../screens/TermsConditionsScreen';
+import MyReviewsScreen from '../screens/MyReviewsScreen';
 
 const Stack = createStackNavigator();
 
@@ -49,6 +50,14 @@ const ProfileNavigator = () => {
         options={{ 
           headerShown: true,
           title: 'My Bookings' 
+        }}
+      />
+      <Stack.Screen
+        name="MyReviews"
+        component={MyReviewsScreen}
+        options={{ 
+          headerShown: true,
+          title: 'My Reviews' 
         }}
       />
       <Stack.Screen

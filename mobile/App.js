@@ -12,13 +12,15 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import IntroScreen from './components/IntroScreen';
-import { Provider } from 'react-redux';
+import { Provider, useDispatch } from 'react-redux';
 import { store } from './redux/store';
 import { ToastProvider } from './context/ToastContext'; 
 import { LogBox } from 'react-native';
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from './config/firebase-config';
-
+import {fetchUserBookings} from './redux/slices/bookingSlice';
+import {fetchUserFavorites} from './redux/slices/carSlice';
+import { fetchUserReviews } from './redux/slices/reviewSlice';
 LogBox.ignoreLogs(['Warning: ...']);
 
 // Error boundary for navigation container
@@ -62,9 +64,15 @@ const AppNavigator = () => {
   const [showIntro, setShowIntro] = useState(true);
   const [isIntroLoading, setIsIntroLoading] = useState(true);
   
+  const dispatch = useDispatch()
   useEffect(() => {
     console.log("User:", user?.email);
     console.log("User Token:", token);
+    if (user && token) {
+      dispatch(fetchUserBookings(user?._id))
+      dispatch(fetchUserFavorites(user?._id))
+      dispatch(fetchUserReviews(user?._id))
+    }
   }, [isAuthenticated, user]);
 
   useEffect(() => {

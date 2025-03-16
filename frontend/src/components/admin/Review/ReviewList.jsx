@@ -7,7 +7,7 @@ import { getToken } from "../../../utils/helper";
 import Sidebar from "../Sidebar";
 import CarouselLayout from "../../layout/CarouselLayout";
 import { Link } from "react-router-dom";
-const { Filter } = await import("bad-words"); 
+const { Filter } = await import("bad-words");
 
 const ReviewList = () => {
   const [reviews, setReviews] = useState([]);
@@ -15,6 +15,7 @@ const ReviewList = () => {
   const [error, setError] = useState(null);
   const [showCarousel, setShowCarousel] = useState(false);
   const [reviewImages, setReviewImages] = useState([]);
+  const [reviewToDelete, setReviewToDelete] = useState(null); // Track the review to delete
 
   const handleShowCarousel = (images) => {
     setShowCarousel(true);
@@ -49,12 +50,11 @@ const ReviewList = () => {
     fetchReviews();
   }, []);
 
-  
   const badWords = new Filter();
   const filterComment = (comment) => {
-    if (!comment) return null; 
+    if (!comment) return null;
 
-    if (/\*{2,}/.test(comment)) return null; 
+    if (/\*{2,}/.test(comment)) return null;
 
     const normalizedComment = comment
       .replace(/[^a-zA-Z0-9 ]/g, "")
@@ -63,33 +63,37 @@ const ReviewList = () => {
     const words = normalizedComment.split(" ");
     const containsProfanity = words.some((word) => badWords.isProfane(word));
 
-    return containsProfanity ? null : comment; 
+    return containsProfanity ? null : comment;
   };
 
   const handleDelete = (reviewId) => {
-    $('#confirmDeleteModal').modal('show');
-    
-    $('#confirmDeleteButton').off('click').on('click', async () => {
-      try {
-        await axios.delete(`${import.meta.env.VITE_API}/reviews/${reviewId}`, {
-          headers: {
-            Authorization: `Bearer ${getToken()}`,
-          },
-        });
-  
-        setReviews((prevReviews) =>
-          prevReviews.filter((review) => review._id !== reviewId)
-        );
-  
-        succesMsg("Successfully deleted a review");
-      } catch (error) {
-        setError("Error deleting review");
-        console.error("Error deleting review:", error);
-      } finally {
-        $('#confirmDeleteModal').modal('hide');
-      }
-    });
-  };  
+    setReviewToDelete(reviewId); // Set the review ID to delete
+    $("#confirmDeleteModal").modal("show"); // Show the modal
+  };
+
+  const handleConfirm = async () => {
+    if (!reviewToDelete) return; 
+
+    try {
+      await axios.delete(`${import.meta.env.VITE_API}/reviews/${reviewToDelete}`, {
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+        },
+      });
+
+      setReviews((prevReviews) =>
+        prevReviews.filter((review) => review._id !== reviewToDelete)
+      );
+
+      succesMsg("Successfully deleted a review");
+    } catch (error) {
+      setError("Error deleting review");
+      console.error("Error deleting review:", error);
+    } finally {
+      $("#confirmDeleteModal").modal("hide"); // Hide the modal
+      setReviewToDelete(null); // Reset the review to delete
+    }
+  };
 
   if (loading) {
     return <LoadingSpinner message="Loading" />;
@@ -123,12 +127,14 @@ const ReviewList = () => {
             {reviews.map((review) => (
               <tr key={review._id}>
                 <td>{review._id}</td>
-                <td><Link to={`/car/info/${review.rental.car._id}`}>{`${review.rental.car.model} ${review.rental.car.brand}`}</Link></td>
+                <td>
+                  <Link to={`/car/info/${review.rental.car._id}`}>{`${review.rental.car.model} ${review.rental.car.brand}`}</Link>
+                </td>
                 <td>{`${review.renter.firstName} ${review.renter.lastName}`}</td>
                 <td>{review.rating}</td>
                 <td>
                   {review.comment}
-                {filterComment(review.comment) ? (
+                  {filterComment(review.comment) ? (
                     <></>
                   ) : (
                     <span style={{ color: "red", fontWeight: "bold" }}>
@@ -195,7 +201,7 @@ const ReviewList = () => {
               <button
                 type="button"
                 className="btn btn-danger"
-                onClick={() => handleConfirm()}
+                onClick={handleConfirm} // Call handleConfirm directly
               >
                 Delete
               </button>
