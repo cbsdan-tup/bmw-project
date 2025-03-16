@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -48,6 +48,7 @@ const ProfileScreen = () => {
   };
 
   const ProfileHeader = () => {
+    // Use isAuthenticated instead of just checking user
     if (!isAuthenticated) {
       return (
         <View style={styles.guestHeader}>
@@ -407,6 +408,72 @@ const ProfileScreen = () => {
     </View>
   );
 
+  const MyCarSection = () => {
+    if (!user) return null;
+
+    return (
+      <View style={[styles.section, { backgroundColor: colors.card }]}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>
+          My Car
+        </Text>
+
+        <TouchableOpacity
+          style={[styles.menuItem, { borderBottomColor: colors.border }]}
+          onPress={() => navigation.navigate("MyCar")}
+        >
+          <View style={styles.menuItemLeft}>
+            <Icon
+              name="car"
+              size={20}
+              color={colors.primary}
+              style={styles.menuIcon}
+            />
+            <Text style={[styles.menuItemText, { color: colors.text }]}>
+              Current Rental
+            </Text>
+          </View>
+          <Icon name="angle-right" size={20} color={colors.secondary} />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.menuItem, { borderBottomColor: colors.border }]}
+          onPress={() => navigation.navigate("PutCarOnRent")}
+        >
+          <View style={styles.menuItemLeft}>
+            <Icon
+              name="plus-circle"
+              size={20}
+              color={colors.primary}
+              style={styles.menuIcon}
+            />
+            <Text style={[styles.menuItemText, { color: colors.text }]}>
+              Put Car on Rent
+            </Text>
+          </View>
+          <Icon name="angle-right" size={20} color={colors.secondary} />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => navigation.navigate("RentalHistory")}
+        >
+          <View style={styles.menuItemLeft}>
+            <Icon
+              name="history"
+              size={20}
+              color={colors.primary}
+              style={styles.menuIcon}
+            />
+            <Text style={[styles.menuItemText, { color: colors.text }]}>
+              Rental History
+            </Text>
+          </View>
+          <Icon name="angle-right" size={20} color={colors.secondary} />
+        </TouchableOpacity>
+      </View>
+    );
+  };
+  
   if (isLoading) {
     return (
       <View
@@ -449,6 +516,7 @@ const ProfileScreen = () => {
 
         <View style={styles.sectionsContainer}>
           <AccountSection />
+          <MyCarSection />
           <SettingsSection />
           <SupportSection />
 

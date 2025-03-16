@@ -3,94 +3,114 @@ const cloudinary = require("cloudinary");
 const Rental = require("../models/Rental");
 const FavoriteCar = require("../models/FavoriteCar");
 const APIFeatures = require("../utils/apiFeatures");
-const Reviews = require('../models/Review');
+const Reviews = require("../models/Review");
 
 exports.createCar = async (req, res) => {
   try {
-    if (!req.files || req.files.length === 0) {
+    // Validate required fields
+    const requiredFields = [
+      "model",
+      "brand",
+      "year",
+      "seatCapacity",
+      "fuel",
+      "mileage",
+      "transmission",
+      "displacement",
+      "vehicleType",
+      "pricePerDay",
+      "pickUpLocation",
+      "owner",
+    ];
+
+    const missingFields = requiredFields.filter((field) => !req.body[field]);
+    if (missingFields.length > 0) {
       return res.status(400).json({
         success: false,
-        message: "No images uploaded.",
+        message: `Missing required fields: ${missingFields.join(", ")}`,
+      });
+    }
+
+    // Image validation with better error handling
+    if (!req.files || !Array.isArray(req.files) || req.files.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide at least one image",
       });
     }
 
     let imagesLinks = [];
+    try {
+      for (let file of req.files) {
+        if (!file.path) {
+          throw new Error("Invalid file upload");
+        }
 
-    for (let file of req.files) {
-      try {
         const result = await cloudinary.v2.uploader.upload(file.path, {
           folder: "Cars",
           width: 1024,
           crop: "scale",
+          timeout: 60000, // 60 seconds timeout
         });
+
+        if (!result || !result.secure_url) {
+          throw new Error("Failed to upload image to Cloudinary");
+        }
 
         imagesLinks.push({
           public_id: result.public_id,
           url: result.secure_url,
         });
-      } catch (error) {
-        console.log("Error uploading to Cloudinary:", error);
-        return res.status(500).json({
+      }
+    } catch (uploadError) {
+      // Cleanup any uploaded images if there's an error
+      await Promise.all(
+        imagesLinks.map((img) =>
+          cloudinary.v2.uploader
+            .destroy(img.public_id)
+            .catch((err) => console.error("Cleanup error:", err))
+        )
+      );
+
+      return res.status(500).json({
+        success: false,
+        message: "Image upload failed: " + uploadError.message,
+      });
+    }
+
+    // Data validation
+    const numericFields = ["year", "seatCapacity", "pricePerDay"];
+    for (const field of numericFields) {
+      req.body[field] = Number(req.body[field]);
+      if (isNaN(req.body[field])) {
+        return res.status(400).json({
           success: false,
-          message: "Error uploading images to Cloudinary",
-          error: error.message,
+          message: `Invalid ${field}: must be a number`,
         });
       }
     }
 
-    req.body.images = imagesLinks;
-
-    const {
-      model,
-      brand,
-      year,
-      seatCapacity,
-      fuel,
-      mileage,
-      transmission,
-      displacement,
-      vehicleType,
-      pricePerDay,
-      isAutoApproved,
-      description,
-      termsAndConditions,
-      pickUpLocation,
-      owner,
-      isActive,
-    } = req.body;
-
     const carData = {
+      ...req.body,
       images: imagesLinks,
-      model,
-      brand,
-      year,
-      seatCapacity,
-      fuel,
-      mileage,
-      transmission,
-      displacement,
-      vehicleType,
-      pricePerDay,
-      isAutoApproved,
-      description,
-      termsAndConditions,
-      pickUpLocation,
-      owner,
-      isActive,
+      isActive: true,
+      isAutoApproved: req.body.isAutoApproved || false,
     };
 
     const car = await Cars.create(carData);
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: "Car created successfully!",
       car,
     });
   } catch (err) {
-    res.status(500).json({
+    // Log the full error for debugging
+    console.error("Car creation error:", err);
+
+    return res.status(500).json({
       success: false,
-      message: "Error creating car",
-      error: err.message,
+      message: "Failed to create car: " + (err.message || "Unknown error"),
     });
   }
 };
@@ -117,32 +137,7 @@ exports.getAllCars = async (req, res) => {
 
 exports.deleteCar = async (req, res) => {
   try {
-    const carId = req.params.id;
-    const deletedCar = await Cars.findByIdAndDelete(carId);
-
-    if (!deletedCar) {
-      return res.status(404).json({ message: "Car not found" });
-    }
-
-    await FavoriteCar.deleteMany({ carId });
-
-    await Rental.deleteMany({ carId });
-
-    res.status(200).json({ message: "Car deleted successfully", deletedCar });
-  } catch (error) {
-    console.error("Error deleting car:", error);
-    res
-      .status(500)
-      .json({ message: "Error deleting car", error: error.message });
-  }
-};
-
-exports.updateCar = async (req, res, next) => {
-  try {
-    console.log(req.body);
-    console.log(req.files);
-
-    let car = await Cars.findById(req.params.id);
+    const car = await Cars.findById(req.params.id);
 
     if (!car) {
       return res.status(404).json({
@@ -151,44 +146,113 @@ exports.updateCar = async (req, res, next) => {
       });
     }
 
+    // Verify ownership
+    if (car.owner.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not authorized to delete this car",
+      });
+    }
+
+    // Delete images from cloudinary
+    for (let image of car.images) {
+      await cloudinary.v2.uploader.destroy(image.public_id);
+    }
+
+    // Delete associated records
+    await Promise.all([
+      FavoriteCar.deleteMany({ carId: car._id }),
+      Rental.deleteMany({ car: car._id }),
+      car.deleteOne(),
+    ]);
+
+    res.status(200).json({
+      success: true,
+      message: "Car and associated data deleted successfully",
+      deletedCarId: car._id, // Add this line to return the deleted car ID
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+exports.updateCar = async (req, res) => {
+  try {
+    let car = await Cars.findById(req.params.id);
+    if (!car) {
+      return res.status(404).json({
+        success: false,
+        message: "Car not found",
+      });
+    }
+
+    // Verify ownership and convert ObjectId to string for comparison
+    if (car.owner.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not authorized to update this car",
+      });
+    }
+
+    // Create update object and ensure owner field is properly handled
+    const updateData = { ...req.body };
+    delete updateData.owner; // Remove owner from update data to prevent modification
+
+    // Handle image updates only if new images are provided
     if (req.files && req.files.length > 0) {
-      for (let i = 0; i < car.images.length; i++) {
-        await cloudinary.v2.uploader.destroy(car.images[i].public_id);
+      // Delete old images from cloudinary
+      for (let image of car.images) {
+        await cloudinary.v2.uploader.destroy(image.public_id);
       }
 
+      // Upload new images
       let imagesLinks = [];
-
       for (let file of req.files) {
         const result = await cloudinary.v2.uploader.upload(file.path, {
           folder: "Cars",
           width: 1024,
           crop: "scale",
         });
-
         imagesLinks.push({
           public_id: result.public_id,
           url: result.secure_url,
         });
       }
-
-      req.body.images = imagesLinks;
+      updateData.images = imagesLinks;
     }
 
-    car = await Cars.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true,
-      useFindAndModify: false,
-    });
+    // Update numeric fields
+    ["year", "seatCapacity", "displacement", "mileage", "pricePerDay"].forEach(
+      (field) => {
+        if (updateData[field]) {
+          updateData[field] = Number(updateData[field]);
+        }
+      }
+    );
 
-    return res.status(200).json({
+    // Update the car with sanitized data
+    car = await Cars.findByIdAndUpdate(
+      req.params.id,
+      { $set: updateData },
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
+
+    res.status(200).json({
       success: true,
+      message: "Car updated successfully",
       car,
     });
   } catch (err) {
+    console.error("Update error:", err);
     res.status(500).json({
       success: false,
-      message: "Error updating car",
-      error: err.message,
+      message: err.message,
     });
   }
 };
@@ -216,16 +280,22 @@ exports.getSingleCar = async (req, res) => {
     const isOnRental = activeRental ? true : false;
     
     // Get all rental IDs
-    const rentalIds = rentals.map(rental => rental._id);
-    
+    const rentalIds = rentals.map((rental) => rental._id);
+
     // Fetch all reviews for these rentals
     const reviews = await Reviews.find({ rental: { $in: rentalIds } });
-    
+
     // Calculate average rating and review count
     const reviewCount = reviews.length;
-    const averageRating = reviewCount > 0 
-      ? Number((reviews.reduce((sum, review) => sum + review.rating, 0) / reviewCount).toFixed(1))
-      : 0;
+    const averageRating =
+      reviewCount > 0
+        ? Number(
+            (
+              reviews.reduce((sum, review) => sum + review.rating, 0) /
+              reviewCount
+            ).toFixed(1)
+          )
+        : 0;
 
     const {
       _id,
@@ -284,31 +354,68 @@ exports.getSingleCar = async (req, res) => {
 
 exports.getCarsByUserId = async (req, res) => {
   try {
-    const { userId } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
 
-    const cars = await Cars.find({ owner: userId }).populate("owner");
+    const cars = await Cars.find({ owner: req.params.userId })
+      .populate("owner", "name email")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
 
-    if (!cars || cars.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "No cars found for this user",
+    const totalCars = await Cars.countDocuments({ owner: req.params.userId });
+
+    if (!cars.length) {
+      return res.status(200).json({
+        success: true,
+        cars: [],
+        totalCars: 0,
+        currentPage: page,
+        totalPages: 0,
       });
     }
 
-    const carsWithImages = cars.map((car) => ({
-      ...car.toObject(),
-      images: car.images.map((image) => image.url),
-    }));
+    const carsWithDetails = await Promise.all(
+      cars.map(async (car) => {
+        const rentals = await Rental.find({ car: car._id });
+        const rentalIds = rentals.map((rental) => rental._id);
+        const reviews = await Reviews.find({ rental: { $in: rentalIds } });
 
-    return res.status(200).json({
+        // Ensure images are properly formatted
+        const formattedImages = car.images.map((img) =>
+          typeof img === "string" ? img : img.url
+        );
+
+        return {
+          ...car.toObject(),
+          images: formattedImages,
+          averageRating:
+            reviews.length > 0
+              ? Number(
+                  (
+                    reviews.reduce((sum, review) => sum + review.rating, 0) /
+                    reviews.length
+                  ).toFixed(1)
+                )
+              : 0,
+          reviewCount: reviews.length,
+        };
+      })
+    );
+
+    res.status(200).json({
       success: true,
-      cars: carsWithImages,
+      cars: carsWithDetails,
+      totalCars,
+      currentPage: page,
+      totalPages: Math.ceil(totalCars / limit),
     });
   } catch (error) {
-    console.error("Error fetching cars by user ID:", error);
-    return res.status(500).json({
+    console.error("Error in getCarsByUserId:", error);
+    res.status(500).json({
       success: false,
-      message: "Server error",
+      message: "Error fetching cars",
       error: error.message,
     });
   }
@@ -316,42 +423,30 @@ exports.getCarsByUserId = async (req, res) => {
 
 exports.getAllCarsInfinite = async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1; 
-    const resPerPage = parseInt(req.query.resPerPage) || 10; 
+    const page = parseInt(req.query.page) || 1;
+    const resPerPage = parseInt(req.query.resPerPage) || 10;
     const skip = (page - 1) * resPerPage;
 
-    const cars = await Cars.find({isActive: true}).populate("owner").skip(skip).limit(resPerPage);
+    const cars = await Cars.find({ isActive: true })
+      .populate("owner")
+      .skip(skip)
+      .limit(resPerPage);
 
-    const carsWithRatingsAndImages = await Promise.all(cars.map(async (car) => {
-      const rentals = await Rental.find({ car: car._id });
-      
-      const rentalIds = rentals.map(rental => rental._id);
-      
-      // Fetch all reviews for these rentals
-      const reviews = await Reviews.find({ rental: { $in: rentalIds } });
-      
-      // Calculate average rating and review count
-      const reviewCount = reviews.length;
-      const averageRating = reviewCount > 0 
-        ? Number((reviews.reduce((sum, review) => sum + review.rating, 0) / reviewCount).toFixed(1))
-        : 0;
-        
+    const carsWithImages = cars.map((car) => {
       return {
         ...car.toObject(),
         images: car.images.map((image) => image.url),
-        averageRating,
-        reviewCount
       };
-    }));
+    });
 
-    const totalCars = await Cars.countDocuments({isActive: true}); 
+    const totalCars = await Cars.countDocuments();
     const totalPages = Math.ceil(totalCars / resPerPage);
 
     res.status(200).json({
-      cars: carsWithRatingsAndImages,
+      cars: carsWithImages,
       currentPage: page,
       totalCars,
-      totalPages, 
+      totalPages,
     });
   } catch (error) {
     console.error("Error fetching cars:", error);
@@ -426,7 +521,7 @@ exports.filterCars = async (req, res) => {
       {
         $lookup: {
           from: "rentals",
-          localField: "_id", 
+          localField: "_id",
           foreignField: "car",
           as: "rentals",
         },
@@ -440,7 +535,7 @@ exports.filterCars = async (req, res) => {
       {
         $lookup: {
           from: "reviews",
-          localField: "rentals._id", 
+          localField: "rentals._id",
           foreignField: "rental",
           as: "reviews",
         },
@@ -448,7 +543,7 @@ exports.filterCars = async (req, res) => {
       {
         $unwind: {
           path: "$reviews",
-          preserveNullAndEmptyArrays: true, 
+          preserveNullAndEmptyArrays: true,
         },
       },
       {
@@ -456,7 +551,7 @@ exports.filterCars = async (req, res) => {
           _id: "$_id",
           brand: { $first: "$brand" }, 
           model: { $first: "$model" },
-          transmission: { $first: "$transmission" }, 
+          transmission: { $first: "$transmission" },
           pricePerDay: { $first: "$pricePerDay" },
           year: { $first: "$year" },
           seatCapacity: { $first: "$seatCapacity" },
@@ -466,25 +561,25 @@ exports.filterCars = async (req, res) => {
           description: { $first: "$description" },
           pickUpLocation: { $first: "$pickUpLocation" },
           termsAndConditions: { $first: "$termsAndConditions" },
-          vehicleType: { $first: "$vehicleType" }, 
-          images: { $first: "$images" }, 
-          rentalCount: { $sum: 1 }, 
-          totalRating: { $sum: "$reviews.rating" }, 
-          reviewCount: { $sum: 1 }, 
+          vehicleType: { $first: "$vehicleType" },
+          images: { $first: "$images" },
+          rentalCount: { $sum: 1 },
+          totalRating: { $sum: "$reviews.rating" },
+          reviewCount: { $sum: 1 },
         },
       },
       {
         $addFields: {
           averageRating: {
             $cond: {
-              if: { $gt: ["$reviewCount", 0] }, 
+              if: { $gt: ["$reviewCount", 0] },
               then: {
                 $round: [{ $divide: ["$totalRating", "$reviewCount"] }, 0],
-              }, 
-              else: 0, 
+              },
+              else: 0,
             },
           },
-          images: { $ifNull: ["$images", []] }, 
+          images: { $ifNull: ["$images", []] },
         },
       }
     );
@@ -492,7 +587,7 @@ exports.filterCars = async (req, res) => {
     if (rating) {
       aggregatePipeline.push({
         $match: {
-          averageRating: { $eq: Number(rating) }, 
+          averageRating: { $eq: Number(rating) },
         },
       });
       console.log("Filter Applied for exact rating =", rating);
@@ -510,16 +605,16 @@ exports.filterCars = async (req, res) => {
         ...car,
         images: Array.isArray(car.images)
           ? car.images.map((image) => image.url)
-          : [], 
+          : [],
         averageRating: car.averageRating || 0,
-        reviewCount: car.reviewCount || 0
+        reviewCount: car.reviewCount || 0,
       };
     });
 
     console.log("Filtered Cars with Images:", carsWithImages);
 
     console.log(carsWithImages);
-    
+
     res.status(200).json({
       success: true,
       count: carsWithImages.length,
@@ -536,23 +631,23 @@ exports.filterCars = async (req, res) => {
 
 exports.getCarAvailability = async (req, res) => {
   try {
-      const carCounts = await Cars.aggregate([
-          {
-              $group: {
-                  _id: "$vehicleType",
-                  count: { $sum: 1 }
-              }
-          }
-      ]);
+    const carCounts = await Cars.aggregate([
+      {
+        $group: {
+          _id: "$vehicleType",
+          count: { $sum: 1 },
+        },
+      },
+    ]);
 
-      const data = carCounts.map(item => ({
-          category: item._id,
-          count: item.count
-      }));
+    const data = carCounts.map((item) => ({
+      category: item._id,
+      count: item.count,
+    }));
 
-      res.status(200).json({ success: true, availability: data });
+    res.status(200).json({ success: true, availability: data });
   } catch (error) {
-      res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -560,7 +655,8 @@ exports.getFeaturedCars = async (req, res) => {
   try {
     const allActiveCars = await Cars.find({ 
       isActive: true,
-    });
+    }).limit(20);
+
 
     if (!allActiveCars || allActiveCars.length === 0) {
       return res.status(404).json({
@@ -594,29 +690,39 @@ exports.getFeaturedCars = async (req, res) => {
     }
 
     // Get cars with ratings
-    const carsWithRatings = await Promise.all(featuredCars.map(async (car) => {
-      const rentals = await Rental.find({ car: car._id });
-      
-      const rentalIds = rentals.map(rental => rental._id);
-      
-      const reviews = await Reviews.find({ rental: { $in: rentalIds } });
-      
-      const reviewCount = reviews.length;
-      const averageRating = reviewCount > 0 
-        ? Number((reviews.reduce((sum, review) => sum + review.rating, 0) / reviewCount).toFixed(1))
-        : 0;
-        
-      return {
-        ...car.toObject(),
-        images: car.images.map((image) => image.url),
-        averageRating,
-        reviewCount
-      };
-    }));
+    const carsWithRatings = await Promise.all(
+      featuredCars.map(async (car) => {
+        const rentals = await Rental.find({ car: car._id });
+
+        const rentalIds = rentals.map((rental) => rental._id);
+
+        const reviews = await Reviews.find({ rental: { $in: rentalIds } });
+
+        const reviewCount = reviews.length;
+        const averageRating =
+          reviewCount > 0
+            ? Number(
+                (
+                  reviews.reduce((sum, review) => sum + review.rating, 0) /
+                  reviewCount
+                ).toFixed(1)
+              )
+            : 0;
+
+        return {
+          ...car.toObject(),
+          images: car.images.map((image) => image.url),
+          averageRating,
+          reviewCount,
+        };
+      })
+    );
 
     // Sort cars by average rating (highest first)
-    const sortedCars = carsWithRatings.sort((a, b) => b.averageRating - a.averageRating);
-    
+    const sortedCars = carsWithRatings.sort(
+      (a, b) => b.averageRating - a.averageRating
+    );
+
     // Limit to 10 cars after sorting by rating
     const topRatedCars = sortedCars.slice(0, 10);
 

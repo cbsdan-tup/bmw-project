@@ -6,7 +6,7 @@ import {
   GoogleAuthProvider,
   signInWithCredential 
 } from "firebase/auth";
-import { auth, getAuthToken, refreshFirebaseToken } from '../config/firebase-config';
+import { auth, refreshFirebaseToken } from '../config/firebase-config';
 import { API_URL } from '../config/constants';
 
 const api = axios.create({

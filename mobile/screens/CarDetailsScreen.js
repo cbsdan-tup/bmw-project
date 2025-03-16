@@ -1069,6 +1069,7 @@ const CarDetailsScreen = () => {
                       onPress={() =>
                         navigation.navigate("ChatScreen", {
                           recipientId: currentCar.owner._id,
+                          carId: currentCar._id,
                         })
                       }
                     >
