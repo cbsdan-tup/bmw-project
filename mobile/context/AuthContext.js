@@ -10,6 +10,9 @@ import {
   createUserWithEmailAndPassword
 } from 'firebase/auth';
 import { AppState } from 'react-native';
+import {
+  Platform
+} from 'react-native';
 
 // Create auth context
 export const AuthContext = createContext();
