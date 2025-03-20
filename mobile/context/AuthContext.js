@@ -148,6 +148,7 @@ export const AuthProvider = ({ children }) => {
         
         // Save to state
         setToken(idToken);
+        console.log("User Data: ", userData);
         setUser(userData);
         setTokenExpiration(expirationTime);
         

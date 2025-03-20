@@ -13,7 +13,7 @@ import {
   Platform,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { globalStyles } from '../styles/globalStyles';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
@@ -38,6 +38,8 @@ const HomeScreen = () => {
   const navigation = useNavigation();
   const dispatch = useDispatch();
   const toast = useToast(); 
+  const isAdmin = user && user.role === 'admin';
+  const isFocused = useIsFocused();
   const { featuredCars, loading, error, favorites, filterParams } = useSelector(state => state.cars);
   const [refreshing, setRefreshing] = useState(false);
   const [filterVisible, setFilterVisible] = useState(false);
@@ -230,6 +232,11 @@ const HomeScreen = () => {
     );
   };
 
+  const openAdminDrawer = () => {
+    // Navigate to the AdminNavigator
+    navigation.navigate('AdminPanel');
+  };
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <ScrollView 
@@ -245,9 +252,28 @@ const HomeScreen = () => {
       >
         {/* Header Section with Search */}
         <View style={[styles.headerSection, { backgroundColor: colors.primary }]}>
-          <Text style={styles.welcomeText}>
-            Welcome to BMW Rentals
-          </Text>
+          {isAdmin ? (
+            <View style={styles.adminHeaderContainer}>
+              <View style={styles.adminWelcomeContainer}>
+                <Text style={styles.welcomeText}>
+                  Welcome Admin
+                </Text>
+                <Text style={styles.adminSubtitle}>
+                  Manage your platform
+                </Text>
+              </View>
+              <TouchableOpacity 
+                style={styles.adminMenuButton}
+                onPress={openAdminDrawer}
+              >
+                <Icon name="bars" size={24} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <Text style={styles.welcomeText}>
+              Welcome to BMW Rentals
+            </Text>
+          )}
           
           <TouchableOpacity 
             style={[styles.searchBar, { 
@@ -256,7 +282,7 @@ const HomeScreen = () => {
                 ios: {
                   shadowColor: '#000',
                   shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: isDarkMode ? 0.3 : 0.1,
+                  shadowOpacity: isDarkMode ? 3 : 0.1,
                   shadowRadius: 4,
                 },
                 android: {
@@ -651,7 +677,30 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 4,
     alignSelf: 'flex-start',
-  }
+  },
+  adminHeaderContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  adminWelcomeContainer: {
+    flex: 1,
+  },
+  adminSubtitle: {
+    fontSize: 16,
+    color: '#FFFFFF',
+    opacity: 0.8,
+    marginTop: 4,
+  },
+  adminMenuButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });
 
 export default HomeScreen;

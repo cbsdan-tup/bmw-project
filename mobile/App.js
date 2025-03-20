@@ -1,3 +1,4 @@
+import 'react-native-reanimated';
 import 'react-native-gesture-handler';
 import React, { useState, useEffect } from 'react';
 import { StatusBar, Platform } from 'react-native'; 
@@ -75,6 +76,7 @@ const AppNavigator = () => {
   const dispatch = useDispatch()
   useEffect(() => {
     console.log("User:", user?.email);
+    console.log("User Role:", user?.role);
     console.log("User Token:", token);
     if (user && token) {
       dispatch(fetchUserBookings(user?._id))

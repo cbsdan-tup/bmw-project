@@ -1,8 +1,8 @@
-import React from "react";
+import React, { useContext } from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createStackNavigator } from "@react-navigation/stack";
 import Icon from "react-native-vector-icons/FontAwesome";
-import { Platform, Text, View } from "react-native";
+import { Platform } from "react-native";
 import HomeScreen from "../screens/HomeScreen";
 import CarDetailsScreen from "../screens/CarDetailsScreen";
 import ProfileScreen from "../screens/ProfileScreen";
@@ -12,6 +12,10 @@ import ReviewsScreen from "../screens/ReviewsScreen";
 import ChatScreen from "../screens/ChatScreen";
 import { useTheme } from "../context/ThemeContext";
 import ProfileNavigator from "./ProfileNavigator";
+import { AuthContext } from "../context/AuthContext";
+
+// Import your AdminScreen
+import AdminScreen from "../screens/admin/AdminScreen";
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -104,9 +108,36 @@ const SearchStack = () => {
   );
 };
 
+// Admin Stack Navigator
+const AdminStack = () => {
+  const { colors } = useTheme();
+
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: colors.headerBackground,
+        },
+        headerTintColor: colors.headerText,
+        headerTitleStyle: {
+          fontWeight: "bold",
+        },
+      }}
+    >
+      <Stack.Screen
+        name="AdminDashboard"
+        component={AdminScreen}
+        options={{ title: "Admin Dashboard" }}
+      />
+    </Stack.Navigator>
+  );
+};
+
 // Bottom Tab Navigator
 const BottomTabNavigator = () => {
   const { colors } = useTheme();
+  const { user } = useContext(AuthContext); // Assuming you have an AuthContext
+  const isAdmin = user && user.role === 'admin';
 
   return (
     <Tab.Navigator
@@ -134,7 +165,7 @@ const BottomTabNavigator = () => {
       />
       <Tab.Screen
         name="Search"
-        component={SearchStack} // Use SearchStack instead of directly using SearchScreen
+        component={SearchStack}
         options={{
           tabBarIcon: ({ color, size }) => (
             <Icon name="search" size={size} color={color} />
@@ -159,6 +190,19 @@ const BottomTabNavigator = () => {
           ),
         }}
       />
+      
+      {/* Conditionally add Admin tab if user is admin */}
+      {isAdmin && (
+        <Tab.Screen
+          name="Admin"
+          component={AdminStack}
+          options={{
+            tabBarIcon: ({ color, size }) => (
+              <Icon name="cog" size={size} color={color} />
+            ),
+          }}
+        />
+      )}
     </Tab.Navigator>
   );
 };
