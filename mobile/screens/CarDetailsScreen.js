@@ -31,6 +31,8 @@ import StarRating from "../components/StarRating";
 import { useToast } from "../context/ToastContext";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { Picker } from "@react-native-picker/picker";
+import api from "./../services/api";
+import { API_URL } from "../config/constants";
 
 const { width, height } = Dimensions.get("window");
 
@@ -64,6 +66,50 @@ const CarDetailsScreen = () => {
   const [rentalDays, setRentalDays] = useState(0);
   const [confirmDialogVisible, setConfirmDialogVisible] = useState(false);
   const [showBookingModal, setShowBookingModal] = useState(false);
+  const [showInquiriesModal, setShowInquiriesModal] = useState(false);
+  const [inquiries, setInquiries] = useState([]);
+  const [loadingInquiries, setLoadingInquiries] = useState(false);
+  const [unreadCounts, setUnreadCounts] = useState({});
+
+  const markMessagesAsRead = async (senderId) => {
+    try {
+      await api.put(`${API_URL}/messages/read/${senderId}/${carId}`);
+      setUnreadCounts((prev) => ({
+        ...prev,
+        [senderId]: 0,
+      }));
+    } catch (error) {
+      console.error("Error marking messages as read:", error);
+    }
+  };
+
+  const fetchCarInquiries = async () => {
+    if (!carId) return;
+
+    setLoadingInquiries(true);
+    try {
+      const response = await api.get(`${API_URL}/car-inquiries/${carId}`);
+      const validInquiries = response.data.inquiries.filter(
+        (inquiry) =>
+          inquiry.sender &&
+          inquiry.messages &&
+          inquiry.messages.length > 0 &&
+          inquiry.sender._id !== currentCar.owner._id // Add this line to filter out owner's replies
+      );
+
+      const counts = {};
+      validInquiries.forEach((inquiry) => {
+        counts[inquiry.sender._id] = inquiry.unreadCount || 0;
+      });
+      setUnreadCounts(counts);
+      setInquiries(validInquiries);
+    } catch (error) {
+      console.error("Error fetching inquiries:", error);
+      toast.error("Failed to load inquiries");
+    } finally {
+      setLoadingInquiries(false);
+    }
+  };
 
   useEffect(() => {
     if (carId) {
@@ -105,6 +151,12 @@ const CarDetailsScreen = () => {
       setRentalDays(diffDays > 0 ? diffDays : 0);
     }
   }, [pickupDate, returnDate]);
+
+  useEffect(() => {
+    if (showInquiriesModal) {
+      fetchCarInquiries();
+    }
+  }, [showInquiriesModal]);
 
   const handleFavoritePress = () => {
     if (!user) {
@@ -253,6 +305,165 @@ const CarDetailsScreen = () => {
     });
   };
 
+  const getProfilePictureUri = (sender) => {
+    if (!sender) return null;
+
+    // Check if sender has avatar object with url
+    if (sender.avatar && sender.avatar.url) {
+      return sender.avatar.url;
+    }
+
+    return null;
+  };
+
+  const InquiriesModal = () => {
+    if (!showInquiriesModal) return null;
+
+    return (
+      <Modal
+        visible={true}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowInquiriesModal(false)}
+        statusBarTranslucent
+      >
+        <View style={styles.modalOverlay}>
+          <View
+            style={[styles.inquiriesModal, { backgroundColor: colors.card }]}
+          >
+            <View style={styles.bookingFormHandle} />
+            <Text style={[styles.inquiriesTitle, { color: colors.text }]}>
+              Car Inquiries
+            </Text>
+
+            <FlatList
+              data={inquiries}
+              keyExtractor={(item) => item.sender._id.toString()}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.inquiryItem,
+                    { backgroundColor: colors.background },
+                  ]}
+                  onPress={() => {
+                    markMessagesAsRead(item.sender._id);
+                    setShowInquiriesModal(false);
+                    navigation.navigate("ChatScreen", {
+                      recipientId: item.sender._id,
+                      carId: currentCar._id,
+                    });
+                  }}
+                >
+                  <View style={styles.inquiryUserInfo}>
+                    {getProfilePictureUri(item.sender) ? (
+                      <Image
+                        source={{
+                          uri: getProfilePictureUri(item?.sender?.avatar?.url),
+                        }}
+                        style={styles.inquiryUserAvatar}
+                        onError={(e) =>
+                          console.log(
+                            "Error loading avatar:",
+                            e.nativeEvent.error
+                          )
+                        }
+                      />
+                    ) : (
+                      <View
+                        style={[
+                          styles.avatarPlaceholder,
+                          { backgroundColor: colors.primary },
+                        ]}
+                      >
+                        <Text style={styles.avatarInitial}>
+                          {item.sender.firstName
+                            ? item.sender.firstName[0].toUpperCase()
+                            : "U"}
+                        </Text>
+                      </View>
+                    )}
+
+                    <View style={styles.inquiryUserDetails}>
+                      <Text
+                        style={[styles.inquiryUserName, { color: colors.text }]}
+                      >
+                        {`${item.sender.firstName} ${item.sender.lastName}`}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.inquiryLastMessage,
+                          { color: colors.secondary },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {item.lastMessage?.content || "No messages"}
+                        {item.lastMessage?.images?.length > 0 && " 📷"}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.inquiryTimestamp,
+                          { color: colors.secondary },
+                        ]}
+                      >
+                        {new Date(
+                          item.lastMessage?.createdAt
+                        ).toLocaleDateString()}
+                      </Text>
+                    </View>
+                    {unreadCounts[item.sender._id] > 0 && (
+                      <View
+                        style={[
+                          styles.unreadBadge,
+                          { backgroundColor: colors.primary },
+                        ]}
+                      >
+                        <Text style={styles.unreadCount}>
+                          {unreadCounts[item.sender._id]}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                  <Icon
+                    name="chevron-right"
+                    size={16}
+                    color={colors.secondary}
+                  />
+                </TouchableOpacity>
+              )}
+              ListEmptyComponent={
+                loadingInquiries ? (
+                  <ActivityIndicator
+                    color={colors.primary}
+                    style={{ marginTop: 20 }}
+                  />
+                ) : (
+                  <View style={styles.emptyInquiries}>
+                    <Icon name="inbox" size={40} color={colors.secondary} />
+                    <Text
+                      style={[
+                        styles.emptyInquiriesText,
+                        { color: colors.secondary },
+                      ]}
+                    >
+                      No inquiries yet
+                    </Text>
+                  </View>
+                )
+              }
+            />
+
+            <TouchableOpacity
+              style={styles.closeInquiriesButton}
+              onPress={() => setShowInquiriesModal(false)}
+            >
+              <Text style={{ color: colors.secondary }}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    );
+  };
+
   if (loading) {
     return (
       <SafeAreaView
@@ -366,8 +577,6 @@ const CarDetailsScreen = () => {
                   styles.paginationDot,
                   {
                     width: activeImageIndex === index ? 12 : 8,
-                    opacity: activeImageIndex === index ? 1 : 0.6,
-                    backgroundColor: "#FFFFFF",
                   },
                 ]}
               />
@@ -894,6 +1103,23 @@ const CarDetailsScreen = () => {
                   You owned this vehicle.
                 </Text>
               </View>
+              <TouchableOpacity
+                style={[
+                  styles.viewInquiriesButton,
+                  { backgroundColor: colors.primary },
+                ]}
+                onPress={() => setShowInquiriesModal(true)}
+              >
+                <Icon
+                  name="envelope"
+                  size={16}
+                  color="#FFFFFF"
+                  style={styles.inquiriesIcon}
+                />
+                <Text style={styles.viewInquiriesButtonText}>
+                  View Inquiries
+                </Text>
+              </TouchableOpacity>
             </View>
           ) : (
             <View
@@ -1027,9 +1253,9 @@ const CarDetailsScreen = () => {
               </Text>
               <View style={[styles.ownerBox, { backgroundColor: colors.card }]}>
                 <View style={styles.ownerAvatarContainer}>
-                  {currentCar.owner.profilePicture ? (
+                  {currentCar.owner?.avatar ? (
                     <Image
-                      source={{ uri: currentCar.owner.profilePicture }}
+                      source={{ uri: currentCar.owner?.avatar?.url }}
                       style={styles.ownerAvatar}
                     />
                   ) : (
@@ -1073,7 +1299,15 @@ const CarDetailsScreen = () => {
                         })
                       }
                     >
-                      <Text style={styles.contactButtonText}>Contact</Text>
+                      <Icon
+                        name="comment"
+                        size={16}
+                        color="#FFFFFF"
+                        style={styles.contactIcon}
+                      />
+                      <Text style={styles.contactButtonText}>
+                        Message Owner
+                      </Text>
                     </TouchableOpacity>
                   )}
               </View>
@@ -1085,9 +1319,31 @@ const CarDetailsScreen = () => {
       <BookingConfirmDialog />
       <BookingFormModal />
       <DatePickerModals />
+      <InquiriesModal />
     </SafeAreaView>
   );
 };
+
+const newStyles = StyleSheet.create({
+  inquiryLastMessage: {
+    fontSize: 14,
+    marginTop: 2,
+  },
+  unreadBadge: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: 8,
+    paddingHorizontal: 6,
+  },
+  unreadCount: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "bold",
+  },
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -1317,13 +1573,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   contactButton: {
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 8,
   },
+  contactIcon: {
+    marginRight: 8,
+  },
   contactButtonText: {
     color: "#fff",
     fontWeight: "600",
+    fontSize: 14,
   },
   bookButton: {
     flexDirection: "row",
@@ -1472,18 +1734,6 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   // Update and add styles for the modal booking form
-  modalOverlay: {
-    flex: 1,
-    justifyContent: "flex-end", // Makes modal appear from bottom
-    backgroundColor: "rgba(0,0,0,0.5)",
-  },
-  bookingFormModal: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    paddingTop: 10,
-    maxHeight: "90%", // Limit height to 90% of screen
-  },
   bookingFormHandle: {
     alignSelf: "center",
     width: 40,
@@ -1491,12 +1741,6 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     backgroundColor: "#ccc",
     marginBottom: 15,
-  },
-  bookingFormTitle: {
-    fontSize: 20,
-    fontWeight: "600",
-    marginBottom: 16,
-    textAlign: "center",
   },
   dialogTitle: {
     fontSize: 24,
@@ -1563,6 +1807,99 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "bold",
   },
+  chatButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    marginTop: 8,
+    alignSelf: "flex-start",
+  },
+  chatIcon: {
+    marginRight: 6,
+  },
+  chatButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  inquiriesModal: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    paddingTop: 10,
+    maxHeight: "80%",
+  },
+  inquiriesTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+    marginBottom: 16,
+    textAlign: "center",
+  },
+  inquiryItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    marginBottom: 8,
+    borderRadius: 8,
+    justifyContent: "space-between",
+  },
+  inquiryUserInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  inquiryUserAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  inquiryUserDetails: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  inquiryUserName: {
+    fontSize: 16,
+    fontWeight: "500",
+  },
+  inquiryTimestamp: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  emptyInquiries: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 40,
+  },
+  emptyInquiriesText: {
+    marginTop: 12,
+    fontSize: 16,
+  },
+  closeInquiriesButton: {
+    padding: 16,
+    alignItems: "center",
+    marginTop: 8,
+  },
+  viewInquiriesButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 8,
+    width: "100%",
+  },
+  viewInquiriesButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
+    marginLeft: 8,
+  },
+  inquiriesIcon: {
+    marginRight: 4,
+  },
+  ...newStyles,
 });
 
 export default CarDetailsScreen;

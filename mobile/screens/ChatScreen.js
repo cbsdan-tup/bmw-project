@@ -30,6 +30,7 @@ const ChatScreen = ({ route }) => {
   const currentUserId = user?._id;
   const [editingMessageId, setEditingMessageId] = useState(null);
   const [editingContent, setEditingContent] = useState("");
+  const [activeMenuId, setActiveMenuId] = useState(null);
 
   const EDIT_WINDOW_MINUTES = 20;
 
@@ -110,7 +111,15 @@ const ChatScreen = ({ route }) => {
       );
 
       if (response.data.success) {
-        setMessages(response.data.messages.reverse()); // Reverse for proper display
+        // Add more detailed logging to see the exact structure of the sender data
+        console.log(
+          "First message details:",
+          response.data.messages.length > 0
+            ? JSON.stringify(response.data.messages[0].senderId, null, 2)
+            : "No messages"
+        );
+
+        setMessages(response.data.messages);
       } else {
         setError(response.data.message || "Failed to load messages");
       }
@@ -140,7 +149,7 @@ const ChatScreen = ({ route }) => {
       });
 
       if (response.data.success) {
-        setMessages((prev) => [response.data.message, ...prev]);
+        setMessages((prev) => [...prev, response.data.message]);
         setNewMessage("");
       } else {
         Alert.alert("Error", response.data.message || "Failed to send message");
@@ -299,29 +308,73 @@ const ChatScreen = ({ route }) => {
     const canEdit = isOwnMessage && isWithinEditWindow(item.createdAt);
     const remainingTime = getRemainingEditTime(item.createdAt);
 
-    // Update the messageActions section in the existing renderMessage function
+    // Get sender name properly
+    const senderName = item.senderId
+      ? `${item.senderId.firstName || ""} ${
+          item.senderId.lastName || ""
+        }`.trim()
+      : "Unknown User";
+
+    // Get avatar URL properly
+    const avatarUrl = item.senderId?.avatar?.url;
+
     const renderMessageActions = () => {
       if (!isOwnMessage || item.isDeleted) return null;
 
       return (
         <View style={styles.messageActions}>
-          {canEdit && (
+          <TouchableOpacity
+            onPress={() =>
+              setActiveMenuId(activeMenuId === item._id ? null : item._id)
+            }
+            style={styles.menuButton}
+          >
+            <Icon name="ellipsis-v" size={14} color="#666666" />
+          </TouchableOpacity>
+
+          {activeMenuId === item._id && (
             <>
               <TouchableOpacity
-                onPress={() => startEditing(item._id, item.content)}
-                style={styles.actionButton}
+                style={styles.menuBackdrop}
+                onPress={() => setActiveMenuId(null)}
+              />
+              <View
+                style={[
+                  styles.menuDropdown,
+                  isOwnMessage
+                    ? styles.menuDropdownRight
+                    : styles.menuDropdownLeft,
+                ]}
               >
-                <Icon name="edit" size={14} color="#E0E0E0" />
-                <Text style={styles.editTimeText}>{remainingTime}m</Text>
-              </TouchableOpacity>
+                {canEdit && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      startEditing(item._id, item.content);
+                      setActiveMenuId(null);
+                    }}
+                    style={styles.menuItem}
+                  >
+                    <Icon name="edit" size={16} color="#007AFF" />
+                    <Text style={styles.menuItemText}>
+                      Edit ({remainingTime}m)
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  onPress={() => {
+                    deleteMessage(item._id);
+                    setActiveMenuId(null);
+                  }}
+                  style={styles.menuItem}
+                >
+                  <Icon name="trash" size={16} color="#FF3B30" />
+                  <Text style={[styles.menuItemText, styles.deleteText]}>
+                    Delete
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </>
           )}
-          <TouchableOpacity
-            onPress={() => deleteMessage(item._id)}
-            style={styles.actionButton}
-          >
-            <Icon name="trash" size={14} color="#E0E0E0" />
-          </TouchableOpacity>
         </View>
       );
     };
@@ -329,104 +382,133 @@ const ChatScreen = ({ route }) => {
     return (
       <View
         style={[
-          styles.messageContainer,
-          isOwnMessage ? styles.ownMessage : styles.otherMessage,
+          styles.messageRowContainer,
+          isOwnMessage ? styles.ownMessageRow : styles.otherMessageRow,
         ]}
       >
-        {!isOwnMessage && (
-          <View style={styles.avatarContainer}>
-            {item.senderId.avatar && (
-              <FastImage
-                source={{ uri: item.senderId.avatar }}
-                style={styles.avatar}
-              />
-            )}
-          </View>
-        )}
-
-        <View style={styles.messageContentWrapper}>
+        {isOwnMessage && renderMessageActions()}
+        <View
+          style={[
+            styles.messageContainer,
+            isOwnMessage ? styles.ownMessage : styles.otherMessage,
+          ]}
+        >
           {!isOwnMessage && (
-            <Text style={styles.senderName}>{item.senderId.name}</Text>
+            <View style={styles.avatarContainer}>
+              {avatarUrl ? (
+                <FastImage source={{ uri: avatarUrl }} style={styles.avatar} />
+              ) : (
+                <View style={[styles.avatar, styles.avatarPlaceholder]}>
+                  <Text style={styles.avatarInitial}>
+                    {item.senderId?.firstName?.charAt(0) || "U"}
+                  </Text>
+                </View>
+              )}
+            </View>
           )}
 
-          {item.isDeleted ? (
-            <View
-              style={[
-                styles.messageContent,
-                isOwnMessage
-                  ? styles.ownMessageContent
-                  : styles.otherMessageContent,
-              ]}
-            >
-              <Text style={styles.deletedMessage}>
-                This message was deleted
-              </Text>
-            </View>
-          ) : isEditing ? (
-            <View
-              style={[
-                styles.messageContent,
-                styles.editingContent,
-                isOwnMessage
-                  ? styles.ownMessageContent
-                  : styles.otherMessageContent,
-              ]}
-            >
-              <TextInput
-                value={editingContent}
-                onChangeText={setEditingContent}
+          <View style={styles.messageContentWrapper}>
+            {!isOwnMessage && (
+              <Text style={styles.senderName}>{senderName}</Text>
+            )}
+
+            {item.isDeleted ? (
+              <View
                 style={[
-                  styles.editInput,
-                  { color: isOwnMessage ? "#FFFFFF" : "#000000" },
-                ]}
-                multiline
-                autoFocus
-              />
-              <View style={styles.editActions}>
-                <TouchableOpacity
-                  onPress={() => updateMessage(item._id)}
-                  style={[
-                    styles.editButton,
-                    { backgroundColor: colors.primary },
-                  ]}
-                >
-                  <Text style={[styles.editButtonText, { color: "#FFFFFF" }]}>
-                    Save
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={cancelEditing}
-                  style={[
-                    styles.editButton,
-                    { backgroundColor: colors.border },
-                  ]}
-                >
-                  <Text style={styles.editButtonText}>Cancel</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ) : (
-            <View
-              style={[
-                styles.messageContent,
-                isOwnMessage
-                  ? styles.ownMessageContent
-                  : styles.otherMessageContent,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.messageText,
-                  { color: isOwnMessage ? "#FFFFFF" : "#000000" },
+                  styles.messageContent,
+                  isOwnMessage
+                    ? styles.ownMessageContent
+                    : styles.otherMessageContent,
                 ]}
               >
-                {item.content}
-              </Text>
-              <View style={styles.messageFooter}>
+                <Text style={styles.deletedMessage}>
+                  This message was deleted
+                </Text>
+              </View>
+            ) : isEditing ? (
+              <View
+                style={[
+                  styles.messageContent,
+                  styles.editingContent,
+                  isOwnMessage
+                    ? styles.ownMessageContent
+                    : styles.otherMessageContent,
+                ]}
+              >
+                <TextInput
+                  value={editingContent}
+                  onChangeText={setEditingContent}
+                  style={[
+                    styles.editInput,
+                    { color: isOwnMessage ? "#FFFFFF" : "#000000" },
+                  ]}
+                  multiline
+                  autoFocus
+                />
+                <View style={styles.editActions}>
+                  <TouchableOpacity
+                    onPress={() => updateMessage(item._id)}
+                    style={[
+                      styles.editButton,
+                      { backgroundColor: colors.primary },
+                    ]}
+                  >
+                    <Text style={[styles.editButtonText, { color: "#FFFFFF" }]}>
+                      Save
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={cancelEditing}
+                    style={[
+                      styles.editButton,
+                      { backgroundColor: colors.border },
+                    ]}
+                  >
+                    <Text style={styles.editButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <View>
+                <View
+                  style={[
+                    styles.messageContent,
+                    isOwnMessage
+                      ? styles.ownMessageContent
+                      : styles.otherMessageContent,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.messageText,
+                      { color: isOwnMessage ? "#FFFFFF" : "#000000" },
+                    ]}
+                  >
+                    {item.content}
+                  </Text>
+                  <View style={styles.messageFooter}>
+                    {item.isEdited && (
+                      <Text
+                        style={[
+                          styles.editedLabel,
+                          { color: isOwnMessage ? "#E0E0E0" : "#666666" },
+                        ]}
+                      >
+                        edited
+                      </Text>
+                    )}
+                    {isOwnMessage && (
+                      <View style={styles.statusContainer}>
+                        {renderMessageStatus(getMessageStatus(item))}
+                      </View>
+                    )}
+                  </View>
+                </View>
                 <Text
                   style={[
                     styles.timestamp,
-                    { color: isOwnMessage ? "#E0E0E0" : "#666666" },
+                    { color: "#666666" },
+                    { alignSelf: isOwnMessage ? "flex-end" : "flex-start" },
                   ]}
                 >
                   {new Date(item.createdAt).toLocaleTimeString([], {
@@ -434,26 +516,11 @@ const ChatScreen = ({ route }) => {
                     minute: "2-digit",
                   })}
                 </Text>
-                {item.isEdited && (
-                  <Text
-                    style={[
-                      styles.editedLabel,
-                      { color: isOwnMessage ? "#E0E0E0" : "#666666" },
-                    ]}
-                  >
-                    edited
-                  </Text>
-                )}
-                {isOwnMessage && (
-                  <View style={styles.statusContainer}>
-                    {renderMessageStatus(getMessageStatus(item))}
-                  </View>
-                )}
-                {renderMessageActions()}
               </View>
-            </View>
-          )}
+            )}
+          </View>
         </View>
+        {!isOwnMessage && renderMessageActions()}
       </View>
     );
   };
@@ -655,10 +722,7 @@ const styles = StyleSheet.create({
     color: "#D4B106",
     fontSize: 14,
   },
-  messageActions: {
-    flexDirection: "row",
-    marginLeft: 8,
-  },
+
   actionButton: {
     padding: 4,
     marginLeft: 8,
@@ -730,11 +794,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 4,
   },
-  messageActions: {
-    flexDirection: "row",
-    marginLeft: "auto",
-    gap: 8,
-  },
+
   actionButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -753,13 +813,13 @@ const styles = StyleSheet.create({
   },
   avatarContainer: {
     marginRight: 8,
-    alignSelf: "flex-end",
+    alignSelf: "center",
     marginBottom: 4,
   },
   avatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 40,
+    height: 40,
+    borderRadius: 50,
   },
   messageContentWrapper: {
     flex: 1,
@@ -767,6 +827,71 @@ const styles = StyleSheet.create({
   statusContainer: {
     marginLeft: 4,
     marginRight: 8,
+  },
+  menuButton: {
+    // display: "flex",
+    // justifyContent: "end",
+    // alignItems: "flex-end",
+    position: "absolute",
+    left: 60,
+    top: 25,
+    width: 400,
+    height: 400,
+  },
+  menuBackdrop: {
+    position: "absolute",
+    backgroundColor: "transparent",
+    zIndex: 999,
+  },
+  menuDropdown: {
+    position: "absolute",
+    top: 5,
+    left: 80,
+    backgroundColor: "white",
+    borderRadius: 12,
+    padding: 8,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    zIndex: 1000,
+    width: 150,
+  },
+  menuDropdownRight: {
+    right: 0,
+  },
+  menuDropdownLeft: {
+    left: 0,
+  },
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    borderRadius: 8,
+  },
+  menuItemText: {
+    marginLeft: 12,
+    color: "#333333",
+    fontSize: 15,
+    fontWeight: "500",
+  },
+  deleteText: {
+    color: "#FF3B30",
+  },
+  avatarPlaceholder: {
+    backgroundColor: "#CCCCCC",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  avatarInitial: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "bold",
   },
 });
 

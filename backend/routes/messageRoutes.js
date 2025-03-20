@@ -8,6 +8,8 @@ const {
   updateMessage,
   deleteMessage,
   getCarUserMessages,
+  getCarInquiries,
+  markMessagesAsRead,
 } = require("../controllers/messageController");
 
 router.post(
@@ -22,7 +24,13 @@ router.get(
   isAuthenticatedUser,
   getCarUserMessages
 );
+router.get("/car-inquiries/:carId", isAuthenticatedUser, getCarInquiries);
 router.put("/messages/:id", isAuthenticatedUser, updateMessage);
 router.delete("/messages/:id", isAuthenticatedUser, deleteMessage);
+router.put(
+  "/messages/read/:senderId/:carId",
+  isAuthenticatedUser,
+  markMessagesAsRead
+);
 
 module.exports = router;
