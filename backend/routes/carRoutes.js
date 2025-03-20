@@ -13,7 +13,8 @@ const {
     getAllCarsInfinite,
     filterCars,
     getCarAvailability,
-    getFeaturedCars // Add the new controller import
+    getFeaturedCars,
+    searchAndFilterCars
 } = require('../controllers/carControllers'); 
 
 
@@ -22,6 +23,7 @@ router.get('/Cars', getAllCars)
 router.get('/Cars/featured', getFeaturedCars);
 router.get("/Cars/infinite", getAllCarsInfinite);
 router.get("/Cars/filter", filterCars);
+router.get("/Cars/search-filter", searchAndFilterCars);
 router.get('/Cars/:id', getSingleCar); 
 router.get('/my-cars/:userId', isAuthenticatedUser, getCarsByUserId); 
 router.post('/CreateCar', isAuthenticatedUser, upload.array('images', 10), createCar);

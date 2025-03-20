@@ -22,7 +22,8 @@ const FilterModal = ({ visible, onClose, onApply, onReset, initialValues }) => {
     transmission: "",
     pickUpLocation: "",
     brand: "",
-    pricePerDay: "",
+    minPricePerDay: "",
+    maxPricePerDay: "",
     year: "",
     rating: ""
   });
@@ -33,7 +34,7 @@ const FilterModal = ({ visible, onClose, onApply, onReset, initialValues }) => {
       setFilters(initialValues);
       setDisplayRating(Number(initialValues.rating) || 0);
     }
-  }, [initialValues, visible]);
+  }, [initialValues]);
 
   const handleInputChange = (name, value) => {
     setFilters(prev => ({
@@ -71,12 +72,17 @@ const FilterModal = ({ visible, onClose, onApply, onReset, initialValues }) => {
       transmission: "",
       pickUpLocation: "",
       brand: "",
-      pricePerDay: "",
+      minPricePerDay: "",
+      maxPricePerDay: "",
       year: "",
       rating: ""
     });
     setDisplayRating(0);
     onReset();
+  };
+  
+  const handleClose = () => {
+    onClose(filters);
   };
 
   return (
@@ -84,7 +90,7 @@ const FilterModal = ({ visible, onClose, onApply, onReset, initialValues }) => {
       visible={visible}
       animationType="slide"
       transparent={true}
-      onRequestClose={onClose}
+      onRequestClose={handleClose}
     >
       <View style={styles.centeredView}>
         <View style={[
@@ -107,7 +113,7 @@ const FilterModal = ({ visible, onClose, onApply, onReset, initialValues }) => {
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, { color: colors.text }]}>Filter Cars</Text>
             <TouchableOpacity 
-              onPress={onClose}
+              onPress={handleClose}
               style={styles.closeButton}
               hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
             >
@@ -168,21 +174,36 @@ const FilterModal = ({ visible, onClose, onApply, onReset, initialValues }) => {
               </View>
             </View>
             
-            {/* Price Input */}
+            {/* Price Range Inputs */}
             <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colors.text }]}>Maximum Price Per Day (₱)</Text>
-              <TextInput
-                style={[styles.textInput, { 
-                  backgroundColor: colors.inputBackground,
-                  color: colors.inputText,
-                  borderColor: colors.inputBorder
-                }]}
-                value={filters.pricePerDay}
-                onChangeText={(text) => handleInputChange('pricePerDay', text)}
-                placeholder="Enter max price"
-                placeholderTextColor={colors.inputPlaceholder}
-                keyboardType="numeric"
-              />
+              <Text style={[styles.inputLabel, { color: colors.text }]}>Price Range Per Day (₱)</Text>
+              <View style={styles.priceRangeContainer}>
+                <TextInput
+                  style={[styles.priceRangeInput, { 
+                    backgroundColor: colors.inputBackground,
+                    color: colors.inputText,
+                    borderColor: colors.inputBorder
+                  }]}
+                  value={filters.minPricePerDay}
+                  onChangeText={(text) => handleInputChange('minPricePerDay', text)}
+                  placeholder="Min"
+                  placeholderTextColor={colors.inputPlaceholder}
+                  keyboardType="numeric"
+                />
+                <Text style={[styles.priceSeparator, { color: colors.text }]}>to</Text>
+                <TextInput
+                  style={[styles.priceRangeInput, { 
+                    backgroundColor: colors.inputBackground,
+                    color: colors.inputText,
+                    borderColor: colors.inputBorder
+                  }]}
+                  value={filters.maxPricePerDay}
+                  onChangeText={(text) => handleInputChange('maxPricePerDay', text)}
+                  placeholder="Max"
+                  placeholderTextColor={colors.inputPlaceholder}
+                  keyboardType="numeric"
+                />
+              </View>
             </View>
             
             {/* Year Input */}
@@ -321,7 +342,25 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: 'bold',
     fontSize: 16,
-  }
+  },
+  priceRangeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  priceRangeInput: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    fontSize: 16,
+    height: 48,
+  },
+  priceSeparator: {
+    marginHorizontal: 10,
+    fontSize: 16,
+    fontWeight: '500',
+  },
 });
 
 export default FilterModal;

@@ -13,22 +13,25 @@ import {
   Platform
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { CAR_IMAGES } from '../config/constants';
 import { globalStyles } from '../styles/globalStyles';
-import { fetchFilteredCars, setFilterParams } from '../redux/slices/carSlice';
+import { fetchFilteredCars, setFilterParams, resetFilters } from '../redux/slices/carSlice';
 import FilterModal from '../components/FilterModal';
 import StarRating from '../components/StarRating';
+import { saveSearch } from '../utils/RecentSearchesManager';
 
 const SearchScreen = () => {
   const { colors, isDarkMode } = useTheme();
   const dispatch = useDispatch();
   const navigation = useNavigation();
+  const route = useRoute();
   const [searchQuery, setSearchQuery] = useState('');
   const [filterVisible, setFilterVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [localFilterParams, setLocalFilterParams] = useState({});
   
   const { filteredCars, loading, error, filterParams } = useSelector(state => state.cars);
 
@@ -36,8 +39,30 @@ const SearchScreen = () => {
     loadCars();
   }, []);
   
+  useFocusEffect(
+    React.useCallback(() => {
+      if (route.params?.query) {
+        const queryParam = route.params.query;
+        
+        setSearchQuery(queryParam);
+        
+        const params = { ...localFilterParams, query: queryParam };
+        dispatch(setFilterParams(params));
+        dispatch(fetchFilteredCars(params));
+        
+        saveSearch(queryParam);
+        
+        navigation.setParams({ query: undefined });
+      }
+    }, [route.params])
+  );
+  
+  useEffect(() => {
+    setLocalFilterParams(filterParams);
+  }, [filterParams]);
+  
   const loadCars = () => {
-    dispatch(fetchFilteredCars({}));
+    dispatch(fetchFilteredCars(localFilterParams || {}));
   };
   
   const onRefresh = () => {
@@ -47,19 +72,37 @@ const SearchScreen = () => {
   };
   
   const handleSearch = () => {
-    const params = { ...filterParams, brand: searchQuery };
-    dispatch(setFilterParams(params));
-    dispatch(fetchFilteredCars(params));
+    if (searchQuery.trim()) {
+      // Save the search term to history
+      saveSearch(searchQuery.trim());
+      
+      // Perform the search
+      const params = { 
+        ...localFilterParams, 
+        query: searchQuery 
+      };
+      dispatch(setFilterParams(params));
+      dispatch(fetchFilteredCars(params));
+    }
   };
   
   const handleFilterApply = (newFilters) => {
+    setLocalFilterParams(newFilters);
+    dispatch(setFilterParams(newFilters));
     dispatch(fetchFilteredCars(newFilters));
     setFilterVisible(false);
   };
   
   const handleFilterReset = () => {
     setSearchQuery('');
-    loadCars();
+    setLocalFilterParams({});
+    dispatch(resetFilters());
+    dispatch(fetchFilteredCars({}));
+    setFilterVisible(false);
+  };
+
+  const handleFilterClose = (currentFilters) => {
+    setLocalFilterParams(currentFilters);
     setFilterVisible(false);
   };
 
@@ -218,10 +261,10 @@ const SearchScreen = () => {
       
       <FilterModal
         visible={filterVisible}
-        onClose={() => setFilterVisible(false)}
+        onClose={handleFilterClose}
         onApply={handleFilterApply}
         onReset={handleFilterReset}
-        initialValues={filterParams}
+        initialValues={localFilterParams}
       />
     </SafeAreaView>
   );

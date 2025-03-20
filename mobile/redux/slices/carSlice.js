@@ -1,6 +1,4 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import axios from 'axios';
-import { API_URL } from '../../config/constants';
 import api from '../../services/api';
 
 // Async thunks for API calls
@@ -8,7 +6,7 @@ export const fetchFeaturedCars = createAsyncThunk(
   'cars/fetchFeatured',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axios.get(`${API_URL}/Cars/featured`);
+      const response = await api.get(`/Cars/featured`);
       
       // Process each car's images
       const cars = response.data.cars.map(car => {
@@ -34,7 +32,7 @@ export const fetchFilteredCars = createAsyncThunk(
       const query = new URLSearchParams(
         Object.fromEntries(Object.entries(filterParams).filter(([_, v]) => v))
       ).toString();
-      const response = await axios.get(`${API_URL}/Cars/filter?${query}`);
+      const response = await api.get(`/Cars/search-filter?${query}`);
       return response.data.cars;
     } catch (error) {
       return rejectWithValue(error.response?.data || 'Failed to fetch filtered cars');
@@ -46,7 +44,7 @@ export const fetchCarByID = createAsyncThunk(
   'cars/fetchById',
   async (carId, { rejectWithValue }) => {
     try {
-      const response = await axios.get(`${API_URL}/Cars/${carId}`);
+      const response = await api.get(`/Cars/${carId}`);
       
       const car = response.data.car;
       
@@ -141,7 +139,8 @@ const initialState = {
     transmission: "",
     pickUpLocation: "",
     brand: "",
-    pricePerDay: "",
+    minPricePerDay: "",
+    maxPricePerDay: "",
     year: "",
     rating: ""
   }
