@@ -30,6 +30,7 @@ import Icon from 'react-native-vector-icons/FontAwesome';
 import StarRating from '../components/StarRating';
 import FilterModal from '../components/FilterModal';
 import { useToast } from '../context/ToastContext'; 
+import { getRecentSearches } from '../utils/RecentSearchesManager';
 
 const HomeScreen = () => {
   const { colors, isDarkMode } = useTheme();
@@ -40,18 +41,26 @@ const HomeScreen = () => {
   const { featuredCars, loading, error, favorites, filterParams } = useSelector(state => state.cars);
   const [refreshing, setRefreshing] = useState(false);
   const [filterVisible, setFilterVisible] = useState(false);
+  const [recentSearches, setRecentSearches] = useState([]);
   
   useEffect(() => {
     loadFeaturedCars();
+    loadRecentSearches();
   }, []);
 
   const loadFeaturedCars = () => {
     dispatch(fetchFeaturedCars());
   };
+  
+  const loadRecentSearches = async () => {
+    const searches = await getRecentSearches();
+    setRecentSearches(searches);
+  };
 
   const onRefresh = () => {
     setRefreshing(true);
     dispatch(fetchFeaturedCars()).then(() => {
+      loadRecentSearches();
       setRefreshing(false);
     });
   };
@@ -221,13 +230,6 @@ const HomeScreen = () => {
     );
   };
 
-  // Example recent searches (in a real app, these would be stored in AsyncStorage)
-  const recentSearches = [
-    "BMW X5 in Manila",
-    "Automatic transmission",
-    "Under ₱2000/day",
-  ];
-
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <ScrollView 
@@ -262,7 +264,7 @@ const HomeScreen = () => {
                 },
               }),
             }]}
-            onPress={() => setFilterVisible(true)}
+            onPress={() => navigation.navigate('Search')}
             activeOpacity={0.8}
           >
             <Icon name="search" size={18} color={colors.secondary} />
@@ -282,7 +284,10 @@ const HomeScreen = () => {
                 <TouchableOpacity 
                   key={index} 
                   style={[styles.recentSearchBadge, { backgroundColor: 'rgba(255,255,255,0.2)' }]}
-                  onPress={() => setFilterVisible(true)}
+                  onPress={() => navigation.navigate('Search', { 
+                    screen: 'SearchScreen', 
+                    params: { query: search } 
+                  })}
                 >
                   <Text style={styles.recentSearchText}>{search}</Text>
                 </TouchableOpacity>
@@ -527,7 +532,7 @@ const styles = StyleSheet.create({
     borderRadius: 4
   },
   noDataContainer: {
-    width: 280, 
+    width: 350, 
     height: 200, 
     justifyContent: 'center', 
     alignItems: 'center'
@@ -536,7 +541,7 @@ const styles = StyleSheet.create({
     height: 150, 
     borderRadius: 8, 
     marginBottom: 12,
-    backgroundColor: '#e0e0e0', // Placeholder background
+    backgroundColor: '#e0e0e0', 
   },
   favoriteButton: {
     position: 'absolute',

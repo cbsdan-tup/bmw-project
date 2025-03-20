@@ -629,6 +629,194 @@ exports.filterCars = async (req, res) => {
   }
 };
 
+exports.searchAndFilterCars = async (req, res) => {
+  try {
+    const { 
+      pickUpLocation, 
+      minPricePerDay, 
+      maxPricePerDay, 
+      year, 
+      brand, 
+      transmission, 
+      rating,
+      query 
+    } = req.query;
+    
+    console.log("Query Parameters:", req.query);
+
+    // Start by building the aggregation pipeline
+    let aggregatePipeline = [
+      {
+        $match: {
+          isActive: true,
+        },
+      },
+    ];
+
+    // Search across multiple fields if query parameter exists
+    if (query) {
+      const searchRegex = new RegExp(query, "i");
+      aggregatePipeline.push({
+        $match: {
+          $or: [
+            { brand: { $regex: searchRegex } },
+            { model: { $regex: searchRegex } },
+            { pickUpLocation: { $regex: searchRegex } },
+            { description: { $regex: searchRegex } },
+            { vehicleType: { $regex: searchRegex } },
+            { fuel: { $regex: searchRegex } }
+          ]
+        }
+      });
+    }
+
+    // Apply filters directly in the aggregation pipeline
+    if (pickUpLocation) {
+      aggregatePipeline.push({
+        $match: {
+          pickUpLocation: { $regex: new RegExp(pickUpLocation, "i") },
+        },
+      });
+    }
+
+    if (brand) {
+      aggregatePipeline.push({
+        $match: {
+          brand: { $regex: new RegExp(brand, "i") },
+        },
+      });
+    }
+
+    if (transmission) {
+      aggregatePipeline.push({
+        $match: {
+          transmission: { $regex: new RegExp(transmission, "i") },
+        },
+      });
+    }
+
+    // Handle price range filtering
+    if (minPricePerDay || maxPricePerDay) {
+      const priceMatch = {};
+      
+      if (minPricePerDay) {
+        priceMatch.$gte = Number(minPricePerDay);
+      }
+      
+      if (maxPricePerDay) {
+        priceMatch.$lte = Number(maxPricePerDay);
+      }
+      
+      if (Object.keys(priceMatch).length > 0) {
+        aggregatePipeline.push({
+          $match: {
+            pricePerDay: priceMatch
+          }
+        });
+      }
+    }
+
+    if (year) {
+      aggregatePipeline.push({
+        $match: {
+          year: { $lte: Number(year) },
+        },
+      });
+    }
+
+    // Rest of the aggregation pipeline
+    aggregatePipeline.push(
+      {
+        $lookup: {
+          from: "rentals",
+          localField: "_id",
+          foreignField: "car",
+          as: "rentals",
+        },
+      },
+      {
+        $lookup: {
+          from: "reviews",
+          let: { rentalIds: "$rentals._id" },
+          pipeline: [
+            { $match: { $expr: { $in: ["$rental", "$$rentalIds"] } } }
+          ],
+          as: "reviews"
+        }
+      },
+      {
+        $group: {
+          _id: "$_id",
+          brand: { $first: "$brand" }, 
+          model: { $first: "$model" },
+          transmission: { $first: "$transmission" },
+          pricePerDay: { $first: "$pricePerDay" },
+          year: { $first: "$year" },
+          seatCapacity: { $first: "$seatCapacity" },
+          fuel: { $first: "$fuel" },
+          displacement: { $first: "$displacement" },
+          mileage: { $first: "$mileage" },
+          description: { $first: "$description" },
+          pickUpLocation: { $first: "$pickUpLocation" },
+          termsAndConditions: { $first: "$termsAndConditions" },
+          vehicleType: { $first: "$vehicleType" },
+          images: { $first: "$images" },
+          reviews: { $first: "$reviews" },
+          totalRating: { $sum: { $sum: "$reviews.rating" } },
+          reviewCount: { $first: { $size: "$reviews" } }
+        },
+      },
+      {
+        $addFields: {
+          averageRating: {
+            $cond: {
+              if: { $gt: ["$reviewCount", 0] },
+              then: {
+                $round: [{ $divide: ["$totalRating", "$reviewCount"] }, 1],
+              },
+              else: 0,
+            },
+          },
+          images: { $ifNull: ["$images", []] },
+        },
+      }
+    );
+
+    if (rating) {
+      aggregatePipeline.push({
+        $match: {
+          averageRating: { $gte: Number(rating) },
+        },
+      });
+    }
+
+    const cars = await Cars.aggregate(aggregatePipeline);
+    
+    const carsWithImages = cars.map((car) => {
+      return {
+        ...car,
+        images: Array.isArray(car.images)
+          ? car.images.map((image) => image.url)
+          : [],
+        averageRating: car.averageRating || 0,
+        reviewCount: car.reviewCount || 0,
+      };
+    });
+
+    res.status(200).json({
+      success: true,
+      count: carsWithImages.length,
+      cars: carsWithImages,
+    });
+  } catch (error) {
+    console.error("Error:", error.message);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 exports.getCarAvailability = async (req, res) => {
   try {
     const carCounts = await Cars.aggregate([
@@ -659,8 +847,9 @@ exports.getFeaturedCars = async (req, res) => {
 
 
     if (!allActiveCars || allActiveCars.length === 0) {
-      return res.status(404).json({
-        success: false,
+      return res.status(200).json({
+        success: true,
+        cars: [],
         message: "No featured cars found"
       });
     }
@@ -683,8 +872,9 @@ exports.getFeaturedCars = async (req, res) => {
     const featuredCars = availableCars.slice(0, 20);
 
     if (featuredCars.length === 0) {
-      return res.status(404).json({
-        success: false,
+      return res.status(200).json({
+        success: true,
+        cars: [],
         message: "No available featured cars found"
       });
     }
