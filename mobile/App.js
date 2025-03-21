@@ -1,4 +1,3 @@
-import 'react-native-reanimated';
 import 'react-native-gesture-handler';
 import React, { useState, useEffect } from 'react';
 import { StatusBar, Platform } from 'react-native'; 
@@ -18,19 +17,12 @@ import { store } from './redux/store';
 import { ToastProvider } from './context/ToastContext'; 
 import { LogBox } from 'react-native';
 import { onAuthStateChanged } from "firebase/auth";
-import { auth } from './config/firebase-config';
+// Import Firebase config early to ensure initialization happens first
+import app, { auth } from './config/firebase-config';
 import {fetchUserBookings} from './redux/slices/bookingSlice';
 import {fetchUserFavorites}from './redux/slices/carSlice';
 import { fetchUserReviews } from './redux/slices/reviewSlice';
-import firebase from '@react-native-firebase/app';
 LogBox.ignoreLogs(['Warning: ...']);
-
-// Initialize Firebase at app startup
-if (!firebase.apps.length) {
-  // Your web app's Firebase configuration is automatically loaded from google-services.json
-  // on Android and GoogleService-Info.plist on iOS
-  firebase.initializeApp();
-}
 
 // Error boundary for navigation container
 const ErrorBoundary = ({ children }) => {
@@ -83,6 +75,12 @@ const AppNavigator = () => {
       dispatch(fetchUserFavorites(user?._id))
       dispatch(fetchUserReviews(user?._id))
     }
+  }, [isAuthenticated, user]);
+
+  // Add this debug useEffect
+  useEffect(() => {
+    console.log("Authentication state changed:", isAuthenticated);
+    console.log("Current user:", user?.email || "No user");
   }, [isAuthenticated, user]);
 
   useEffect(() => {
@@ -171,6 +169,9 @@ const AppNavigator = () => {
 
 export default function App() {
   useEffect(() => {
+    // Log that we're initializing the app to confirm Firebase is ready
+    console.log("App initialized with Firebase app:", app ? "Firebase app loaded" : "Firebase app missing");
+    
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       console.log("Firebase Auth State Changed:", user ? user.email : "No user");
     });

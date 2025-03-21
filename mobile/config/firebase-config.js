@@ -1,4 +1,4 @@
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, initializeAuth, getReactNativePersistence } from "firebase/auth";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -11,24 +11,47 @@ const firebaseConfig = {
   appId: "1:14654770851:android:085d66fa22a5ed240f3916",
 };
 
+console.log("Firebase config module loading...");
+console.log("Current Firebase apps:", getApps().length);
+
+// Initialize Firebase - use getApps() to check if already initialized
 let app;
-try {
-  app = initializeApp(firebaseConfig);
-} catch (error) {
-  console.log("Firebase app already initialized, using existing instance");
+if (getApps().length === 0) {
+  try {
+    console.log("Initializing Firebase app for the first time");
+    app = initializeApp(firebaseConfig);
+    console.log("Firebase initialization successful:", app.name);
+  } catch (error) {
+    console.error("Firebase initialization error:", error);
+    throw error; // Critical error - can't proceed without Firebase
+  }
+} else {
+  console.log("Firebase app already exists, retrieving instance");
+  app = getApp(); // Get the already initialized app
+  console.log("Retrieved existing Firebase app:", app.name);
 }
 
+// Initialize auth with explicit app reference
 let auth;
 try {
-  auth = initializeAuth(app, {
-    persistence: getReactNativePersistence(AsyncStorage)
-  });
+  console.log("Initializing Firebase auth");
+  auth = getAuth(app);
+  if (!auth) {
+    console.log("Auth not available with getAuth, trying initializeAuth");
+    auth = initializeAuth(app, {
+      persistence: getReactNativePersistence(AsyncStorage)
+    });
+  }
+  console.log("Firebase auth initialized successfully");
 } catch (error) {
-  console.log("Firebase auth already initialized, using existing instance");
-  auth = getAuth();
+  console.error("Error during auth initialization:", error);
+  // Last attempt to get auth
+  auth = getAuth(app);
 }
 
-export { auth };
+// Export the app first, then other services
+export default app;
+export { auth, app };
 
 export const refreshFirebaseToken = async () => {
   console.log("Auth User:", auth?.currentUser?.email || "null");
@@ -80,5 +103,3 @@ export const getAuthToken = async () => {
     return null;
   }
 };
-
-export default app;

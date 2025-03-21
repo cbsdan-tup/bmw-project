@@ -20,14 +20,15 @@ import { GOOGLE_SIGNIN_CONFIG } from '../../config/google-auth-config';
 import { useToast } from '../../context/ToastContext';
 import 'expo-dev-client';
 
-import auth from '@react-native-firebase/auth';
+import { auth } from '../../config/firebase-config';
+import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 
 // Initialize Google Sign-in
 GoogleSignin.configure(GOOGLE_SIGNIN_CONFIG);
 
 const LoginScreen = ({ navigation }) => {
-  const { login, googleSignIn, isLoading } = useAuth();
+  const { login, googleSignIn, isLoading, setAuthenticated } = useAuth();
   const { colors } = useTheme();
   const toast = useToast();
   
@@ -57,7 +58,7 @@ const LoginScreen = ({ navigation }) => {
       console.log('Google sign-in successful, full result:', JSON.stringify(signInResult));
       
       // The idToken is nested inside the data property, not directly on the result
-      const idToken = signInResult.data?.idToken;
+      const idToken = signInResult.data?.idToken || signInResult.idToken;
       
       if (!idToken) {
         throw new Error('Failed to get ID token from Google Sign-in');
@@ -65,13 +66,13 @@ const LoginScreen = ({ navigation }) => {
       
       console.log('Successfully retrieved idToken');
       
-      // Create a Firebase credential with the token
+      // Create a Firebase credential with the token using the Web SDK
       console.log('Creating Firebase credential');
-      const googleCredential = auth.GoogleAuthProvider.credential(idToken);
+      const googleCredential = GoogleAuthProvider.credential(idToken);
       
-      // Sign in with credential to Firebase
+      // Sign in with credential to Firebase using the Web SDK
       console.log('Signing in to Firebase');
-      const userCredential = await auth().signInWithCredential(googleCredential);
+      const userCredential = await signInWithCredential(auth, googleCredential);
       const firebaseUser = userCredential.user;
       
       console.log('Firebase User UID:', firebaseUser.uid);
@@ -153,14 +154,14 @@ const LoginScreen = ({ navigation }) => {
       setLoginInProgress(true);
       const result = await login(email, password);
       const user = result?.user;
-      if (result.success) {
+            if (result.success) {
         toast.success(`Welcome back ${user?.firstName}!`);
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'MainTabs' }]
-        });
-      } else {
-        toast.error(result.error || 'Please check your credentials and try again');
+                  navigation.reset({
+            index: 0,
+            routes: [{ name: 'MainTabs' }]
+          });
+              } else {
+        error(result.error || 'Please check your credentials and try again');
       }
     } catch (error) {
       toast.error(error.message || 'Please check your credentials and try again');

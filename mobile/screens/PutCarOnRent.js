@@ -15,7 +15,6 @@ import * as ImagePicker from "expo-image-picker";
 import { useTheme } from "../context/ThemeContext";
 import { Picker } from "@react-native-picker/picker";
 import { useAuth } from "../context/AuthContext";
-import { API_URL } from "../config/constants";
 import { auth } from "../config/firebase-config";
 import api from "../services/api";
 

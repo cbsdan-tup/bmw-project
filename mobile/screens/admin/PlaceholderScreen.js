@@ -9,11 +9,11 @@ const PlaceholderScreen = () => {
   
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Text style={[styles.text, { color: colors.text }]}>
-        {route.name} Screen - Coming Soon
+      <Text style={[styles.title, { color: colors.text }]}>
+        {route.name} Screen
       </Text>
-      <Text style={[styles.subText, { color: colors.secondary }]}>
-        This feature is under development
+      <Text style={[styles.description, { color: colors.text }]}>
+        This is a placeholder for the {route.name} functionality.
       </Text>
     </View>
   );
@@ -26,12 +26,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
   },
-  text: {
-    fontSize: 22,
+  title: {
+    fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 10,
+    marginBottom: 20,
   },
-  subText: {
+  description: {
     fontSize: 16,
     textAlign: 'center',
   },

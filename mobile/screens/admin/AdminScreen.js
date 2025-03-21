@@ -3,12 +3,10 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-nati
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { useTheme } from '../../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
-import { useAuth } from '../../context/AuthContext';
 
 const AdminScreen = () => {
   const { colors } = useTheme();
   const navigation = useNavigation();
-  const { user } = useAuth();
   
   const adminMenuItems = [
     { name: 'Dashboard', icon: 'dashboard', route: 'Dashboard' },
@@ -21,11 +19,6 @@ const AdminScreen = () => {
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.welcomeBanner, { backgroundColor: colors.primary }]}>
-        <Text style={styles.welcomeText}>Welcome, {user?.firstName || 'Admin'}!</Text>
-        <Text style={styles.welcomeSubtext}>Manage your BMW rental platform</Text>
-      </View>
-      
       <View style={styles.header}>
         <Text style={[styles.headerTitle, { color: colors.text }]}>Admin Dashboard</Text>
       </View>
@@ -50,28 +43,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  welcomeBanner: {
-    padding: 20,
-    paddingTop: 40,
-    paddingBottom: 40,
-  },
-  welcomeText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  welcomeSubtext: {
-    fontSize: 16,
-    color: '#FFFFFF',
-    opacity: 0.8,
-    marginTop: 5,
-  },
   header: {
     padding: 20,
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: 'bold',
   },
   menuGrid: {

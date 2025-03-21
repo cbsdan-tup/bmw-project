@@ -9,7 +9,7 @@ import { useTheme } from '../context/ThemeContext';
 import BottomTabNavigator from './BottomTabNavigator';
 import EditProfileScreen from '../screens/EditProfileScreen';
 import MyFavoritesScreen from '../screens/MyFavoritesScreen';
-import AdminNavigator from './AdminNavigator';
+import AdminScreen from '../screens/admin/AdminScreen';
 
 const Stack = createStackNavigator();
 
@@ -67,11 +67,10 @@ const AuthNavigator = () => {
         component={MyFavoritesScreen}
         options={{ title: 'My Favorites' }}
       />
-      {/* Admin Navigator with drawer */}
       <Stack.Screen
-        name="AdminPanel"
-        component={AdminNavigator}
-        options={{ headerShown: false }}
+        name="AdminDashboard"
+        component={AdminScreen}
+        options={{ title: 'Admin Dashboard' }}
       />
     </Stack.Navigator>
   );

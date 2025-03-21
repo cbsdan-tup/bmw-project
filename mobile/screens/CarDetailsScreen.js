@@ -32,7 +32,6 @@ import { useToast } from "../context/ToastContext";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { Picker } from "@react-native-picker/picker";
 import api from "./../services/api";
-import { API_URL } from "../config/constants";
 
 const { width, height } = Dimensions.get("window");
 
@@ -73,7 +72,7 @@ const CarDetailsScreen = () => {
 
   const markMessagesAsRead = async (senderId) => {
     try {
-      await api.put(`${API_URL}/messages/read/${senderId}/${carId}`);
+      await api.put(`/messages/read/${senderId}/${carId}`);
       setUnreadCounts((prev) => ({
         ...prev,
         [senderId]: 0,
@@ -88,7 +87,7 @@ const CarDetailsScreen = () => {
 
     setLoadingInquiries(true);
     try {
-      const response = await api.get(`${API_URL}/car-inquiries/${carId}`);
+      const response = await api.get(`/car-inquiries/${carId}`);
       const validInquiries = response.data.inquiries.filter(
         (inquiry) =>
           inquiry.sender &&
@@ -307,12 +306,11 @@ const CarDetailsScreen = () => {
 
   const getProfilePictureUri = (sender) => {
     if (!sender) return null;
-
-    // Check if sender has avatar object with url
+        // Check if sender has avatar object with url
     if (sender.avatar && sender.avatar.url) {
       return sender.avatar.url;
     }
-
+  
     return null;
   };
 
@@ -357,16 +355,11 @@ const CarDetailsScreen = () => {
                   <View style={styles.inquiryUserInfo}>
                     {getProfilePictureUri(item.sender) ? (
                       <Image
-                        source={{
-                          uri: getProfilePictureUri(item?.sender?.avatar?.url),
-                        }}
+                        source={{ uri: getProfilePictureUri(item.sender) }}
                         style={styles.inquiryUserAvatar}
-                        onError={(e) =>
-                          console.log(
-                            "Error loading avatar:",
-                            e.nativeEvent.error
-                          )
-                        }
+                        onError={(e) => {
+                          console.log("Error loading avatar:", e.nativeEvent.error);
+                        }}
                       />
                     ) : (
                       <View
@@ -376,7 +369,7 @@ const CarDetailsScreen = () => {
                         ]}
                       >
                         <Text style={styles.avatarInitial}>
-                          {item.sender.firstName
+                          {item.sender && item.sender.firstName
                             ? item.sender.firstName[0].toUpperCase()
                             : "U"}
                         </Text>
@@ -1253,10 +1246,11 @@ const CarDetailsScreen = () => {
               </Text>
               <View style={[styles.ownerBox, { backgroundColor: colors.card }]}>
                 <View style={styles.ownerAvatarContainer}>
-                  {currentCar.owner?.avatar ? (
+                  {currentCar.owner?.avatar?.url ? (
                     <Image
-                      source={{ uri: currentCar.owner?.avatar?.url }}
+                      source={{ uri: currentCar.owner.avatar.url }}
                       style={styles.ownerAvatar}
+                      onError={() => console.log("Error loading owner avatar")}
                     />
                   ) : (
                     <View
@@ -1266,7 +1260,7 @@ const CarDetailsScreen = () => {
                       ]}
                     >
                       <Text style={styles.avatarInitial}>
-                        {currentCar.owner.firstName?.[0] || "U"}
+                        {currentCar.owner?.firstName?.[0] || "U"}
                       </Text>
                     </View>
                   )}
