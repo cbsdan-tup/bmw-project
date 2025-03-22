@@ -275,7 +275,7 @@ const HomeScreen = () => {
                 },
               }),
             }]}
-            onPress={() => navigation.navigate('Search')}
+            onPress={() => navigation.navigate('SearchTab')}
             activeOpacity={0.8}
           >
             <Icon name="search" size={18} color={colors.secondary} />
@@ -295,7 +295,7 @@ const HomeScreen = () => {
                 <TouchableOpacity 
                   key={index} 
                   style={[styles.recentSearchBadge, { backgroundColor: 'rgba(255,255,255,0.2)' }]}
-                  onPress={() => navigation.navigate('Search', { 
+                  onPress={() => navigation.navigate('SearchTab', { 
                     screen: 'SearchScreen', 
                     params: { query: search } 
                   })}
