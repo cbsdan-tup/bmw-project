@@ -88,6 +88,24 @@ exports.registerUser = async (req, res, next) => {
   }
 };
 
+// Add a function to check if a user is currently disabled
+const checkUserDisabled = (user) => {
+  if (!user.disableHistory || user.disableHistory.length === 0) return false;
+  
+  const now = new Date();
+  
+  // Check if any active disable record is currently in effect
+  return user.disableHistory.some(record => {
+    if (!record.isActive) return false;
+    
+    // If permanent, user is disabled
+    if (record.isPermanent) return true;
+    
+    // If not permanent, check if current date is before end date
+    return record.endDate && record.endDate > now;
+  });
+};
+
 exports.getUser = async (req, res, next) => {
   const { uid } = req.body;
 
@@ -101,6 +119,24 @@ exports.getUser = async (req, res, next) => {
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
+    }
+    
+    // Check if user is disabled
+    const isDisabled = checkUserDisabled(user);
+    
+    // If user is disabled, we still return the user object but with a flag
+    // so the front-end can show appropriate messages
+    if (isDisabled) {
+      const activeDisableRecord = user.disableHistory.find(record => 
+        record.isActive && (record.isPermanent || record.endDate > new Date())
+      );
+      
+      return res.status(200).json({
+        success: true,
+        user,
+        isDisabled: true,
+        disableInfo: activeDisableRecord
+      });
     }
 
     return res.status(200).json({

@@ -161,7 +161,7 @@ const AppNavigator = () => {
           }
         }}
       >
-        {isAuthenticated ? <BottomTabNavigator /> : <AuthNavigator />}
+        {isAuthenticated ? <BottomTabNavigator userRole={user?.role} /> : <AuthNavigator />}
       </NavigationContainer>
     </ErrorBoundary>
   );

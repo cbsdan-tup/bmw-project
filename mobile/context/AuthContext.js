@@ -143,6 +143,18 @@ export const AuthProvider = ({ children }) => {
       if (response.data.success) {
         const userData = response.data.user;
         
+        // Check if user is disabled
+        if (response.data.isDisabled) {
+          console.log("Login attempted for disabled user:", userData.email);
+          setIsLoading(false);
+          return { 
+            success: false, 
+            isDisabled: true,
+            disableInfo: response.data.disableInfo,
+            message: "Account is disabled"
+          };
+        }
+        
         console.log("Login successful:", userData);
         
         setUser(userData);
@@ -195,7 +207,19 @@ export const AuthProvider = ({ children }) => {
         });
         
         if (response.data.success && response.data.user) {
-          // User exists, set up the session
+          // If user exists, check if they're disabled
+          if (response.data.isDisabled) {
+            console.log("Google sign-in attempted for disabled user:", response.data.user.email);
+            setIsLoading(false);
+            return { 
+              success: false, 
+              isDisabled: true,
+              disableInfo: response.data.disableInfo,
+              message: "Account is disabled"
+            };
+          }
+          
+          // User exists and is not disabled, set up the session
           const userData = response.data.user;
           
           setToken(firebaseToken);

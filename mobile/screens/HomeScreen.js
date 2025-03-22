@@ -245,9 +245,20 @@ const HomeScreen = () => {
       >
         {/* Header Section with Search */}
         <View style={[styles.headerSection, { backgroundColor: colors.primary }]}>
-          <Text style={styles.welcomeText}>
-            Welcome to BMW Rentals
-          </Text>
+          <View style={styles.headerTopRow}>
+            <Text style={styles.welcomeText}>
+              Welcome to BMW Rentals
+            </Text>
+            
+            {user && user.role === 'admin' && (
+              <TouchableOpacity 
+                style={styles.adminButton}
+                onPress={() => navigation.navigate('AdminDashboard')}
+              >
+                <Icon name="cog" size={24} color="#FFFFFF" />
+              </TouchableOpacity>
+            )}
+          </View>
           
           <TouchableOpacity 
             style={[styles.searchBar, { 
@@ -474,6 +485,23 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'ios' ? 50 : 40,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
+  },
+  headerTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  welcomeText: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    flex: 1,
+  },
+  adminButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
   },
   welcomeText: {
     fontSize: 28,

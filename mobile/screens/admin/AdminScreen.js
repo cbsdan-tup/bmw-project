@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { useTheme } from '../../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
@@ -44,8 +44,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    padding: 20,
+    padding: 24,
     alignItems: 'center',
+    marginBottom: 8,
   },
   headerTitle: {
     fontSize: 24,
@@ -55,24 +56,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-around',
-    padding: 10,
+    padding: 12,
   },
   menuItem: {
-    width: '45%',
-    padding: 20,
-    marginVertical: 10,
-    borderRadius: 10,
+    width: '46%',
+    padding: 22,
+    marginVertical: 12,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.15,
+        shadowRadius: 3,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
   },
   menuText: {
-    marginTop: 10,
-    fontWeight: 'bold',
+    marginTop: 12,
+    fontSize: 15,
+    fontWeight: '600',
     textAlign: 'center',
   },
 });
