@@ -20,14 +20,15 @@ import { GOOGLE_SIGNIN_CONFIG } from '../../config/google-auth-config';
 import { useToast } from '../../context/ToastContext';
 import 'expo-dev-client';
 
-import auth from '@react-native-firebase/auth';
+import { auth } from '../../config/firebase-config';
+import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 
 // Initialize Google Sign-in
 GoogleSignin.configure(GOOGLE_SIGNIN_CONFIG);
 
 const LoginScreen = ({ navigation }) => {
-  const { login, googleSignIn, isLoading } = useAuth();
+  const { login, googleSignIn, isLoading, setAuthenticated } = useAuth();
   const { colors } = useTheme();
   const toast = useToast();
   
@@ -57,7 +58,7 @@ const LoginScreen = ({ navigation }) => {
       console.log('Google sign-in successful, full result:', JSON.stringify(signInResult));
       
       // The idToken is nested inside the data property, not directly on the result
-      const idToken = signInResult.data?.idToken;
+      const idToken = signInResult.data?.idToken || signInResult.idToken;
       
       if (!idToken) {
         throw new Error('Failed to get ID token from Google Sign-in');
@@ -65,13 +66,13 @@ const LoginScreen = ({ navigation }) => {
       
       console.log('Successfully retrieved idToken');
       
-      // Create a Firebase credential with the token
+      // Create a Firebase credential with the token using the Web SDK
       console.log('Creating Firebase credential');
-      const googleCredential = auth.GoogleAuthProvider.credential(idToken);
+      const googleCredential = GoogleAuthProvider.credential(idToken);
       
-      // Sign in with credential to Firebase
+      // Sign in with credential to Firebase using the Web SDK
       console.log('Signing in to Firebase');
-      const userCredential = await auth().signInWithCredential(googleCredential);
+      const userCredential = await signInWithCredential(auth, googleCredential);
       const firebaseUser = userCredential.user;
       
       console.log('Firebase User UID:', firebaseUser.uid);
@@ -82,6 +83,22 @@ const LoginScreen = ({ navigation }) => {
       console.log('Calling auth context googleSignIn method');
       const result = await googleSignIn(idToken);
       console.log('Auth context googleSignIn completed:', result);
+      
+      // Check if the result indicates a disabled user
+      if (result.isDisabled) {
+        // Show the appropriate message based on disable information
+        const disableInfo = result.disableInfo;
+        if (disableInfo) {
+          const disableMessage = disableInfo.isPermanent 
+            ? `Your account has been permanently disabled: ${disableInfo.reason}`
+            : `Your account is disabled until ${new Date(disableInfo.endDate).toLocaleDateString()}: ${disableInfo.reason}`;
+          
+          toast.error(disableMessage);
+        } else {
+          toast.error('Your account has been disabled. Please contact support.');
+        }
+        return; // Don't continue the login process
+      }
       
       if (result && result.success) {
         // Show success message with user's name
@@ -94,6 +111,7 @@ const LoginScreen = ({ navigation }) => {
           routes: [{ name: 'MainTabs' }]
         });
       } else {
+        // ...existing error handling...
         const errorMsg = result?.error || 'Authentication failed';
         console.error('Authentication failed in auth context:', errorMsg);
         toast.error(errorMsg);
@@ -152,8 +170,26 @@ const LoginScreen = ({ navigation }) => {
     try {
       setLoginInProgress(true);
       const result = await login(email, password);
-      const user = result?.user;
+      
+      // Check if the result indicates a disabled user
+      if (result.isDisabled) {
+        // Show the appropriate message based on disable information
+        const disableInfo = result.disableInfo;
+        if (disableInfo) {
+          const disableMessage = disableInfo.isPermanent 
+            ? `Your account has been permanently disabled: ${disableInfo.reason}`
+            : `Your account is disabled until ${new Date(disableInfo.endDate).toLocaleDateString()}: ${disableInfo.reason}`;
+          
+          toast.error(disableMessage);
+        } else {
+          toast.error('Your account has been disabled. Please contact support.');
+        }
+        return; // Don't continue the login process
+      }
+      
+      // If we get here, the user account is not disabled
       if (result.success) {
+        const user = result.user;
         toast.success(`Welcome back ${user?.firstName}!`);
         navigation.reset({
           index: 0,
@@ -167,6 +203,40 @@ const LoginScreen = ({ navigation }) => {
     } finally {
       setLoginInProgress(false);
     }
+  };
+  
+  // Helper function to check if user is disabled
+  const isUserDisabled = (user) => {
+    if (!user.disableHistory || user.disableHistory.length === 0) return false;
+    
+    const now = new Date();
+    
+    // Check if any active disable record is currently in effect
+    return user.disableHistory.some(record => {
+      if (!record.isActive) return false;
+      
+      // If permanent, user is disabled
+      if (record.isPermanent) return true;
+      
+      // If not permanent, check if current date is before end date
+      return record.endDate && new Date(record.endDate) > now;
+    });
+  };
+  
+  // Helper to get the active disable record
+  const getActiveDisableRecord = (user) => {
+    if (!user.disableHistory || user.disableHistory.length === 0) return null;
+    
+    const now = new Date();
+    
+    // Find active disable record
+    return user.disableHistory.find(record => {
+      if (!record.isActive) return false;
+      
+      if (record.isPermanent) return true;
+      
+      return record.endDate && new Date(record.endDate) > now;
+    });
   };
   
   return (

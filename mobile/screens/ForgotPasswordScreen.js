@@ -17,8 +17,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
 import axios from 'axios';
 import Icon from 'react-native-vector-icons/FontAwesome';
-import { API_URL } from '../config/constants';
-
+import api from '../services/api';
 const ForgotPasswordScreen = () => {
   const { colors } = useTheme();
   const navigation = useNavigation();
@@ -46,7 +45,7 @@ const ForgotPasswordScreen = () => {
     setIsLoading(true);
     
     try {
-      await axios.post(`${API_URL}/auth/forgot-password`, { email });
+      await api.post(`/auth/forgot-password`, { email });
       setSuccess(true);
       
       Alert.alert(

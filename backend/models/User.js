@@ -4,6 +4,30 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto')
 
+const disableRecordSchema = new mongoose.Schema({
+    startDate: {
+        type: Date,
+        required: true,
+        default: Date.now
+    },
+    endDate: {
+        type: Date,
+        default: null // Null means permanent or not determined yet
+    },
+    reason: {
+        type: String,
+        required: true
+    },
+    isPermanent: {
+        type: Boolean,
+        default: false
+    },
+    isActive: {
+        type: Boolean,
+        default: true
+    }
+}, { _id: true, timestamps: true });
+
 const userSchema = new mongoose.Schema({
     uid: { type: String, required: true, unique: true },
     firstName: { 
@@ -38,12 +62,78 @@ const userSchema = new mongoose.Schema({
     permissionToken: {
         type: String,
     },
+    // Replace individual disable fields with an array of disable records
+    disableHistory: [disableRecordSchema],
+    // Virtual property to be calculated
+    isDisabled: {
+        type: Boolean,
+        default: false,
+        // This will be computed via a virtual
+    },
     createdAt: { 
         type: Date, 
         required: true, 
         default: Date.now 
     },
 });
+
+// Virtual to check if user is currently disabled
+userSchema.virtual('isCurrentlyDisabled').get(function() {
+    if (!this.disableHistory || this.disableHistory.length === 0) return false;
+    
+    const now = new Date();
+    
+    // Check if any active disable record is currently in effect
+    return this.disableHistory.some(record => {
+        if (!record.isActive) return false;
+        
+        // If permanent, user is disabled
+        if (record.isPermanent) return true;
+        
+        // If not permanent, check if current date is before end date
+        return record.endDate > now;
+    });
+});
+
+// Method to get current active disable record if any
+userSchema.methods.getCurrentDisableRecord = function() {
+    if (!this.disableHistory || this.disableHistory.length === 0) return null;
+    
+    const now = new Date();
+    
+    // Find the active disable record
+    return this.disableHistory.find(record => {
+        if (!record.isActive) return false;
+        
+        if (record.isPermanent) return true;
+        
+        return record.endDate > now;
+    });
+};
+
+// Helper to add a new disable record
+userSchema.methods.addDisableRecord = function(reason, endDate, isPermanent) {
+    // First deactivate any current active records
+    if (this.disableHistory && this.disableHistory.length > 0) {
+        this.disableHistory.forEach(record => {
+            if (record.isActive) record.isActive = false;
+        });
+    }
+    
+    // Create new disable record
+    const newRecord = {
+        startDate: new Date(),
+        endDate: isPermanent ? null : endDate,
+        reason,
+        isPermanent,
+        isActive: true
+    };
+    
+    // Add to history
+    this.disableHistory.push(newRecord);
+    
+    return newRecord;
+};
 
 userSchema.pre('save', async function (next) {
     if (!this.isModified('password')) {

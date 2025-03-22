@@ -19,7 +19,9 @@ import { globalStyles } from '../../styles/globalStyles';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useToast } from '../../context/ToastContext';
 import { GOOGLE_SIGNIN_CONFIG } from '../../config/google-auth-config';
-import auth from '@react-native-firebase/auth';
+// Replace React Native Firebase imports with Web SDK
+import { auth, app } from '../../config/firebase-config';
+import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 
 // Initialize Google Sign-in
@@ -125,7 +127,7 @@ const RegisterScreen = ({ navigation }) => {
       console.log('Google sign-in successful, full result:', JSON.stringify(signInResult));
       
       // The idToken is nested inside the data property, not directly on the result
-      const idToken = signInResult.data?.idToken;
+      const idToken = signInResult.idToken || signInResult.data?.idToken;
       
       if (!idToken) {
         throw new Error('Failed to get ID token from Google Sign-in');
@@ -133,13 +135,13 @@ const RegisterScreen = ({ navigation }) => {
       
       console.log('Successfully retrieved idToken');
       
-      // Create a Firebase credential with the token
+      // Create a Firebase credential with the token using the Web SDK
       console.log('Creating Firebase credential');
-      const googleCredential = auth.GoogleAuthProvider.credential(idToken);
+      const googleCredential = GoogleAuthProvider.credential(idToken);
       
-      // Sign in with credential to Firebase
+      // Sign in with credential to Firebase using the Web SDK
       console.log('Signing in to Firebase');
-      const userCredential = await auth().signInWithCredential(googleCredential);
+      const userCredential = await signInWithCredential(auth, googleCredential);
       const firebaseUser = userCredential.user;
       
       console.log('Firebase User UID:', firebaseUser.uid);

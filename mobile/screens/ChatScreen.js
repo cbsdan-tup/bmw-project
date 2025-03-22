@@ -12,10 +12,10 @@ import {
 import Icon from "react-native-vector-icons/FontAwesome";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
-import axios from "axios";
 import io from "socket.io-client";
 import { API_URL } from "../config/constants";
 import FastImage from "react-native-fast-image";
+import api from "../services/api";
 
 const ChatScreen = ({ route }) => {
   const { colors } = useTheme();
@@ -101,24 +101,11 @@ const ChatScreen = ({ route }) => {
     try {
       setLoading(true);
       setError(null);
-      const response = await axios.get(
-        `${API_URL}/messages/${recipientId}/${carId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+      const response = await api.get(
+        `/messages/${recipientId}/${carId}`,
       );
 
       if (response.data.success) {
-        // Add more detailed logging to see the exact structure of the sender data
-        console.log(
-          "First message details:",
-          response.data.messages.length > 0
-            ? JSON.stringify(response.data.messages[0].senderId, null, 2)
-            : "No messages"
-        );
-
         setMessages(response.data.messages);
       } else {
         setError(response.data.message || "Failed to load messages");
@@ -141,10 +128,9 @@ const ChatScreen = ({ route }) => {
         carId: carId,
       };
 
-      const response = await axios.post(`${API_URL}/messages`, messageData, {
+      const response = await api.post(`/messages`, messageData, {
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
       });
 
@@ -205,9 +191,7 @@ const ChatScreen = ({ route }) => {
           text: "Delete",
           onPress: async () => {
             try {
-              await axios.delete(`${API_URL}/messages/${messageId}`, {
-                headers: { Authorization: `Bearer ${token}` },
-              });
+              await api.delete(`/messages/${messageId}`);
               setMessages((prev) =>
                 prev.map((msg) =>
                   msg._id === messageId ? { ...msg, isDeleted: true } : msg
@@ -236,10 +220,9 @@ const ChatScreen = ({ route }) => {
     if (!editingContent.trim()) return;
 
     try {
-      const response = await axios.put(
-        `${API_URL}/messages/${messageId}`,
+      const response = await api.put(
+        `/messages/${messageId}`,
         { content: editingContent.trim() },
-        { headers: { Authorization: `Bearer ${token}` } }
       );
 
       // Update messages while maintaining order

@@ -66,7 +66,7 @@ exports.getDiscounts = async (req, res) => {
         const discounts = await Discount.find();
 
         if (!discounts.length) {
-            return res.status(404).json({ success: false, message: 'No discounts found.' });
+            return res.status(200).json({ success: true, message: 'No discounts found.', discounts: [] });
         }
 
         res.status(200).json({
@@ -85,6 +85,22 @@ exports.getDiscountById = async (req, res) => {
 
         if (!discount) {
             return res.status(404).json({ success: false, message: 'Discount not found' });
+        }
+
+        res.status(200).json({ success: true, discount });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, message: 'Server Error', error: error.message });
+    }
+};
+
+exports.getDiscountByCode = async (req, res) => {
+    try {
+        const { code } = req.params;
+        const discount = await Discount.findOne({ code });
+
+        if (!discount) {
+            return res.status(404).json({ success: false, message: 'Discount code not found' });
         }
 
         res.status(200).json({ success: true, discount });

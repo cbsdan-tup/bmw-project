@@ -10,8 +10,10 @@ import SearchScreen from "../screens/SearchScreen";
 import NotificationsScreen from "../screens/NotificationsScreen";
 import ReviewsScreen from "../screens/ReviewsScreen";
 import ChatScreen from "../screens/ChatScreen";
+import DiscountScreen from "../screens/DiscountScreen"; // Import the DiscountScreen
 import { useTheme } from "../context/ThemeContext";
 import ProfileNavigator from "./ProfileNavigator";
+import AdminNavigator from "./AdminNavigator";
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -61,6 +63,21 @@ const HomeStack = () => {
         component={ChatScreen}
         options={({ route }) => ({ title: route.params?.chatName || "Chat" })}
       />
+      <Stack.Screen 
+        name="AdminNavigator" 
+        component={AdminNavigator}
+        options={{ 
+          presentation: 'modal',
+          headerShown: true,
+          title: 'Admin Dashboard'
+        }}
+      />
+      {/* Add DiscountScreen to the HomeStack */}
+      <Stack.Screen
+        name="DiscountScreen"
+        component={DiscountScreen}
+        options={{ headerShown: false }} // Using custom header in the screen itself
+      />
     </Stack.Navigator>
   );
 };
@@ -100,47 +117,61 @@ const SearchStack = () => {
             : "Reviews",
         })}
       />
+      {/* Add DiscountScreen to the SearchStack */}
+      <Stack.Screen
+        name="DiscountScreen"
+        component={DiscountScreen}
+        options={{ headerShown: false }}
+      />
     </Stack.Navigator>
   );
 };
 
 // Bottom Tab Navigator
-const BottomTabNavigator = () => {
+const BottomTabNavigator = ({ userRole }) => {
   const { colors } = useTheme();
 
   return (
     <Tab.Navigator
       screenOptions={{
-        tabBarActiveTintColor: colors.tabBarActive,
-        tabBarInactiveTintColor: colors.tabBarInactive,
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.text + '80',
         tabBarStyle: {
-          backgroundColor: colors.tabBarBackground,
-          borderTopColor: colors.tabBarBorder,
-          paddingBottom: Platform.OS === "ios" ? 25 : 10,
-          paddingTop: 10,
-          height: Platform.OS === "ios" ? 85 : 70,
+          backgroundColor: colors.card,
+          borderTopColor: colors.border,
+          paddingBottom: Platform.OS === 'ios' ? 10 : 5,
+          paddingTop: 5,
+          height: Platform.OS === 'ios' ? 80 : 60,
         },
-        headerShown: false,
+        tabBarLabelStyle: {
+          fontSize: 12,
+          marginBottom: Platform.OS === 'ios' ? 0 : 5,
+        },
+        headerShown: false
       }}
     >
       <Tab.Screen
-        name="Home"
+        name="HomeTab"
         component={HomeStack}
         options={{
+          title: 'Home',
           tabBarIcon: ({ color, size }) => (
             <Icon name="home" size={size} color={color} />
-          ),
+          )
         }}
       />
+      
       <Tab.Screen
-        name="Search"
-        component={SearchStack} // Use SearchStack instead of directly using SearchScreen
+        name="SearchTab"
+        component={SearchStack}
         options={{
+          title: 'Search',
           tabBarIcon: ({ color, size }) => (
             <Icon name="search" size={size} color={color} />
-          ),
+          )
         }}
       />
+      
       <Tab.Screen
         name="Notifications"
         component={NotificationsScreen}
@@ -150,15 +181,30 @@ const BottomTabNavigator = () => {
           ),
         }}
       />
+      
       <Tab.Screen
-        name="Profile"
+        name="ProfileTab"
         component={ProfileNavigator}
         options={{
+          title: 'Profile',
           tabBarIcon: ({ color, size }) => (
             <Icon name="user" size={size} color={color} />
-          ),
+          )
         }}
       />
+
+      {userRole === 'admin' && (
+        <Tab.Screen
+          name="AdminTab"
+          component={AdminNavigator}
+          options={{
+            title: 'Admin',
+            tabBarIcon: ({ color, size }) => (
+              <Icon name="cog" size={size} color={color} />
+            )
+          }}
+        />
+      )}
     </Tab.Navigator>
   );
 };

@@ -23,6 +23,9 @@ const maintenanceRecord = require("./routes/recordRoute");
 const rental = require("./routes/rentalRoutes");
 const reviewRoute = require("./routes/reviewRoute");
 const messageRoutes = require("./routes/messageRoutes");
+const userManagementRoutes = require("./routes/userManagementRoutes");
+const carsManagementRoutes = require("./routes/carsManagementRoutes");
+const rentalManagementRoutes = require("./routes/rentalManagementRoutes");
 
 const http = require("http");
 const socketIO = require("socket.io");
@@ -101,6 +104,9 @@ app.use("/api/v1", maintenanceRecord);
 app.use("/api/v1", rental);
 app.use("/api/v1", reviewRoute);
 app.use("/api/v1", messageRoutes);
+app.use("/api/v1", userManagementRoutes);
+app.use("/api/v1", carsManagementRoutes);
+app.use("/api/v1", rentalManagementRoutes);
 
 //404 not found routes
 app.all("*", (req, res) => {

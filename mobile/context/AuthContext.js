@@ -1,7 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-import { API_URL } from '../config/constants';
 import { auth, refreshFirebaseToken } from '../config/firebase-config';
 import { 
   signInWithEmailAndPassword, 
@@ -13,7 +12,7 @@ import { AppState } from 'react-native';
 import {
   Platform
 } from 'react-native';
-
+import api from '../services/api';
 // Create auth context
 export const AuthContext = createContext();
 
@@ -133,7 +132,7 @@ export const AuthProvider = ({ children }) => {
       const expirationTime = Date.now() + 3600 * 1000;
       
       // Get user info from backend using Firebase UID
-      const response = await axios.post(`${API_URL}/getUserInfo`, { 
+      const response = await api.post(`/getUserInfo`, { 
         uid: result.user.uid 
       }, {
         headers: {
@@ -144,11 +143,24 @@ export const AuthProvider = ({ children }) => {
       if (response.data.success) {
         const userData = response.data.user;
         
+        // Check if user is disabled
+        if (response.data.isDisabled) {
+          console.log("Login attempted for disabled user:", userData.email);
+          setIsLoading(false);
+          return { 
+            success: false, 
+            isDisabled: true,
+            disableInfo: response.data.disableInfo,
+            message: "Account is disabled"
+          };
+        }
+        
         console.log("Login successful:", userData);
         
-        // Save to state
-        setToken(idToken);
         setUser(userData);
+        setToken(idToken);
+        console.log("User Data: ", userData);
+        console.log("User Token: ", idToken);
         setTokenExpiration(expirationTime);
         
         // Save to AsyncStorage
@@ -186,7 +198,7 @@ export const AuthProvider = ({ children }) => {
       
       try {
         // First try to get user info from backend
-        const response = await axios.post(`${API_URL}/getUserInfo`, { 
+        const response = await api.post(`/getUserInfo`, { 
           uid: result.user.uid 
         }, {
           headers: {
@@ -195,7 +207,19 @@ export const AuthProvider = ({ children }) => {
         });
         
         if (response.data.success && response.data.user) {
-          // User exists, set up the session
+          // If user exists, check if they're disabled
+          if (response.data.isDisabled) {
+            console.log("Google sign-in attempted for disabled user:", response.data.user.email);
+            setIsLoading(false);
+            return { 
+              success: false, 
+              isDisabled: true,
+              disableInfo: response.data.disableInfo,
+              message: "Account is disabled"
+            };
+          }
+          
+          // User exists and is not disabled, set up the session
           const userData = response.data.user;
           
           setToken(firebaseToken);
@@ -245,7 +269,7 @@ export const AuthProvider = ({ children }) => {
           formData.append("photoURL", userInfo.profilePicture);
         }
         
-        const registerResponse = await axios.post(`${API_URL}/register`, formData, {
+        const registerResponse = await api.post(`/register`, formData, {
           headers: { 
             "Content-Type": "multipart/form-data",
             "Authorization": `Bearer ${firebaseToken}`
@@ -321,7 +345,7 @@ export const AuthProvider = ({ children }) => {
         },
       };
       
-      const response = await axios.post(`${API_URL}/register`, formData, config);
+      const response = await api.post(`/register`, formData, config);
       
       if (response.data.success) {
         return { 
@@ -387,13 +411,12 @@ export const AuthProvider = ({ children }) => {
     
     try {
       const headers = { 
-        Authorization: `Bearer ${token}`,
         'Content-Type': isMultipart ? 'multipart/form-data' : 'application/json'
       };
       
       // Use the correct endpoint for update-profile
-      const response = await axios.put(
-        `${API_URL}/update-profile/${userId}`, 
+      const response = await api.put(
+        `/update-profile/${userId}`, 
         formData,
         { headers }
       );
@@ -427,7 +450,7 @@ export const AuthProvider = ({ children }) => {
     
     setIsLoading(true);
     try {
-      const response = await axios.get(`${API_URL}/users/${user._id}`, {
+      const response = await api.get(`/users/${user._id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       

@@ -9,6 +9,7 @@ import { useTheme } from '../context/ThemeContext';
 import BottomTabNavigator from './BottomTabNavigator';
 import EditProfileScreen from '../screens/EditProfileScreen';
 import MyFavoritesScreen from '../screens/MyFavoritesScreen';
+import AdminScreen from '../screens/admin/AdminScreen';
 
 const Stack = createStackNavigator();
 
@@ -37,7 +38,7 @@ const AuthNavigator = () => {
       })}
     >
       <Stack.Screen 
-        name="MainTabs" // Changed from "Home" to "MainTabs" to avoid naming conflict
+        name="MainTabs" 
         component={BottomTabNavigator} 
         options={{ headerShown: false }} 
       />
@@ -65,6 +66,11 @@ const AuthNavigator = () => {
         name="MyFavorites"
         component={MyFavoritesScreen}
         options={{ title: 'My Favorites' }}
+      />
+      <Stack.Screen
+        name="AdminDashboard"
+        component={AdminScreen}
+        options={{ title: 'Admin Dashboard' }}
       />
     </Stack.Navigator>
   );
