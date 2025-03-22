@@ -16,6 +16,7 @@ import ReviewsManagementScreen from '../screens/admin/ReviewsManagementScreen';
 import DiscountsManagementScreen from '../screens/admin/DiscountsManagementScreen';
 import CreateDiscountScreen from '../screens/admin/CreateDiscountScreen';
 import EditDiscountScreen from '../screens/admin/EditDiscountScreen';
+import AdminDashboardScreen from '../screens/admin/AdminDashboardScreen';
 
 const Stack = createStackNavigator();
 
@@ -36,7 +37,7 @@ const AdminMenuButton = ({ onPress }) => {
 // Admin Menu Modal Component
 const AdminMenu = ({ visible, onClose, navigation, colors }) => {
   const menuItems = [
-    { id: 'dashboard', title: 'Dashboard', icon: 'dashboard', screen: 'AdminDashboard' },
+    { id: 'dashboard', title: 'Dashboard', icon: 'dashboard', screen: 'Dashboard' },
     { id: 'users', title: 'User Management', icon: 'users', screen: 'UserManagement' },
     { id: 'cars', title: 'Cars Management', icon: 'car', screen: 'CarsManagement' },
     { id: 'rentals', title: 'Rental Management', icon: 'calendar-check-o', screen: 'RentalManagement' },
@@ -126,7 +127,7 @@ const AdminNavigatorContent = () => {
   return (
     <View style={{ flex: 1 }}>
       <Stack.Navigator
-        initialRouteName="AdminDashboard"
+        initialRouteName="Dashboard"
         screenOptions={({ navigation }) => ({
           headerStyle: {
             backgroundColor: colors.primary,
@@ -145,9 +146,14 @@ const AdminNavigatorContent = () => {
         })}
       >
         <Stack.Screen 
+          name="Dashboard" 
+          component={AdminDashboardScreen}
+          options={{ title: 'Admin Dashboard' }}
+        />
+        <Stack.Screen 
           name="AdminDashboard" 
           component={AdminScreen}
-          options={{ title: 'Admin Dashboard' }}
+          options={{ title: 'Admin Menu' }}
         />
         <Stack.Screen 
           name="UserManagement" 

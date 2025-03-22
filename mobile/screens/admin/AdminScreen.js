@@ -20,7 +20,7 @@ const AdminScreen = () => {
   return (
     <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.header}>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Admin Dashboard</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Admin Panel</Text>
       </View>
       
       <View style={styles.menuGrid}>

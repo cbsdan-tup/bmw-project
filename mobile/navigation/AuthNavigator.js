@@ -10,6 +10,7 @@ import BottomTabNavigator from './BottomTabNavigator';
 import EditProfileScreen from '../screens/EditProfileScreen';
 import MyFavoritesScreen from '../screens/MyFavoritesScreen';
 import AdminScreen from '../screens/admin/AdminScreen';
+import AdminDashboardScreen from '../screens/admin/AdminDashboardScreen';
 
 const Stack = createStackNavigator();
 
@@ -68,8 +69,8 @@ const AuthNavigator = () => {
         options={{ title: 'My Favorites' }}
       />
       <Stack.Screen
-        name="AdminDashboard"
-        component={AdminScreen}
+        name="Dashboard"
+        component={AdminDashboardScreen}
         options={{ title: 'Admin Dashboard' }}
       />
     </Stack.Navigator>

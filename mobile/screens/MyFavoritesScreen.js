@@ -108,7 +108,7 @@ const MyFavoritesScreen = () => {
 
   const handleCarPress = (carId) => {
     if (!carId) return;
-    navigation.navigate('Home', { screen: "CarDetails", params: {carId: carId} });
+    navigation.navigate('HomeTab', { screen: "CarDetails", params: {carId: carId} });
   };
 
   // Render a single favorite car item

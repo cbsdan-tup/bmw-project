@@ -201,7 +201,18 @@ const BottomTabNavigator = ({ userRole }) => {
             title: 'Admin',
             tabBarIcon: ({ color, size }) => (
               <Icon name="cog" size={size} color={color} />
-            )
+            ),
+            // Add these options to override the default behavior
+            listeners: ({navigation}) => ({
+              tabPress: (e) => {
+                // Prevent default behavior
+                e.preventDefault();
+                // Navigate to the Dashboard screen directly
+                navigation.navigate('AdminTab', {
+                  screen: 'Dashboard'
+                });
+              },
+            }),
           }}
         />
       )}
