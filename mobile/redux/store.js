@@ -5,6 +5,7 @@ import bookingReducer from "./slices/bookingSlice";
 import inquiryReducer from "./slices/inquirySlice";
 import adminUserReducer from "./slices/adminUserSlice";
 import adminCarSlice from './slices/adminCarSlice';
+import adminRentalReducer from './slices/adminRentalSlice';
 
 export const store = configureStore({
   reducer: {
@@ -14,6 +15,7 @@ export const store = configureStore({
     inquiries: inquiryReducer,
     adminUsers: adminUserReducer,
     adminCars: adminCarSlice,
+    adminRentals: adminRentalReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

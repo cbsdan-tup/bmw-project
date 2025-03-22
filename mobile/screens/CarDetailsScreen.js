@@ -1300,7 +1300,7 @@ const CarDetailsScreen = () => {
                         style={styles.contactIcon}
                       />
                       <Text style={styles.contactButtonText}>
-                        Message Owner
+                        Message
                       </Text>
                     </TouchableOpacity>
                   )}
@@ -1534,6 +1534,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 16,
     borderRadius: 8,
+    gap: 5,
   },
   ownerAvatarContainer: {
     marginRight: 16,

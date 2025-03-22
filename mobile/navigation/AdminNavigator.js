@@ -13,6 +13,7 @@ import CarsManagementScreen from '../screens/admin/CarsManagementScreen';
 import EditCarScreen from '../screens/admin/EditCarScreen';
 import CreateCarScreen from '../screens/admin/CreateCarScreen';
 import CarRentalsScreen from '../screens/admin/CarRentalsScreen';
+import RentalManagementScreen from '../screens/admin/RentalManagementScreen';
 
 const Stack = createStackNavigator();
 
@@ -184,7 +185,7 @@ const AdminNavigatorContent = () => {
         />
         <Stack.Screen 
           name="RentalManagement" 
-          component={PlaceholderScreen}
+          component={RentalManagementScreen}
           options={{ title: 'Rental Management' }}
         />
         <Stack.Screen 
