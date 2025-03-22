@@ -61,11 +61,6 @@ const PutCarOnRent = ({ navigation }) => {
   const fetchUserCars = async () => {
     try {
       if (!user?._id) return;
-      // Get fresh token before request
-      const currentUser = auth.currentUser;
-      if (!currentUser) {
-        throw new Error("User not authenticated");
-      }
       const response = await api.get(`/my-cars/${user._id}`);
       setUserCars(response.data.cars || []);
       setShowForm(response.data.cars?.length === 0);

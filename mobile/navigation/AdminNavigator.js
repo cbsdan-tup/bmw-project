@@ -141,7 +141,7 @@ const AdminNavigatorContent = () => {
           },
           headerTintColor: '#FFFFFF',
           headerLeft: () => (
-            <AdminMenuButton onPress={() => setMenuVisible(true)} />
+            <AdminMenuButton onPress={() => navigation.navigate('AdminDashboard')} />
           ),
         })}
       >
