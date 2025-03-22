@@ -9,11 +9,11 @@ import AdminScreen from '../screens/admin/AdminScreen';
 import PlaceholderScreen from '../screens/admin/PlaceholderScreen';
 import UserManagementScreen from '../screens/admin/UserManagementScreen';
 import CarsManagementScreen from '../screens/admin/CarsManagementScreen';
-// Fix the import statement - make sure path is correct
 import EditCarScreen from '../screens/admin/EditCarScreen';
 import CreateCarScreen from '../screens/admin/CreateCarScreen';
 import CarRentalsScreen from '../screens/admin/CarRentalsScreen';
 import RentalManagementScreen from '../screens/admin/RentalManagementScreen';
+import ReviewsManagementScreen from '../screens/admin/ReviewsManagementScreen';
 
 const Stack = createStackNavigator();
 
@@ -190,7 +190,7 @@ const AdminNavigatorContent = () => {
         />
         <Stack.Screen 
           name="ReviewsManagement" 
-          component={PlaceholderScreen}
+          component={ReviewsManagementScreen}
           options={{ title: 'Reviews Management' }}
         />
         <Stack.Screen 

@@ -1,24 +1,104 @@
 const Review = require("../models/Review");
 const Rental = require("../models/Rental");
+const User = require("../models/User");
+const Car = require("../models/Cars"); 
 const Filter = require("bad-words");
 const cloudinary = require("cloudinary").v2;
 
 const getAllReview = async (req, res) => {
   try {
-    const reviews = await Review.find()
+    console.log('Review search query:', req.query);
+    const { page = 1, limit = 10, search = '', searchMode = 'all', sort = 'newest' } = req.query;
+    const pageNumber = parseInt(page, 10);
+    const limitNumber = parseInt(limit, 10);
+    const skip = (pageNumber - 1) * limitNumber;
+
+    let sortOption = { createdAt: -1 }; 
+    if (sort === 'oldest') {
+      sortOption = { createdAt: 1 };
+    } else if (sort === 'rating_high') {
+      sortOption = { rating: -1 };
+    } else if (sort === 'rating_low') {
+      sortOption = { rating: 1 };
+    }
+
+
+    let query = {};
+    
+    if (search && search.trim() !== '' && searchMode === 'comment') {
+      query.comment = { $regex: search, $options: 'i' };
+    }
+
+    const totalReviews = await Review.countDocuments(query);
+    
+    // Fetch reviews
+    let reviews = await Review.find(query)
       .populate({
-        path: "rental",
-        populate: {
-          path: "car",
-        },
+        path: 'renter',
+        select: 'firstName lastName email avatar'
       })
-      .populate("renter")
-      .sort({ createdAt: -1 });
-    res.status(200).json({ message: "Fetched reviews successfully", reviews });
-  } catch (err) {
-    res
-      .status(500)
-      .json({ message: "Error fetching reviews", error: err.message });
+      .populate({
+        path: 'rental',
+        populate: {
+          path: 'car',
+          select: 'brand model vehicleType'
+        }
+      })
+      .sort(sortOption)
+      .skip(skip)
+      .limit(limitNumber)
+      .lean();
+    
+    console.log(`Found ${reviews.length} reviews before filtering`);
+    
+    if (search && search.trim() !== '' && searchMode !== 'comment') {
+      const searchLower = search.toLowerCase();
+      
+      reviews = reviews.filter(review => {
+        if (searchMode === 'user') {
+          return (
+            (review.renter?.firstName && review.renter.firstName.toLowerCase().includes(searchLower)) ||
+            (review.renter?.lastName && review.renter.lastName.toLowerCase().includes(searchLower)) ||
+            (review.renter?.email && review.renter.email.toLowerCase().includes(searchLower))
+          );
+        }
+        
+        if (searchMode === 'car') {
+          return (
+            (review.rental?.car?.brand && review.rental.car.brand.toLowerCase().includes(searchLower)) ||
+            (review.rental?.car?.model && review.rental.car.model.toLowerCase().includes(searchLower))
+          );
+        }
+        
+        return (
+          (review.comment && review.comment.toLowerCase().includes(searchLower)) ||
+          (review.renter?.firstName && review.renter.firstName.toLowerCase().includes(searchLower)) ||
+          (review.renter?.lastName && review.renter.lastName.toLowerCase().includes(searchLower)) ||
+          (review.renter?.email && review.renter.email.toLowerCase().includes(searchLower)) ||
+          (review.rental?.car?.brand && review.rental.car.brand.toLowerCase().includes(searchLower)) ||
+          (review.rental?.car?.model && review.rental.car.model.toLowerCase().includes(searchLower))
+        );
+      });
+      
+      console.log(`Found ${reviews.length} reviews after filtering`);
+    }
+
+    const totalPages = Math.ceil(totalReviews / limitNumber);
+
+    res.status(200).json({
+      reviews,
+      currentPage: pageNumber,
+      totalPages,
+      totalReviews,
+      limit: limitNumber,
+      sort: sort
+    });
+  } catch (error) {
+    console.error('Error in getAllReview:', error);
+    res.status(500).json({
+      message: "Error fetching reviews",
+      error: error.message
+    });
   }
 };
 
