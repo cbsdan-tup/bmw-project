@@ -26,6 +26,7 @@
     "@reduxjs/toolkit": "^2.6.1",
     "axios": "^1.8.3",
     "bad-words": "^4.0.0",
+    "date-fns": "^4.1.0",
     "expo": "~52.0.38",
     "expo-application": "~6.0.2",
     "expo-auth-session": "~6.0.3",

@@ -66,7 +66,7 @@ exports.getDiscounts = async (req, res) => {
         const discounts = await Discount.find();
 
         if (!discounts.length) {
-            return res.status(404).json({ success: false, message: 'No discounts found.' });
+            return res.status(200).json({ success: true, message: 'No discounts found.', discounts: [] });
         }
 
         res.status(200).json({

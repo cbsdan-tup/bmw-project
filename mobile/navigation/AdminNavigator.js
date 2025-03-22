@@ -6,7 +6,6 @@ import { useTheme } from '../context/ThemeContext';
 import { CommonActions, useNavigation } from '@react-navigation/native';
 
 import AdminScreen from '../screens/admin/AdminScreen';
-import PlaceholderScreen from '../screens/admin/PlaceholderScreen';
 import UserManagementScreen from '../screens/admin/UserManagementScreen';
 import CarsManagementScreen from '../screens/admin/CarsManagementScreen';
 import EditCarScreen from '../screens/admin/EditCarScreen';
@@ -14,6 +13,9 @@ import CreateCarScreen from '../screens/admin/CreateCarScreen';
 import CarRentalsScreen from '../screens/admin/CarRentalsScreen';
 import RentalManagementScreen from '../screens/admin/RentalManagementScreen';
 import ReviewsManagementScreen from '../screens/admin/ReviewsManagementScreen';
+import DiscountsManagementScreen from '../screens/admin/DiscountsManagementScreen';
+import CreateDiscountScreen from '../screens/admin/CreateDiscountScreen';
+import EditDiscountScreen from '../screens/admin/EditDiscountScreen';
 
 const Stack = createStackNavigator();
 
@@ -36,6 +38,7 @@ const AdminMenu = ({ visible, onClose, navigation, colors }) => {
   const menuItems = [
     { id: 'dashboard', title: 'Dashboard', icon: 'dashboard', screen: 'AdminDashboard' },
     { id: 'users', title: 'User Management', icon: 'users', screen: 'UserManagement' },
+    { id: 'cars', title: 'Cars Management', icon: 'car', screen: 'CarsManagement' },
     { id: 'rentals', title: 'Rental Management', icon: 'calendar-check-o', screen: 'RentalManagement' },
     { id: 'reviews', title: 'Reviews Management', icon: 'star', screen: 'ReviewsManagement' },
     { id: 'discounts', title: 'Discounts Management', icon: 'percent', screen: 'DiscountsManagement' },
@@ -113,9 +116,6 @@ const AdminMenu = ({ visible, onClose, navigation, colors }) => {
     </Modal>
   );
 };
-
-// Add this before the AdminNavigatorContent component
-console.log("EditCarScreen import check:", EditCarScreen);
 
 // Creating a wrapper component that contains both the navigator and menu
 const AdminNavigatorContent = () => {
@@ -195,8 +195,24 @@ const AdminNavigatorContent = () => {
         />
         <Stack.Screen 
           name="DiscountsManagement" 
-          component={PlaceholderScreen}
+          component={DiscountsManagementScreen}
           options={{ title: 'Discounts Management' }}
+        />
+        <Stack.Screen 
+          name="CreateDiscount" 
+          component={CreateDiscountScreen}
+          options={{ 
+            title: 'Create New Discount',
+            headerBackTitleVisible: false
+          }}
+        />
+        <Stack.Screen 
+          name="EditDiscount" 
+          component={EditDiscountScreen}
+          options={{ 
+            title: 'Edit Discount',
+            headerBackTitleVisible: false
+          }}
         />
       </Stack.Navigator>
       
