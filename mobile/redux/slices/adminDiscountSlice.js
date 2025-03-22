@@ -38,42 +38,17 @@ export const createDiscount = createAsyncThunk(
   'adminDiscounts/createDiscount',
   async (discountData, { rejectWithValue }) => {
     try {
-      console.log('Creating discount, data format check:', 
-        discountData instanceof FormData ? 
-        'FormData object with fields: ' + 
-        JSON.stringify(Object.fromEntries(discountData._parts.filter(part => part[0] !== 'logo'))) : 
-        'Not FormData');
-      
-      // Log logo separately to avoid overwhelming console
-      if (discountData instanceof FormData) {
-        const logoPart = discountData._parts.find(part => part[0] === 'logo');
-        if (logoPart) {
-          console.log('Logo field present with type:', typeof logoPart[1]);
-        } else {
-          console.log('Warning: Logo field missing in FormData');
-        }
-      }
-      
       const response = await api.post(
         '/create-discount',
         discountData,
         {
           headers: {
             'Content-Type': 'multipart/form-data',
-          },
-          timeout: 30000, // Increased timeout
+          }
         }
       );
-      
-      console.log('Server response:', response.data);
       return response.data;
     } catch (error) {
-      console.error('Discount creation error:', {
-        message: error.message,
-        status: error.response?.status,
-        data: error.response?.data
-      });
-      
       return rejectWithValue(
         error.response?.data?.message || 
         error.response?.data?.errors ||
@@ -120,6 +95,22 @@ export const deleteDiscount = createAsyncThunk(
         error.response?.data?.message || 
         error.message || 
         'Failed to delete discount'
+      );
+    }
+  }
+);
+
+export const fetchDiscountByCode = createAsyncThunk(
+  'adminDiscounts/fetchDiscountByCode',
+  async (code, { rejectWithValue }) => {
+    try {
+      const response = await api.get(`/discounts/code/${code}`);
+      return response.data.discount;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || 
+        error.message || 
+        'Failed to fetch discount details'
       );
     }
   }
@@ -216,6 +207,20 @@ const adminDiscountSlice = createSlice({
         );
       })
       .addCase(deleteDiscount.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      
+      // Fetch discount by code
+      .addCase(fetchDiscountByCode.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchDiscountByCode.fulfilled, (state, action) => {
+        state.loading = false;
+        state.discountDetails = action.payload;
+      })
+      .addCase(fetchDiscountByCode.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       });

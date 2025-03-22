@@ -94,6 +94,22 @@ exports.getDiscountById = async (req, res) => {
     }
 };
 
+exports.getDiscountByCode = async (req, res) => {
+    try {
+        const { code } = req.params;
+        const discount = await Discount.findOne({ code });
+
+        if (!discount) {
+            return res.status(404).json({ success: false, message: 'Discount code not found' });
+        }
+
+        res.status(200).json({ success: true, discount });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, message: 'Server Error', error: error.message });
+    }
+};
+
 exports.deleteDiscount = async (req, res) => {
     console.log(`Req Params: ${JSON.stringify(req.params)}`)
     try {

@@ -10,6 +10,7 @@ import SearchScreen from "../screens/SearchScreen";
 import NotificationsScreen from "../screens/NotificationsScreen";
 import ReviewsScreen from "../screens/ReviewsScreen";
 import ChatScreen from "../screens/ChatScreen";
+import DiscountScreen from "../screens/DiscountScreen"; // Import the DiscountScreen
 import { useTheme } from "../context/ThemeContext";
 import ProfileNavigator from "./ProfileNavigator";
 import AdminNavigator from "./AdminNavigator";
@@ -71,6 +72,12 @@ const HomeStack = () => {
           title: 'Admin Dashboard'
         }}
       />
+      {/* Add DiscountScreen to the HomeStack */}
+      <Stack.Screen
+        name="DiscountScreen"
+        component={DiscountScreen}
+        options={{ headerShown: false }} // Using custom header in the screen itself
+      />
     </Stack.Navigator>
   );
 };
@@ -109,6 +116,12 @@ const SearchStack = () => {
             ? `Reviews for ${route.params.carTitle}`
             : "Reviews",
         })}
+      />
+      {/* Add DiscountScreen to the SearchStack */}
+      <Stack.Screen
+        name="DiscountScreen"
+        component={DiscountScreen}
+        options={{ headerShown: false }}
       />
     </Stack.Navigator>
   );
