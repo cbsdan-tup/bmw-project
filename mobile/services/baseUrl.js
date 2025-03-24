@@ -1,6 +1,6 @@
 const environments = {
   development: {
-    androidEmulator: "http://192.168.58.95:4000/api/v1",
+    androidEmulator: "http://192.168.1.14:4000/api/v1",
     iOSSimulator: "http://localhost:4000/api/v1",
     deviceLocal: "http://192.168.221.8:4000/api/v1",
     staging: "https://staging-api.bmw-rentals.com/api/v1",

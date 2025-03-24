@@ -101,9 +101,7 @@ const ChatScreen = ({ route }) => {
     try {
       setLoading(true);
       setError(null);
-      const response = await api.get(
-        `/messages/${recipientId}/${carId}`,
-      );
+      const response = await api.get(`/messages/${recipientId}/${carId}`);
 
       if (response.data.success) {
         setMessages(response.data.messages);
@@ -220,10 +218,9 @@ const ChatScreen = ({ route }) => {
     if (!editingContent.trim()) return;
 
     try {
-      const response = await api.put(
-        `/messages/${messageId}`,
-        { content: editingContent.trim() },
-      );
+      const response = await api.put(`/messages/${messageId}`, {
+        content: editingContent.trim(),
+      });
 
       // Update messages while maintaining order
       setMessages((prev) =>

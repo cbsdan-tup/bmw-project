@@ -2,7 +2,6 @@ const Cars = require("../models/Cars");
 const cloudinary = require("cloudinary");
 const Rental = require("../models/Rental");
 const FavoriteCar = require("../models/FavoriteCar");
-const APIFeatures = require("../utils/apiFeatures");
 const Reviews = require("../models/Review");
 
 exports.createCar = async (req, res) => {
@@ -201,14 +200,50 @@ exports.updateCar = async (req, res) => {
     const updateData = { ...req.body };
     delete updateData.owner; // Remove owner from update data to prevent modification
 
-    // Handle image updates only if new images are provided
-    if (req.files && req.files.length > 0) {
-      // Delete old images from cloudinary
-      for (let image of car.images) {
-        await cloudinary.v2.uploader.destroy(image.public_id);
-      }
+    // Parse existingImages and removedImageIds if they exist
+    let existingImages = [];
+    let removedImageIds = [];
 
-      // Upload new images
+    try {
+      if (req.body.existingImages) {
+        existingImages = JSON.parse(req.body.existingImages);
+      }
+      if (req.body.removedImageIds) {
+        removedImageIds = JSON.parse(req.body.removedImageIds);
+      }
+    } catch (error) {
+      console.error("Error parsing JSON fields:", error);
+    }
+
+    // Handle image updates
+    let finalImages = [];
+
+    // 1. Keep existing images that aren't being removed
+    if (existingImages.length > 0) {
+      // Filter current car images to find ones that match the existingImages URLs
+      const keptImages = car.images.filter((img) => {
+        const imgUrl = typeof img.url === "string" ? img.url : img.url;
+        return existingImages.includes(imgUrl);
+      });
+
+      finalImages = [...keptImages];
+    }
+
+    // 2. Delete only specific images if removedImageIds is provided
+    if (removedImageIds.length > 0) {
+      // Delete specified images from cloudinary
+      for (let publicId of removedImageIds) {
+        try {
+          await cloudinary.v2.uploader.destroy(publicId);
+          console.log(`Deleted image with public_id: ${publicId}`);
+        } catch (error) {
+          console.error(`Failed to delete image ${publicId}:`, error);
+        }
+      }
+    }
+
+    // 3. Add new uploaded images
+    if (req.files && req.files.length > 0) {
       let imagesLinks = [];
       for (let file of req.files) {
         const result = await cloudinary.v2.uploader.upload(file.path, {
@@ -221,7 +256,16 @@ exports.updateCar = async (req, res) => {
           url: result.secure_url,
         });
       }
-      updateData.images = imagesLinks;
+      finalImages = [...finalImages, ...imagesLinks];
+    }
+
+    // Only update images if we have final images or they were modified
+    if (
+      finalImages.length > 0 ||
+      removedImageIds.length > 0 ||
+      (req.files && req.files.length > 0)
+    ) {
+      updateData.images = finalImages;
     }
 
     // Update numeric fields
@@ -271,14 +315,14 @@ exports.getSingleCar = async (req, res) => {
 
     // Fetch all rentals for this car
     const rentals = await Rental.find({ car: id });
-    
+
     // Check if the car is currently on rental
-    const activeRental = rentals.find(rental => 
+    const activeRental = rentals.find((rental) =>
       ["Pending", "Active", "Confirmed"].includes(rental.status)
     );
-    
+
     const isOnRental = activeRental ? true : false;
-    
+
     // Get all rental IDs
     const rentalIds = rentals.map((rental) => rental._id);
 
@@ -339,7 +383,7 @@ exports.getSingleCar = async (req, res) => {
         images,
         averageRating,
         reviewCount,
-        isOnRental
+        isOnRental,
       },
     });
   } catch (error) {
@@ -549,7 +593,7 @@ exports.filterCars = async (req, res) => {
       {
         $group: {
           _id: "$_id",
-          brand: { $first: "$brand" }, 
+          brand: { $first: "$brand" },
           model: { $first: "$model" },
           transmission: { $first: "$transmission" },
           pricePerDay: { $first: "$pricePerDay" },
@@ -631,17 +675,17 @@ exports.filterCars = async (req, res) => {
 
 exports.searchAndFilterCars = async (req, res) => {
   try {
-    const { 
-      pickUpLocation, 
-      minPricePerDay, 
-      maxPricePerDay, 
-      year, 
-      brand, 
-      transmission, 
+    const {
+      pickUpLocation,
+      minPricePerDay,
+      maxPricePerDay,
+      year,
+      brand,
+      transmission,
       rating,
-      query 
+      query,
     } = req.query;
-    
+
     console.log("Query Parameters:", req.query);
 
     // Start by building the aggregation pipeline
@@ -664,9 +708,9 @@ exports.searchAndFilterCars = async (req, res) => {
             { pickUpLocation: { $regex: searchRegex } },
             { description: { $regex: searchRegex } },
             { vehicleType: { $regex: searchRegex } },
-            { fuel: { $regex: searchRegex } }
-          ]
-        }
+            { fuel: { $regex: searchRegex } },
+          ],
+        },
       });
     }
 
@@ -698,20 +742,20 @@ exports.searchAndFilterCars = async (req, res) => {
     // Handle price range filtering
     if (minPricePerDay || maxPricePerDay) {
       const priceMatch = {};
-      
+
       if (minPricePerDay) {
         priceMatch.$gte = Number(minPricePerDay);
       }
-      
+
       if (maxPricePerDay) {
         priceMatch.$lte = Number(maxPricePerDay);
       }
-      
+
       if (Object.keys(priceMatch).length > 0) {
         aggregatePipeline.push({
           $match: {
-            pricePerDay: priceMatch
-          }
+            pricePerDay: priceMatch,
+          },
         });
       }
     }
@@ -739,15 +783,15 @@ exports.searchAndFilterCars = async (req, res) => {
           from: "reviews",
           let: { rentalIds: "$rentals._id" },
           pipeline: [
-            { $match: { $expr: { $in: ["$rental", "$$rentalIds"] } } }
+            { $match: { $expr: { $in: ["$rental", "$$rentalIds"] } } },
           ],
-          as: "reviews"
-        }
+          as: "reviews",
+        },
       },
       {
         $group: {
           _id: "$_id",
-          brand: { $first: "$brand" }, 
+          brand: { $first: "$brand" },
           model: { $first: "$model" },
           transmission: { $first: "$transmission" },
           pricePerDay: { $first: "$pricePerDay" },
@@ -763,7 +807,7 @@ exports.searchAndFilterCars = async (req, res) => {
           images: { $first: "$images" },
           reviews: { $first: "$reviews" },
           totalRating: { $sum: { $sum: "$reviews.rating" } },
-          reviewCount: { $first: { $size: "$reviews" } }
+          reviewCount: { $first: { $size: "$reviews" } },
         },
       },
       {
@@ -791,7 +835,7 @@ exports.searchAndFilterCars = async (req, res) => {
     }
 
     const cars = await Cars.aggregate(aggregatePipeline);
-    
+
     const carsWithImages = cars.map((car) => {
       return {
         ...car,
@@ -841,27 +885,26 @@ exports.getCarAvailability = async (req, res) => {
 
 exports.getFeaturedCars = async (req, res) => {
   try {
-    const allActiveCars = await Cars.find({ 
+    const allActiveCars = await Cars.find({
       isActive: true,
     }).limit(20);
-
 
     if (!allActiveCars || allActiveCars.length === 0) {
       return res.status(200).json({
         success: true,
         cars: [],
-        message: "No featured cars found"
+        message: "No featured cars found",
       });
     }
 
     const availableCars = [];
-    
+
     for (const car of allActiveCars) {
-      const activeRentals = await Rental.find({ 
+      const activeRentals = await Rental.find({
         car: car._id,
-        status: { $in: ["Pending", "Confirmed", "Active"] }
+        status: { $in: ["Pending", "Confirmed", "Active"] },
       });
-      
+
       // Only include cars with no active rentals
       if (activeRentals.length === 0) {
         availableCars.push(car);
@@ -875,7 +918,7 @@ exports.getFeaturedCars = async (req, res) => {
       return res.status(200).json({
         success: true,
         cars: [],
-        message: "No available featured cars found"
+        message: "No available featured cars found",
       });
     }
 
@@ -923,6 +966,236 @@ exports.getFeaturedCars = async (req, res) => {
   } catch (error) {
     console.error("Error fetching featured cars:", error);
     return res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
+
+exports.getUserCarsWithActiveRentals = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    console.log("Fetching cars with active rentals for user:", userId);
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "User ID is required",
+      });
+    }
+
+    // Find all cars owned by the user
+    const userCars = await Cars.find({ owner: userId });
+    console.log(`Found ${userCars.length} cars owned by user`);
+
+    if (!userCars.length) {
+      return res.status(200).json({
+        success: true,
+        activeRentedCars: [],
+        message: "No cars found for this user",
+      });
+    }
+
+    // Get the car IDs
+    const carIds = userCars.map((car) => car._id);
+
+    // Find active rentals for these cars with proper error handling
+    let activeRentals = [];
+    try {
+      activeRentals = await Rental.find({
+        car: { $in: carIds },
+        status: { $in: ["Pending", "Confirmed", "Active"] },
+      }).populate(
+        "renter",
+        "firstName lastName email phone profileImage location"
+      ); // Updated fields for better renter details
+
+      console.log(
+        `Found ${activeRentals.length} active rentals for user's cars`
+      );
+    } catch (rentalError) {
+      console.error("Error fetching rentals:", rentalError);
+      return res.status(500).json({
+        success: false,
+        message: "Error fetching rental information",
+        error: rentalError.message,
+      });
+    }
+
+    if (!activeRentals.length) {
+      return res.status(200).json({
+        success: true,
+        activeRentedCars: [],
+        message: "No active rentals found for user's cars",
+      });
+    }
+
+    // Build response with cars and their active rentals
+    const activeRentedCars = [];
+
+    for (const car of userCars) {
+      try {
+        const rentalsForThisCar = activeRentals.filter(
+          (rental) => rental.car && rental.car.toString() === car._id.toString()
+        );
+
+        if (rentalsForThisCar.length > 0) {
+          // Format car data with rentals
+          // Safely handle images transformation
+          const images = car.images
+            ? car.images
+                .map((img) => {
+                  if (!img) return null;
+                  return typeof img === "string" ? img : img.url || null;
+                })
+                .filter((img) => img)
+            : [];
+
+          const carWithRentals = {
+            ...car.toObject(),
+            images: images,
+            activeRentals: rentalsForThisCar.map((rental) => ({
+              ...rental.toObject(),
+              renter: rental.renter || { name: "Unknown", email: "" }, // Changed from rental.user to rental.renter
+            })),
+          };
+
+          activeRentedCars.push(carWithRentals);
+        }
+      } catch (carError) {
+        console.error(`Error processing car ${car._id}:`, carError);
+        // Continue processing other cars instead of failing completely
+      }
+    }
+
+    console.log(
+      `Returning ${activeRentedCars.length} cars with active rentals`
+    );
+
+    return res.status(200).json({
+      success: true,
+      activeRentedCars,
+    });
+  } catch (error) {
+    console.error("Error fetching user's cars with active rentals:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
+
+exports.getUserCompletedRentals = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    console.log("Fetching cars with completed rentals for user:", userId);
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "User ID is required",
+      });
+    }
+
+    // Find all cars owned by the user
+    const userCars = await Cars.find({ owner: userId });
+    console.log(`Found ${userCars.length} cars owned by user`);
+
+    if (!userCars.length) {
+      return res.status(200).json({
+        success: true,
+        completedRentedCars: [],
+        message: "No cars found for this user",
+      });
+    }
+
+    // Get the car IDs
+    const carIds = userCars.map((car) => car._id);
+
+    // Find completed rentals for these cars with proper error handling
+    let completedRentals = [];
+    try {
+      completedRentals = await Rental.find({
+        car: { $in: carIds },
+        status: "Returned", // Only returned rentals
+      }).populate(
+        "renter",
+        "firstName lastName email phone profileImage location"
+      );
+
+      console.log(
+        `Found ${completedRentals.length} completed rentals for user's cars`
+      );
+    } catch (rentalError) {
+      console.error("Error fetching rentals:", rentalError);
+      return res.status(500).json({
+        success: false,
+        message: "Error fetching rental information",
+        error: rentalError.message,
+      });
+    }
+
+    if (!completedRentals.length) {
+      return res.status(200).json({
+        success: true,
+        completedRentedCars: [],
+        message: "No completed rentals found for user's cars",
+      });
+    }
+
+    // Build response with cars and their completed rentals
+    const completedRentedCars = [];
+
+    for (const car of userCars) {
+      try {
+        const rentalsForThisCar = completedRentals.filter(
+          (rental) => rental.car && rental.car.toString() === car._id.toString()
+        );
+
+        if (rentalsForThisCar.length > 0) {
+          // Format car data with rentals
+          // Safely handle images transformation
+          const images = car.images
+            ? car.images
+                .map((img) => {
+                  if (!img) return null;
+                  return typeof img === "string" ? img : img.url || null;
+                })
+                .filter((img) => img)
+            : [];
+
+          const carWithRentals = {
+            ...car.toObject(),
+            images: images,
+            completedRentals: rentalsForThisCar.map((rental) => ({
+              ...rental.toObject(),
+              renter: rental.renter || { name: "Unknown", email: "" },
+            })),
+          };
+
+          completedRentedCars.push(carWithRentals);
+        }
+      } catch (carError) {
+        console.error(`Error processing car ${car._id}:`, carError);
+        // Continue processing other cars instead of failing completely
+      }
+    }
+
+    console.log(
+      `Returning ${completedRentedCars.length} cars with completed rentals`
+    );
+
+    return res.status(200).json({
+      success: true,
+      completedRentedCars,
+    });
+  } catch (error) {
+    console.error("Error fetching user's cars with completed rentals:", error);
+    res.status(500).json({
       success: false,
       message: "Server error",
       error: error.message,

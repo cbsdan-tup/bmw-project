@@ -199,10 +199,24 @@ exports.deleteMessage = async (req, res) => {
 exports.getCarUserMessages = async (req, res) => {
   try {
     const { receiverId, carId } = req.params;
+
+    // Validate ObjectIds
+    if (
+      !receiverId ||
+      !carId ||
+      receiverId === "undefined" ||
+      carId === "undefined"
+    ) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid parameters: receiverId=${receiverId}, carId=${carId}`,
+      });
+    }
+
     const messages = await Message.find({
       carId,
       $or: [
-        { senderId: req.user._id, receiverId },
+        { senderId: req.user._id, receiverId: receiverId },
         { senderId: receiverId, receiverId: req.user._id },
       ],
       isDeleted: { $ne: true },
@@ -224,6 +238,7 @@ exports.getCarUserMessages = async (req, res) => {
       messages,
     });
   } catch (error) {
+    console.error("GetCarUserMessages Error:", error);
     res.status(500).json({
       success: false,
       error: error.message,
@@ -322,6 +337,19 @@ exports.getCarInquiries = async (req, res) => {
 exports.markMessagesAsRead = async (req, res) => {
   try {
     const { senderId, carId } = req.params;
+
+    // Validate ObjectIds
+    if (
+      !senderId ||
+      !carId ||
+      senderId === "undefined" ||
+      carId === "undefined"
+    ) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid parameters: senderId=${senderId}, carId=${carId}`,
+      });
+    }
 
     const result = await Message.updateMany(
       {

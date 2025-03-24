@@ -97,7 +97,6 @@ const createRent = async (req, res) => {
     if (!carDetails || !renterDetails) {
       return res.status(400).json({ message: "Car or Renter not found" });
     }
-    
 
     rental.status = rentalStatus;
     await rental.save();
@@ -173,7 +172,9 @@ const createRent = async (req, res) => {
             </tr>
             <tr>
             <td>Owner</td>
-            <td>${carDetails.owner?.firstName} ${carDetails.owner?.lastName}</td>
+            <td>${carDetails.owner?.firstName} ${
+      carDetails.owner?.lastName
+    }</td>
             </tr>
             <tr>
             <td>Owner Email Address</td>
@@ -338,12 +339,12 @@ const top3CarsController = async (req, res) => {
     const carRentalCount = {};
 
     rentals.forEach((rental) => {
-      const carId = rental.car._id.toString(); 
+      const carId = rental.car._id.toString();
       if (!carRentalCount[carId]) {
         carRentalCount[carId] = {
           car: rental.car,
           count: 0,
-          carName: `${rental.car.brand} ${rental.car.model}`, 
+          carName: `${rental.car.brand} ${rental.car.model}`,
         };
       }
       carRentalCount[carId].count++;
@@ -384,46 +385,100 @@ const myRentals = async (req, res) => {
   try {
     const { renterId } = req.params;
 
-    const rentals = await Rental.find({ renter: renterId })
-      .populate({
-        path: "car",
-        populate: { path: "owner" },
-      })
-      .populate("renter discountCode")
-      .sort({ createdAt: -1 });
+    // Check if renterId is a Firebase UID (not a MongoDB ObjectId)
+    if (renterId && renterId.length !== 24) {
+      // First find the user with this Firebase UID
+      const user = await User.findOne({ firebaseUID: renterId });
 
-    if (rentals.length === 0) {
-      return res
-        .status(200)
-        .json({ message: "No rentals found for this user" });
-    }
-
-    const rentalsWithReviews = await Promise.all(
-      rentals.map(async (rental) => {
-        const reviews = await Review.find({
-          rental: rental._id,
-          renter: renterId,
+      if (!user) {
+        return res.status(404).json({
+          message: "User not found with the provided ID",
         });
+      }
 
-        const hasReview = reviews.length > 0;
-        const averageRating = reviews.length
-          ? reviews.reduce((sum, review) => sum + review.rating, 0) /
-            reviews.length
-          : null;
+      // Use the MongoDB ObjectId of the user for querying rentals
+      const rentals = await Rental.find({ renter: user._id })
+        .populate({
+          path: "car",
+          populate: { path: "owner" },
+        })
+        .populate("renter discountCode")
+        .sort({ createdAt: -1 });
 
-        return {
-          ...rental.toObject(),
-          reviews, 
-          averageRating,
-          hasReview
-        };
-      })
-    );
+      if (rentals.length === 0) {
+        return res
+          .status(200)
+          .json({ message: "No rentals found for this user" });
+      }
 
-    res.json(rentalsWithReviews);
+      const rentalsWithReviews = await Promise.all(
+        rentals.map(async (rental) => {
+          const reviews = await Review.find({
+            rental: rental._id,
+            renter: user._id,
+          });
+
+          const hasReview = reviews.length > 0;
+          const averageRating = reviews.length
+            ? reviews.reduce((sum, review) => sum + review.rating, 0) /
+              reviews.length
+            : null;
+
+          return {
+            ...rental.toObject(),
+            reviews,
+            averageRating,
+            hasReview,
+          };
+        })
+      );
+
+      res.json(rentalsWithReviews);
+    } else {
+      // Original code path for MongoDB ObjectId
+      const rentals = await Rental.find({ renter: renterId })
+        .populate({
+          path: "car",
+          populate: { path: "owner" },
+        })
+        .populate("renter discountCode")
+        .sort({ createdAt: -1 });
+
+      if (rentals.length === 0) {
+        return res
+          .status(200)
+          .json({ message: "No rentals found for this user" });
+      }
+
+      const rentalsWithReviews = await Promise.all(
+        rentals.map(async (rental) => {
+          const reviews = await Review.find({
+            rental: rental._id,
+            renter: renterId,
+          });
+
+          const hasReview = reviews.length > 0;
+          const averageRating = reviews.length
+            ? reviews.reduce((sum, review) => sum + review.rating, 0) /
+              reviews.length
+            : null;
+
+          return {
+            ...rental.toObject(),
+            reviews,
+            averageRating,
+            hasReview,
+          };
+        })
+      );
+
+      res.json(rentalsWithReviews);
+    }
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Error retrieving rentals", error });
+    console.error("Error in myRentals:", error);
+    res
+      .status(500)
+      .json({ message: "Error retrieving rentals", error: error.message });
   }
 };
 
@@ -504,58 +559,70 @@ const getRentalsByCarId = async (req, res) => {
 
 const getMonthlyIncome = async (req, res) => {
   try {
-      const rentals = await Rental.find({ status: 'Returned' })
-          .populate('car', 'pricePerDay model');
+    const rentals = await Rental.find({ status: "Returned" }).populate(
+      "car",
+      "pricePerDay model"
+    );
 
-      if (rentals.length === 0) {
-          return res.status(200).json({ message: 'No transactions found', incomeData: [] });
+    if (rentals.length === 0) {
+      return res
+        .status(200)
+        .json({ message: "No transactions found", incomeData: [] });
+    }
+
+    const monthlyIncome = {};
+
+    rentals.forEach((rental) => {
+      const daysRented = Math.ceil(
+        (new Date(rental.returnDate) - new Date(rental.pickUpDate)) /
+          (1000 * 60 * 60 * 24)
+      );
+      const totalIncome = daysRented * rental.car.pricePerDay;
+      const estimatedIncome = totalIncome * 0.15;
+
+      const rentalDate = new Date(rental.pickUpDate);
+      const monthYearKey = `${rentalDate.getFullYear()}-${
+        rentalDate.getMonth() + 1
+      }`;
+
+      if (!monthlyIncome[monthYearKey]) {
+        monthlyIncome[monthYearKey] = {
+          totalIncome: 0,
+          month: monthYearKey,
+          estimatedIncome: 0,
+        };
       }
 
-      const monthlyIncome = {};
+      monthlyIncome[monthYearKey].estimatedIncome += estimatedIncome;
+    });
 
-      rentals.forEach(rental => {
-          const daysRented = Math.ceil(
-              (new Date(rental.returnDate) - new Date(rental.pickUpDate)) / (1000 * 60 * 60 * 24)
-          );
-          const totalIncome = daysRented * rental.car.pricePerDay;
-          const estimatedIncome = totalIncome * 0.15; 
+    const incomeDataArray = Object.values(monthlyIncome).map(
+      ({ estimatedIncome, month }) => ({
+        estimatedIncome,
+        month,
+      })
+    );
 
-          const rentalDate = new Date(rental.pickUpDate);
-          const monthYearKey = `${rentalDate.getFullYear()}-${rentalDate.getMonth() + 1}`; 
-
-          if (!monthlyIncome[monthYearKey]) {
-              monthlyIncome[monthYearKey] = { totalIncome: 0, month: monthYearKey, estimatedIncome: 0 };
-          }
-
-          monthlyIncome[monthYearKey].estimatedIncome += estimatedIncome; 
-      });
-
-      const incomeDataArray = Object.values(monthlyIncome).map(({ estimatedIncome, month }) => ({
-          estimatedIncome,
-          month,
-      }));
-
-      res.status(200).json(incomeDataArray);
+    res.status(200).json(incomeDataArray);
   } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: 'Failed to fetch income data' });
+    console.error(error);
+    res.status(500).json({ message: "Failed to fetch income data" });
   }
 };
-
 
 // Check if car has active rentals
 const checkCarRentalStatus = async (req, res) => {
   try {
     const { carId } = req.params;
-    
+
     if (!carId) {
-      return res.status(400).json({ message: 'Car ID is required' });
+      return res.status(400).json({ message: "Car ID is required" });
     }
 
     // Find rentals with the specified car ID and active statuses
     const activeRentals = await Rental.find({
       car: carId,
-      status: { $in: ['Pending', 'Confirmed', 'Active'] }
+      status: { $in: ["Pending", "Confirmed", "Active"] },
     });
 
     // Return true if active rentals exist, false otherwise
@@ -563,11 +630,14 @@ const checkCarRentalStatus = async (req, res) => {
       success: true,
       isOnRental: activeRentals.length > 0,
       activeRentals: activeRentals.length,
-      rentals: activeRentals.length > 0 ? activeRentals : []
+      rentals: activeRentals.length > 0 ? activeRentals : [],
     });
   } catch (error) {
-    console.error('Error checking car rental status:', error);
-    res.status(500).json({ message: 'Error checking car rental status', error: error.message });
+    console.error("Error checking car rental status:", error);
+    res.status(500).json({
+      message: "Error checking car rental status",
+      error: error.message,
+    });
   }
 };
 
@@ -583,5 +653,5 @@ module.exports = {
   getMonthlyIncome,
   calculateSalesChart,
   top3CarsController,
-  checkCarRentalStatus
+  checkCarRentalStatus,
 };
