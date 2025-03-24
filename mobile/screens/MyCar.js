@@ -375,7 +375,16 @@ const MyCar = ({ navigation }) => {
     if (!car) return null;
 
     return (
-      <View style={[styles.card, { backgroundColor: colors.cardBackground }]}>
+      <View
+        style={[
+          styles.card,
+          {
+            backgroundColor: colors.cardBackground,
+            borderWidth: 1,
+            borderColor: colors.borderCars,
+          },
+        ]}
+      >
         <Image
           source={{
             uri: car.images[0]?.url || "https://via.placeholder.com/150",
@@ -485,7 +494,11 @@ const MyCar = ({ navigation }) => {
       <View
         style={[
           styles.carRentalCard,
-          { backgroundColor: colors.cardBackground },
+          {
+            backgroundColor: colors.cardBackground,
+            borderWidth: 1,
+            borderColor: colors.borderCars,
+          },
         ]}
       >
         <Image
@@ -635,7 +648,10 @@ const MyCar = ({ navigation }) => {
 
               {index < item.activeRentals.length - 1 && (
                 <View
-                  style={[styles.divider, { backgroundColor: colors.border }]}
+                  style={[
+                    styles.divider,
+                    { backgroundColor: colors.borderCars },
+                  ]}
                 />
               )}
             </View>
@@ -650,7 +666,16 @@ const MyCar = ({ navigation }) => {
     if (!item) return null;
 
     return (
-      <View style={[styles.card, { backgroundColor: colors.cardBackground }]}>
+      <View
+        style={[
+          styles.card,
+          {
+            backgroundColor: colors.cardBackground,
+            borderWidth: 1,
+            borderColor: colors.borderCars,
+          },
+        ]}
+      >
         <Image
           source={{
             uri:
@@ -785,7 +810,11 @@ const MyCar = ({ navigation }) => {
             <View
               style={[
                 styles.renterProfileSection,
-                { backgroundColor: colors.cardBackground },
+                {
+                  backgroundColor: colors.cardBackground,
+                  borderWidth: 1,
+                  borderColor: colors.borderCars,
+                },
               ]}
             >
               {selectedRenter.profileImage ? (
@@ -822,11 +851,22 @@ const MyCar = ({ navigation }) => {
             <View
               style={[
                 styles.actionButtonsContainer,
-                { backgroundColor: colors.cardBackground },
+                {
+                  backgroundColor: colors.cardBackground,
+                  borderWidth: 1,
+                  borderColor: colors.borderCars,
+                },
               ]}
             >
               <TouchableOpacity
-                style={[styles.actionBtn, { backgroundColor: colors.primary }]}
+                style={[
+                  styles.actionBtn,
+                  {
+                    backgroundColor: colors.primary,
+                    borderWidth: 1,
+                    borderColor: colors.borderCars,
+                  },
+                ]}
                 onPress={navigateToChat}
               >
                 <Ionicons name="chatbubble-outline" size={18} color="white" />
@@ -837,7 +877,11 @@ const MyCar = ({ navigation }) => {
                 <TouchableOpacity
                   style={[
                     styles.actionBtn,
-                    { backgroundColor: colors.secondary },
+                    {
+                      backgroundColor: colors.secondary,
+                      borderWidth: 1,
+                      borderColor: colors.borderCars,
+                    },
                   ]}
                   onPress={() =>
                     Linking.openURL(`mailto:${selectedRenter.email}`)
@@ -852,7 +896,11 @@ const MyCar = ({ navigation }) => {
                 <TouchableOpacity
                   style={[
                     styles.actionBtn,
-                    { backgroundColor: colors.success },
+                    {
+                      backgroundColor: colors.success,
+                      borderWidth: 1,
+                      borderColor: colors.borderCars,
+                    },
                   ]}
                   onPress={() => Linking.openURL(`tel:${selectedRenter.phone}`)}
                 >
@@ -866,7 +914,12 @@ const MyCar = ({ navigation }) => {
             <View
               style={[
                 styles.contactInfoSection,
-                { backgroundColor: colors.cardBackground, marginTop: 16 },
+                {
+                  backgroundColor: colors.cardBackground,
+                  marginTop: 16,
+                  borderWidth: 1,
+                  borderColor: colors.borderCars,
+                },
               ]}
             >
               <Text style={[styles.sectionLabel, { color: colors.text }]}>
@@ -877,7 +930,11 @@ const MyCar = ({ navigation }) => {
                 <View
                   style={[
                     styles.infoCard,
-                    { backgroundColor: colors.background },
+                    {
+                      backgroundColor: colors.background,
+                      borderWidth: 1,
+                      borderColor: colors.borderCars,
+                    },
                   ]}
                 >
                   <View
@@ -910,7 +967,11 @@ const MyCar = ({ navigation }) => {
                 <View
                   style={[
                     styles.infoCard,
-                    { backgroundColor: colors.background },
+                    {
+                      backgroundColor: colors.background,
+                      borderWidth: 1,
+                      borderColor: colors.borderCars,
+                    },
                   ]}
                 >
                   <View
@@ -941,7 +1002,11 @@ const MyCar = ({ navigation }) => {
                   <View
                     style={[
                       styles.infoCard,
-                      { backgroundColor: colors.background },
+                      {
+                        backgroundColor: colors.background,
+                        borderWidth: 1,
+                        borderColor: colors.borderCars,
+                      },
                     ]}
                   >
                     <View
@@ -978,7 +1043,12 @@ const MyCar = ({ navigation }) => {
             <View
               style={[
                 styles.tipsSection,
-                { backgroundColor: colors.cardBackground, marginTop: 16 },
+                {
+                  backgroundColor: colors.cardBackground,
+                  marginTop: 16,
+                  borderWidth: 1,
+                  borderColor: colors.borderCars,
+                },
               ]}
             >
               <Text style={[styles.sectionLabel, { color: colors.text }]}>
@@ -1107,7 +1177,11 @@ const MyCar = ({ navigation }) => {
                 <TouchableOpacity
                   style={[
                     styles.actionButton,
-                    { backgroundColor: colors.primary },
+                    {
+                      backgroundColor: colors.primary,
+                      borderWidth: 1,
+                      borderColor: colors.borderCars,
+                    },
                   ]}
                   onPress={fetchMyCarsWithRentals}
                 >
@@ -1135,7 +1209,11 @@ const MyCar = ({ navigation }) => {
                 <TouchableOpacity
                   style={[
                     styles.actionButton,
-                    { backgroundColor: colors.primary },
+                    {
+                      backgroundColor: colors.primary,
+                      borderWidth: 1,
+                      borderColor: colors.borderCars,
+                    },
                   ]}
                   onPress={() => navigation.navigate("ListCar")}
                 >
@@ -1189,7 +1267,11 @@ const MyCar = ({ navigation }) => {
                 <TouchableOpacity
                   style={[
                     styles.actionButton,
-                    { backgroundColor: colors.primary },
+                    {
+                      backgroundColor: colors.primary,
+                      borderWidth: 1,
+                      borderColor: colors.borderCars,
+                    },
                   ]}
                   onPress={fetchMyAvailableCars}
                 >
@@ -1217,7 +1299,11 @@ const MyCar = ({ navigation }) => {
                 <TouchableOpacity
                   style={[
                     styles.actionButton,
-                    { backgroundColor: colors.primary },
+                    {
+                      backgroundColor: colors.primary,
+                      borderWidth: 1,
+                      borderColor: colors.borderCars,
+                    },
                   ]}
                   onPress={() => navigation.navigate("ListCar")}
                 >
@@ -1329,8 +1415,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: "center",
     minWidth: 150,
-    borderWidth: 1, // Add solid border
-    borderColor: colors.borderCars, // Black border color
+    // borderWidth and borderColor removed
   },
   actionButtonText: {
     color: "white",
@@ -1358,8 +1443,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 16,
     overflow: "hidden",
-    borderWidth: 1, // Add solid border
-    borderColor: colors.borderCars, // Black border color
+    // borderWidth and borderColor removed
   },
   carImage: {
     width: "100%",
@@ -1421,8 +1505,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 16,
     overflow: "hidden",
-    borderWidth: 1, // Add solid border
-    borderColor: colors.borderCars, // Black border color
+    // borderWidth and borderColor removed
   },
   rentalCountText: {
     fontWeight: "bold",
@@ -1630,8 +1713,7 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 15,
     alignItems: "center",
-    borderWidth: 1, // Add solid border
-    borderColor: colors.borderCars, // Black border color
+    // borderWidth and borderColor removed
   },
   infoIconCircle: {
     width: 48,
@@ -1694,8 +1776,7 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 15,
     alignItems: "center",
-    borderWidth: 1, // Add solid border
-    borderColor: colors.borderCars, // Black border color
+    // borderWidth and borderColor removed
   },
   infoIconCircle: {
     width: 48,
@@ -1749,8 +1830,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginHorizontal: 16,
     marginTop: 16,
-    borderWidth: 1, // Add solid border
-    borderColor: colors.borderCars, // Black border color
+    // borderWidth and borderColor removed
   },
   renterProfileImage: {
     width: 100,
@@ -1787,8 +1867,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginHorizontal: 16,
     marginTop: 16,
-    borderWidth: 1, // Add solid border
-    borderColor: colors.borderCars, // Black border color
+    // borderWidth and borderColor removed
   },
   actionBtn: {
     flexDirection: "row",
@@ -1798,8 +1877,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     minWidth: 100,
     justifyContent: "center",
-    borderWidth: 1, // Add solid border
-    borderColor: colors.borderCars, // Black border color
+    // borderWidth and borderColor removed
   },
   actionBtnText: {
     color: "white",
@@ -1814,8 +1892,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 12,
     marginHorizontal: 16,
-    borderWidth: 1, // Add solid border
-    borderColor: colors.borderCars, // Black border color
+    // borderWidth and borderColor removed
   },
   sectionLabel: {
     fontSize: 18,
@@ -1830,8 +1907,8 @@ const styles = StyleSheet.create({
     padding: 16,
     flexDirection: "row",
     alignItems: "center",
-    borderWidth: 1, // Add solid border
-    borderColor: colors.borderCars, // Black border color
+    borderWidth: 1, // Add solid borderCars
+    // borderColor: colors.borderCars, // Black borderCars color
   },
   infoIconCircle: {
     width: 40,
@@ -1860,8 +1937,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginHorizontal: 16,
     marginBottom: 16,
-    borderWidth: 1, // Add solid border
-    borderColor: colors.borderCars, // Black border color
+    // borderWidth and borderColor removed
   },
   tipCard: {
     borderRadius: 10,

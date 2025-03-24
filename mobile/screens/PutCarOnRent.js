@@ -602,7 +602,7 @@ const PutCarOnRent = ({ navigation }) => {
               <TextInput
                 style={[
                   styles.input,
-                  { color: colors.text, borderColor: colors.borderWhite },
+                  { color: colors.text, borderColor: colors.borderCars },
                 ]}
                 value={carData.brand}
                 onChangeText={(text) => setCarData({ ...carData, brand: text })}
@@ -617,7 +617,7 @@ const PutCarOnRent = ({ navigation }) => {
               <TextInput
                 style={[
                   styles.input,
-                  { color: colors.text, borderColor: colors.borderWhite },
+                  { color: colors.text, borderColor: colors.borderCars },
                 ]}
                 value={carData.model}
                 onChangeText={(text) => setCarData({ ...carData, model: text })}
@@ -630,7 +630,7 @@ const PutCarOnRent = ({ navigation }) => {
               <TextInput
                 style={[
                   styles.input,
-                  { color: colors.text, borderColor: colors.borderWhite },
+                  { color: colors.text, borderColor: colors.borderCars },
                 ]}
                 value={carData.year}
                 onChangeText={(text) => setCarData({ ...carData, year: text })}
@@ -640,7 +640,9 @@ const PutCarOnRent = ({ navigation }) => {
               />
             </View>
 
-            <View style={styles.formGroup}>
+            <View
+              style={[styles.formGroup, { backgroundColor: colors.background }]}
+            >
               <Text style={[styles.label, { color: colors.text }]}>
                 Vehicle Type *
               </Text>
@@ -657,7 +659,9 @@ const PutCarOnRent = ({ navigation }) => {
               </Picker>
             </View>
 
-            <View style={styles.formGroup}>
+            <View
+              style={(styles.formGroup, { backgroundColor: colors.background })}
+            >
               <Text style={[styles.label, { color: colors.text }]}>
                 Transmission *
               </Text>
@@ -673,7 +677,9 @@ const PutCarOnRent = ({ navigation }) => {
               </Picker>
             </View>
 
-            <View style={styles.formGroup}>
+            <View
+              style={(styles.formGroup, { backgroundColor: colors.background })}
+            >
               <Text style={[styles.label, { color: colors.text }]}>
                 Fuel Type *
               </Text>
@@ -704,7 +710,7 @@ const PutCarOnRent = ({ navigation }) => {
               <TextInput
                 style={[
                   styles.input,
-                  { color: colors.text, borderColor: colors.borderWhite },
+                  { color: colors.text, borderColor: colors.borderCars },
                 ]}
                 value={carData.seatCapacity}
                 onChangeText={(text) =>
@@ -722,7 +728,7 @@ const PutCarOnRent = ({ navigation }) => {
               <TextInput
                 style={[
                   styles.input,
-                  { color: colors.text, borderColor: colors.borderWhite },
+                  { color: colors.text, borderColor: colors.borderCars },
                 ]}
                 value={carData.displacement}
                 onChangeText={(text) =>
@@ -740,7 +746,7 @@ const PutCarOnRent = ({ navigation }) => {
               <TextInput
                 style={[
                   styles.input,
-                  { color: colors.text, borderColor: colors.borderWhite },
+                  { color: colors.text, borderColor: colors.borderCars },
                 ]}
                 value={carData.mileage}
                 onChangeText={(text) =>
@@ -764,7 +770,7 @@ const PutCarOnRent = ({ navigation }) => {
               <TextInput
                 style={[
                   styles.input,
-                  { color: colors.text, borderColor: colors.borderWhite },
+                  { color: colors.text, borderColor: colors.borderCars },
                 ]}
                 value={carData.pricePerDay}
                 onChangeText={(text) =>
@@ -784,7 +790,7 @@ const PutCarOnRent = ({ navigation }) => {
                   styles.input,
                   {
                     color: colors.text,
-                    borderColor: colors.borderWhite,
+                    borderColor: colors.borderCars,
                     height: 100,
                   },
                 ]}
@@ -806,7 +812,7 @@ const PutCarOnRent = ({ navigation }) => {
                   styles.input,
                   {
                     color: colors.text,
-                    borderColor: colors.borderWhite,
+                    borderColor: colors.borderCars,
                     height: 100,
                   },
                 ]}
@@ -826,7 +832,7 @@ const PutCarOnRent = ({ navigation }) => {
               <TextInput
                 style={[
                   styles.input,
-                  { color: colors.text, borderColor: colors.borderWhite },
+                  { color: colors.text, borderColor: colors.borderCars },
                 ]}
                 value={carData.pickUpLocation}
                 onChangeText={(text) =>
@@ -844,11 +850,11 @@ const PutCarOnRent = ({ navigation }) => {
                 </Text>
                 <Switch
                   trackColor={{
-                    false: colors.borderWhite,
+                    false: colors.borderCars,
                     true: colors.primary,
                   }}
                   thumbColor={carData.isAutoApproved ? "#fff" : "#f4f3f4"}
-                  ios_backgroundColor={colors.borderWhite}
+                  ios_backgroundColor={colors.borderCars}
                   onValueChange={(value) =>
                     setCarData({ ...carData, isAutoApproved: value })
                   }
@@ -896,7 +902,7 @@ const additionalStyles = {
   formSection: {
     marginBottom: 20,
     borderBottomWidth: 1,
-    borderBottomColor: colors.borderCars,
+    // borderBottomColor: colors.borderCars,
     paddingBottom: 15,
   },
   sectionTitle: {
@@ -993,7 +999,7 @@ const additionalStyles = {
     padding: 10,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: colors.borderCars,
+    // borderColor: colors.borderCars,
     justifyContent: "center",
     alignItems: "center",
     marginTop: 5,

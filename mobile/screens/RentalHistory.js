@@ -238,7 +238,10 @@ const RentalHistory = () => {
   const HistoryCard = ({ rental }) => {
     return (
       <TouchableOpacity
-        style={[styles.rentalCard, { backgroundColor: colors.card }]}
+        style={[
+          styles.rentalCard,
+          { backgroundColor: colors.card, borderColor: colors.borderCars },
+        ]}
         onPress={() => openRentalDetails(rental)}
         activeOpacity={0.8}
       >
@@ -312,7 +315,10 @@ const RentalHistory = () => {
           <View
             style={[
               styles.reviewTag,
-              { backgroundColor: colors.primary + "20" },
+              {
+                backgroundColor: colors.primary + "20",
+                borderColor: colors.borderCars,
+              },
             ]}
           >
             <MaterialIcons name="star" size={14} color={colors.primary} />
@@ -324,7 +330,10 @@ const RentalHistory = () => {
           <TouchableOpacity
             style={[
               styles.addReviewButton,
-              { backgroundColor: colors.secondary + "20" },
+              {
+                backgroundColor: colors.secondary + "20",
+                borderColor: colors.borderCars,
+              },
             ]}
             onPress={(e) => {
               e.stopPropagation();
@@ -371,7 +380,10 @@ const RentalHistory = () => {
 
     return (
       <TouchableOpacity
-        style={[styles.rentalCard, { backgroundColor: colors.card }]}
+        style={[
+          styles.rentalCard,
+          { backgroundColor: colors.card, borderColor: colors.borderCars },
+        ]}
         onPress={() => openCarRentalDetails(carRental)}
         activeOpacity={0.8}
       >
@@ -498,7 +510,10 @@ const RentalHistory = () => {
             <View
               style={[
                 styles.detailsSection,
-                { backgroundColor: colors.cardBackground },
+                {
+                  backgroundColor: colors.cardBackground,
+                  borderColor: colors.borderCars,
+                },
               ]}
             >
               <Text style={[styles.sectionTitle, { color: colors.text }]}>
@@ -558,7 +573,11 @@ const RentalHistory = () => {
             <View
               style={[
                 styles.detailsSection,
-                { backgroundColor: colors.cardBackground, marginTop: 16 },
+                {
+                  backgroundColor: colors.cardBackground,
+                  marginTop: 16,
+                  borderColor: colors.borderCars,
+                },
               ]}
             >
               <Text style={[styles.sectionLabel, { color: colors.text }]}>
@@ -569,7 +588,10 @@ const RentalHistory = () => {
                 <View
                   style={[
                     styles.infoCard,
-                    { backgroundColor: colors.background },
+                    {
+                      backgroundColor: colors.background,
+                      borderColor: colors.borderCars,
+                    },
                   ]}
                 >
                   <View
@@ -602,7 +624,10 @@ const RentalHistory = () => {
                 <View
                   style={[
                     styles.infoCard,
-                    { backgroundColor: colors.background },
+                    {
+                      backgroundColor: colors.background,
+                      borderColor: colors.borderCars,
+                    },
                   ]}
                 >
                   <View
@@ -632,7 +657,10 @@ const RentalHistory = () => {
                 <View
                   style={[
                     styles.infoCard,
-                    { backgroundColor: colors.background },
+                    {
+                      backgroundColor: colors.background,
+                      borderColor: colors.borderCars,
+                    },
                   ]}
                 >
                   <View
@@ -662,7 +690,10 @@ const RentalHistory = () => {
                 <View
                   style={[
                     styles.infoCard,
-                    { backgroundColor: colors.background },
+                    {
+                      backgroundColor: colors.background,
+                      borderColor: colors.borderCars,
+                    },
                   ]}
                 >
                   <View
@@ -692,7 +723,10 @@ const RentalHistory = () => {
                 <View
                   style={[
                     styles.infoCard,
-                    { backgroundColor: colors.background },
+                    {
+                      backgroundColor: colors.background,
+                      borderColor: colors.borderCars,
+                    },
                   ]}
                 >
                   <View
@@ -723,7 +757,10 @@ const RentalHistory = () => {
                 <View
                   style={[
                     styles.infoCard,
-                    { backgroundColor: colors.background },
+                    {
+                      backgroundColor: colors.background,
+                      borderColor: colors.borderCars,
+                    },
                   ]}
                 >
                   <View
@@ -756,7 +793,11 @@ const RentalHistory = () => {
             <View
               style={[
                 styles.detailsSection,
-                { backgroundColor: colors.cardBackground, marginTop: 16 },
+                {
+                  backgroundColor: colors.cardBackground,
+                  marginTop: 16,
+                  borderColor: colors.borderCars,
+                },
               ]}
             >
               <Text style={[styles.sectionLabel, { color: colors.text }]}>
@@ -788,6 +829,7 @@ const RentalHistory = () => {
                   backgroundColor: colors.cardBackground,
                   marginTop: 16,
                   marginBottom: 20,
+                  borderColor: colors.borderCars,
                 },
               ]}
             >
@@ -799,7 +841,10 @@ const RentalHistory = () => {
                 <View
                   style={[
                     styles.reviewContainer,
-                    { backgroundColor: colors.background },
+                    {
+                      backgroundColor: colors.background,
+                      borderColor: colors.borderCars,
+                    },
                   ]}
                 >
                   <View style={styles.reviewHeader}>
@@ -821,7 +866,10 @@ const RentalHistory = () => {
                 <TouchableOpacity
                   style={[
                     styles.addReviewContainer,
-                    { backgroundColor: colors.background },
+                    {
+                      backgroundColor: colors.background,
+                      borderColor: colors.borderCars,
+                    },
                   ]}
                   onPress={() => {
                     setRentalModalVisible(false);
@@ -908,7 +956,10 @@ const RentalHistory = () => {
             <View
               style={[
                 styles.detailsSection,
-                { backgroundColor: colors.cardBackground },
+                {
+                  backgroundColor: colors.cardBackground,
+                  borderColor: colors.borderCars,
+                },
               ]}
             >
               <Text style={[styles.sectionTitle, { color: colors.text }]}>
@@ -968,7 +1019,11 @@ const RentalHistory = () => {
             <View
               style={[
                 styles.detailsSection,
-                { backgroundColor: colors.cardBackground, marginTop: 16 },
+                {
+                  backgroundColor: colors.cardBackground,
+                  marginTop: 16,
+                  borderColor: colors.borderCars,
+                },
               ]}
             >
               <Text style={[styles.sectionLabel, { color: colors.text }]}>
@@ -980,7 +1035,10 @@ const RentalHistory = () => {
                   key={rental._id}
                   style={[
                     styles.rentalHistoryItem,
-                    { backgroundColor: colors.background },
+                    {
+                      backgroundColor: colors.background,
+                      borderColor: colors.borderCars,
+                    },
                     index > 0 && { marginTop: 12 },
                   ]}
                 >
@@ -1167,7 +1225,10 @@ const RentalHistory = () => {
         Please login to view your rental history
       </Text>
       <TouchableOpacity
-        style={[styles.loginButton, { backgroundColor: colors.primary }]}
+        style={[
+          styles.loginButton,
+          { backgroundColor: colors.primary, borderColor: colors.borderCars },
+        ]}
         onPress={() => navigation.navigate("Login")}
       >
         <Text style={styles.buttonText}>Login Now</Text>
@@ -1197,7 +1258,10 @@ const RentalHistory = () => {
         {error}
       </Text>
       <TouchableOpacity
-        style={[styles.retryButton, { backgroundColor: colors.primary }]}
+        style={[
+          styles.retryButton,
+          { backgroundColor: colors.primary, borderColor: colors.borderCars },
+        ]}
         onPress={fetchRentalHistory}
       >
         <Text style={styles.buttonText}>Retry</Text>
@@ -1317,14 +1381,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginTop: 10,
     borderWidth: 1,
-    borderColor: colors.borderCars,
   },
   retryButton: {
     paddingVertical: 12,
     paddingHorizontal: 30,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: colors.borderCars,
   },
   buttonText: {
     color: "white",
@@ -1348,7 +1410,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     borderWidth: 1,
-    borderColor: colors.borderCars,
   },
   carDetails: {
     flexDirection: "row",
@@ -1412,7 +1473,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: colors.borderCars,
   },
   addReviewButton: {
     marginTop: 10,
@@ -1422,12 +1482,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: colors.borderCars,
-  },
-  reviewTagText: {
-    fontSize: 12,
-    fontWeight: "500",
-    marginLeft: 4,
   },
   tabContainer: {
     flexDirection: "row",
@@ -1500,7 +1554,6 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.borderCars,
   },
   sectionTitle: {
     fontSize: 22,
@@ -1521,7 +1574,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: colors.borderCars,
   },
   infoIconCircle: {
     width: 40,
@@ -1547,7 +1599,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     borderWidth: 1,
-    borderColor: colors.borderCars,
   },
   ownerRow: {
     flexDirection: "row",
@@ -1586,7 +1637,6 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: colors.borderCars,
   },
   reviewHeader: {
     flexDirection: "row",
@@ -1609,7 +1659,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: colors.borderCars,
   },
   addReviewText: {
     fontSize: 16,
@@ -1657,7 +1706,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 16,
     borderWidth: 1,
-    borderColor: colors.borderCars,
   },
   rentalHistoryHeader: {
     flexDirection: "row",
