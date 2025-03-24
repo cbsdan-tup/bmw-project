@@ -1415,12 +1415,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: "center",
     minWidth: 150,
-<<<<<<< HEAD
     borderWidth: 1, // Add solid border
     borderColor: '#e0e0e0', // Use a static color instead of colors.borderCars
-=======
     // borderWidth and borderColor removed
->>>>>>> 2654e80f88ffe29749f2535bd62c1296739415e3
   },
   actionButtonText: {
     color: "white",
@@ -1448,12 +1445,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 16,
     overflow: "hidden",
-<<<<<<< HEAD
     borderWidth: 1,
     borderColor: '#e0e0e0', // Replace colors.borderCars
-=======
     // borderWidth and borderColor removed
->>>>>>> 2654e80f88ffe29749f2535bd62c1296739415e3
   },
   carImage: {
     width: "100%",
@@ -1506,7 +1500,8 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     width: "100%",
-    marginVertical: 8,
+    backgroundColor: "rgba(0,0,0,0.1)",
+    marginVertical: 15,
   },
   rentalItem: {
     marginBottom: 8,
@@ -1515,12 +1510,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 16,
     overflow: "hidden",
-<<<<<<< HEAD
     borderWidth: 1,
     borderColor: '#e0e0e0', // Replace colors.borderCars
-=======
     // borderWidth and borderColor removed
->>>>>>> 2654e80f88ffe29749f2535bd62c1296739415e3
   },
   rentalCountText: {
     fontWeight: "bold",
@@ -1611,7 +1603,6 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 14,
-    marginBottom: 4,
   },
   infoValue: {
     fontSize: 16,
@@ -1728,12 +1719,9 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 15,
     alignItems: "center",
-<<<<<<< HEAD
     borderWidth: 1, // Add solid border
     borderColor: '#e0e0e0', // Replace colors.borderCars
-=======
     // borderWidth and borderColor removed
->>>>>>> 2654e80f88ffe29749f2535bd62c1296739415e3
   },
   infoIconCircle: {
     width: 48,
@@ -1796,12 +1784,9 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 15,
     alignItems: "center",
-<<<<<<< HEAD
     borderWidth: 1, // Add solid border
     borderColor: '#e0e0e0', // Replace colors.borderCars
-=======
     // borderWidth and borderColor removed
->>>>>>> 2654e80f88ffe29749f2535bd62c1296739415e3
   },
   infoIconCircle: {
     width: 48,
@@ -1855,12 +1840,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginHorizontal: 16,
     marginTop: 16,
-<<<<<<< HEAD
     borderWidth: 1, // Add solid border
     borderColor: '#e0e0e0', // Replace colors.borderCars
-=======
     // borderWidth and borderColor removed
->>>>>>> 2654e80f88ffe29749f2535bd62c1296739415e3
   },
   renterProfileImage: {
     width: 100,
@@ -1897,12 +1879,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginHorizontal: 16,
     marginTop: 16,
-<<<<<<< HEAD
     borderWidth: 1, // Add solid border
     borderColor: '#e0e0e0', // Replace colors.borderCars
-=======
     // borderWidth and borderColor removed
->>>>>>> 2654e80f88ffe29749f2535bd62c1296739415e3
   },
   actionBtn: {
     flexDirection: "row",
@@ -1912,12 +1891,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     minWidth: 100,
     justifyContent: "center",
-<<<<<<< HEAD
     borderWidth: 1, // Add solid border
     borderColor: '#e0e0e0', // Replace colors.borderCars
-=======
     // borderWidth and borderColor removed
->>>>>>> 2654e80f88ffe29749f2535bd62c1296739415e3
   },
   actionBtnText: {
     color: "white",
@@ -1932,12 +1908,9 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 12,
     marginHorizontal: 16,
-<<<<<<< HEAD
     borderWidth: 1, // Add solid border
     borderColor: '#e0e0e0', // Replace colors.borderCars
-=======
     // borderWidth and borderColor removed
->>>>>>> 2654e80f88ffe29749f2535bd62c1296739415e3
   },
   sectionLabel: {
     fontSize: 18,
@@ -1952,13 +1925,10 @@ const styles = StyleSheet.create({
     padding: 16,
     flexDirection: "row",
     alignItems: "center",
-<<<<<<< HEAD
     borderWidth: 1, // Add solid border
     borderColor: '#e0e0e0', // Replace colors.borderCars
-=======
     borderWidth: 1, // Add solid borderCars
     // borderColor: colors.borderCars, // Black borderCars color
->>>>>>> 2654e80f88ffe29749f2535bd62c1296739415e3
   },
   infoIconCircle: {
     width: 40,
@@ -1987,12 +1957,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginHorizontal: 16,
     marginBottom: 16,
-<<<<<<< HEAD
     borderWidth: 1, // Add solid border
     borderColor: '#e0e0e0', // Replace colors.borderCars
-=======
     // borderWidth and borderColor removed
->>>>>>> 2654e80f88ffe29749f2535bd62c1296739415e3
   },
   tipCard: {
     borderRadius: 10,
