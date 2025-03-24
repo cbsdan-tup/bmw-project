@@ -473,7 +473,7 @@ const ProfileScreen = () => {
       </View>
     );
   };
-  
+
   if (isLoading) {
     return (
       <View
