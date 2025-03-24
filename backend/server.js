@@ -27,6 +27,7 @@ const userManagementRoutes = require("./routes/userManagementRoutes");
 const carsManagementRoutes = require("./routes/carsManagementRoutes");
 const rentalManagementRoutes = require("./routes/rentalManagementRoutes");
 const adminStatsRoutes = require("./routes/adminStatsRoutes");
+const pushNotificationRoutes = require("./routes/pushNotificationRoutes");
 
 const http = require("http");
 const socketIO = require("socket.io");
@@ -109,6 +110,7 @@ app.use("/api/v1", userManagementRoutes);
 app.use("/api/v1", carsManagementRoutes);
 app.use("/api/v1", rentalManagementRoutes);
 app.use("/api/v1", adminStatsRoutes);
+app.use("/api/v1", pushNotificationRoutes);
 
 //404 not found routes
 app.all("*", (req, res) => {

@@ -23,6 +23,7 @@ import 'expo-dev-client';
 import { auth } from '../../config/firebase-config';
 import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { useNotification } from '../../context/NotificationContext';
 
 // Initialize Google Sign-in
 GoogleSignin.configure(GOOGLE_SIGNIN_CONFIG);
@@ -31,6 +32,7 @@ const LoginScreen = ({ navigation }) => {
   const { login, googleSignIn, isLoading, setAuthenticated } = useAuth();
   const { colors } = useTheme();
   const toast = useToast();
+  const { registerForPushNotifications } = useNotification();
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -104,6 +106,12 @@ const LoginScreen = ({ navigation }) => {
         // Show success message with user's name
         const displayName = result.user?.firstName || firebaseUser.displayName || 'User';
         toast.success(`Welcome ${displayName}!`);
+        
+        try {
+          await registerForPushNotifications();
+        } catch (notifError) {
+          console.error("Error registering notifications after login:", notifError);
+        }
         
         // Navigate to main app
         navigation.reset({
@@ -191,6 +199,13 @@ const LoginScreen = ({ navigation }) => {
       if (result.success) {
         const user = result.user;
         toast.success(`Welcome back ${user?.firstName}!`);
+        
+        try {
+          await registerForPushNotifications();
+        } catch (notifError) {
+          console.error("Error registering notifications after login:", notifError);
+        }
+        
         navigation.reset({
           index: 0,
           routes: [{ name: 'MainTabs' }]

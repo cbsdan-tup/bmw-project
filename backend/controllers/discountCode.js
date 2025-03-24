@@ -1,5 +1,7 @@
 const Discount = require('../models/DiscountCode');
+const User = require('../models/User'); // Add this import
 const cloudinary = require('cloudinary'); 
+const { sendExpoNotifications } = require('../utils/expoNotifications'); // Add this import
 
 exports.createDiscount = async (req, res) => {
     try {
@@ -42,6 +44,48 @@ exports.createDiscount = async (req, res) => {
         });
 
         await discount.save();
+        
+        // Send push notification to all users with push tokens
+        try {
+            // Find all users who have push tokens
+            const users = await User.find({ pushTokens: { $exists: true, $ne: [] } });
+            
+            // Collect all valid push tokens
+            const pushTokens = users.reduce((tokens, user) => {
+                if (user.pushTokens && user.pushTokens.length > 0) {
+                    return [...tokens, ...user.pushTokens];
+                }
+                return tokens;
+            }, []);
+            
+            if (pushTokens.length > 0) {
+                // Format the discount percentage for display
+                const percentageText = `${discount.discountPercentage}%`;
+                
+                // Prepare valid date range text
+                const startDate = new Date(discount.startDate).toLocaleDateString();
+                const endDate = discount.endDate ? new Date(discount.endDate).toLocaleDateString() : 'No expiration';
+                const dateRange = `Valid from ${startDate} to ${endDate}`;
+                
+                await sendExpoNotifications({
+                    tokens: pushTokens,
+                    title: `New Discount: ${percentageText} Off!`,
+                    body: `Use code ${discount.code} for ${percentageText} off your next rental. ${dateRange}`,
+                    data: {
+                        type: 'newDiscount',
+                        discountId: discount._id.toString(),
+                        code: discount.code,
+                        discountPercentage: discount.discountPercentage,
+                    },
+                });
+                
+                console.log(`Discount promotion notification sent to ${pushTokens.length} devices`);
+            }
+        } catch (notificationError) {
+            // Just log the error but don't fail the request
+            console.error("Error sending discount notifications:", notificationError);
+        }
+        
         res.status(201).json({
             success: true,
             message: 'Discount created successfully',

@@ -59,6 +59,9 @@ const userSchema = new mongoose.Schema({
             type: String, 
         },
     },
+    pushTokens: [{
+        type: String,
+    }],
     permissionToken: {
         type: String,
     },

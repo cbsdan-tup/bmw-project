@@ -1,7 +1,7 @@
 const Rental = require("../models/Rental");
 const User = require("../models/User");
 const Car = require("../models/Cars");
-const sendNotification = require("../config/sendNotification");
+const { sendExpoNotifications } = require("../utils/expoNotifications");
 
 // Get all rentals with optional filtering by status, search and pagination
 const getAllAdminRentals = async (req, res) => {
@@ -115,19 +115,34 @@ const updateRentalStatus = async (req, res) => {
       return res.status(404).json({ message: "Rental not found" });
     }
 
-    // Send notification to renter if they have a permission token
-    if (rental.renter && rental.renter.permissionToken) {
-      const payload = {
-        permissionToken: rental.renter.permissionToken,
-        title: "BMW Rental Status Update",
-        body: `Your rental for ${rental.car?.brand} ${rental.car?.model} has been updated to: ${status}`,
-      };
-
-      try {
-        await sendNotification(payload);
-      } catch (notifError) {
-        console.error("Error sending notification:", notifError.message);
+    // Check if renter exists and has data
+    if (rental.renter) {
+      // Send notification using push tokens if available
+      if (rental.renter.pushTokens && rental.renter.pushTokens.length > 0) {
+        try {
+          console.log(`Sending push notification to renter ${rental.renter._id} with ${rental.renter.pushTokens.length} tokens`);
+          
+          // Use the modular function to send notifications
+          const tickets = await sendExpoNotifications({
+            tokens: rental.renter.pushTokens,
+            title: "BMW Rental Status Update",
+            body: `Your rental for ${rental.car?.brand} ${rental.car?.model} has been updated to: ${status}`,
+            data: { 
+              rentalId: rental._id.toString(),
+              status: status,
+              type: 'rentalUpdate'
+            },
+          });
+          
+          console.log(`Push notification result: ${tickets.length} tickets created`);
+        } catch (error) {
+          // Log but don't fail the request
+          console.error("Error sending push notification:", error);
+        }
+      } else {
+        console.log(`No push tokens available for renter ${rental.renter._id}`);
       }
+      
     }
 
     res.json({ message: "Rental status updated successfully", rental });

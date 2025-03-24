@@ -13,7 +13,7 @@ import {
   Dimensions,
   Animated,
   ImageBackground,
-  Clipboard
+  Clipboard,
 } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigation } from "@react-navigation/native";
@@ -373,8 +373,6 @@ const HomeScreen = () => {
       "Special Offer",
       "Just For You",
       "Limited Deal",
-      "Exclusive Promo",
-      "Weekend Special",
       "Flash Sale",
       "Hot Deal",
       "Premium Offer",
@@ -580,7 +578,7 @@ const HomeScreen = () => {
                         </Text>
                       </View>
 
-                      <View style={styles.offerTextContainer}>
+                      <View style={styles.offerTextContainer} numberOfLines={0}>
                         <Text style={styles.offerTitle}>
                           {generatePromoTitle(discount, index)}
                         </Text>
@@ -960,12 +958,15 @@ const styles = StyleSheet.create({
   },
   offerTitle: {
     fontWeight: "700",
-    fontSize: 22,
+    fontSize: 20,
     color: "#FFFFFF",
     marginBottom: 16,
     textShadowColor: "rgba(0,0,0,0.15)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
+    width: "100%",
+    textAlign: "left",
+    lineHeight: 24,
   },
   codeContainer: {
     marginBottom: 16,
