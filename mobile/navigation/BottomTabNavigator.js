@@ -117,6 +117,12 @@ const SearchStack = () => {
             : "Reviews",
         })}
       />
+      {/* Add ChatScreen to the SearchStack */}
+      <Stack.Screen
+        name="ChatScreen"
+        component={ChatScreen}
+        options={({ route }) => ({ title: route.params?.chatName || "Chat" })}
+      />
       {/* Add DiscountScreen to the SearchStack */}
       <Stack.Screen
         name="DiscountScreen"
