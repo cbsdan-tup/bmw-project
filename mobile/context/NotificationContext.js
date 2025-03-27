@@ -273,6 +273,25 @@ export const NotificationProvider = ({ children }) => {
               discountId: data.discountId
             }
           });
+        } else if (data?.type === 'message') {
+          // Handle message notifications using the navigation data from notification
+          console.log('Handling message notification click', data);
+          
+          if (data.navigation) {
+            console.log('Setting navigation from message notification:', data.navigation);
+            setNotificationNavigation(data.navigation);
+          } else {
+            // Fallback if navigation data is not provided
+            console.log('Fallback: Creating navigation data from message fields');
+            setNotificationNavigation({
+              screen: 'ChatScreen',
+              params: {
+                recipientId: data.senderId,
+                carId: data.carId,
+                chatName: data.senderName || 'Chat'
+              }
+            });
+          }
         }
       }
     );
