@@ -10,7 +10,6 @@ import Icon from "react-native-vector-icons/FontAwesome";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 
-import AdminScreen from "../screens/admin/AdminScreen";
 import UserManagementScreen from "../screens/admin/UserManagementScreen";
 import CarsManagementScreen from "../screens/admin/CarsManagementScreen";
 import EditCarScreen from "../screens/admin/EditCarScreen";
@@ -206,14 +205,7 @@ const AdminNavigator = () => {
           ),
         }}
       />
-      <Drawer.Screen
-        name="AdminMenu"
-        component={AdminScreen}
-        options={{
-          title: "Admin Menu",
-          drawerIcon: ({ color }) => <DrawerIcon name="th" color={color} />,
-        }}
-      />
+
       <Drawer.Screen
         name="UserManagement"
         component={UserManagementScreen}

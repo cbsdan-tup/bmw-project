@@ -1,16 +1,15 @@
-import React from 'react';
-import { createStackNavigator } from '@react-navigation/stack';  
-import { TouchableOpacity } from 'react-native';
-import Icon from 'react-native-vector-icons/FontAwesome';
-import LoginScreen from '../screens/auth/LoginScreen';
-import RegisterScreen from '../screens/auth/RegisterScreen';
-import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
-import { useTheme } from '../context/ThemeContext';
-import BottomTabNavigator from './BottomTabNavigator';
-import EditProfileScreen from '../screens/EditProfileScreen';
-import MyFavoritesScreen from '../screens/MyFavoritesScreen';
-import AdminScreen from '../screens/admin/AdminScreen';
-import AdminDashboardScreen from '../screens/admin/AdminDashboardScreen';
+import React from "react";
+import { createStackNavigator } from "@react-navigation/stack";
+import { TouchableOpacity } from "react-native";
+import Icon from "react-native-vector-icons/FontAwesome";
+import LoginScreen from "../screens/auth/LoginScreen";
+import RegisterScreen from "../screens/auth/RegisterScreen";
+import ForgotPasswordScreen from "../screens/ForgotPasswordScreen";
+import { useTheme } from "../context/ThemeContext";
+import BottomTabNavigator from "./BottomTabNavigator";
+import EditProfileScreen from "../screens/EditProfileScreen";
+import MyFavoritesScreen from "../screens/MyFavoritesScreen";
+import AdminDashboardScreen from "../screens/admin/AdminDashboardScreen";
 
 const Stack = createStackNavigator();
 
@@ -25,53 +24,53 @@ const AuthNavigator = () => {
         },
         headerTintColor: colors.headerText,
         headerTitleStyle: {
-          fontWeight: 'bold',
+          fontWeight: "bold",
         },
-        headerLeft: ({ canGoBack }) => 
+        headerLeft: ({ canGoBack }) =>
           canGoBack ? (
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={() => navigation.goBack()}
               style={{ marginLeft: 16 }}
             >
               <Icon name="arrow-left" size={20} color={colors.headerText} />
             </TouchableOpacity>
-          ) : null
+          ) : null,
       })}
     >
-      <Stack.Screen 
-        name="MainTabs" 
-        component={BottomTabNavigator} 
-        options={{ headerShown: false }} 
+      <Stack.Screen
+        name="MainTabs"
+        component={BottomTabNavigator}
+        options={{ headerShown: false }}
       />
-      <Stack.Screen 
-        name="Login" 
-        component={LoginScreen} 
-        options={{ title: 'Sign In' }}
+      <Stack.Screen
+        name="Login"
+        component={LoginScreen}
+        options={{ title: "Sign In" }}
       />
-      <Stack.Screen 
-        name="Register" 
-        component={RegisterScreen} 
-        options={{ title: 'Sign Up' }}
+      <Stack.Screen
+        name="Register"
+        component={RegisterScreen}
+        options={{ title: "Sign Up" }}
       />
-      <Stack.Screen 
-        name="ForgotPassword" 
-        component={ForgotPasswordScreen} 
-        options={{ title: 'Reset Password' }}
+      <Stack.Screen
+        name="ForgotPassword"
+        component={ForgotPasswordScreen}
+        options={{ title: "Reset Password" }}
       />
       <Stack.Screen
         name="EditProfile"
         component={EditProfileScreen}
-        options={{ title: 'Edit Profile' }}
+        options={{ title: "Edit Profile" }}
       />
       <Stack.Screen
         name="MyFavorites"
         component={MyFavoritesScreen}
-        options={{ title: 'My Favorites' }}
+        options={{ title: "My Favorites" }}
       />
       <Stack.Screen
         name="Dashboard"
         component={AdminDashboardScreen}
-        options={{ title: 'Admin Dashboard' }}
+        options={{ title: "Admin Dashboard" }}
       />
     </Stack.Navigator>
   );
