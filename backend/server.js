@@ -14,6 +14,10 @@ const mongoose = require("mongoose");
 const PORT = process.env.PORT || 8000;
 
 const cloudinary = require("cloudinary");
+// Add User model for push notifications
+const User = require("./models/User");
+// Add expoNotifications utility
+const { sendExpoNotifications } = require("./utils/expoNotifications");
 
 const auth = require("./routes/auth");
 const discount = require("./routes/discount");
@@ -98,6 +102,28 @@ io.on("connection", (socket) => {
 
     // Acknowledge room join to client
     socket.emit("roomJoined", { roomId });
+  });
+
+  // Add sendMessage event handler
+  socket.on("sendMessage", async (data) => {
+    const { text, roomId, senderId, receiverId, carId, messageId } = data;
+
+    if (!roomId || !senderId || !receiverId) {
+      console.log("sendMessage called with missing data", data);
+      return;
+    }
+
+    console.log(`Message sent in room ${roomId} from ${senderId} to ${receiverId}`);
+    
+    // Emit the message to the room
+    io.to(roomId).emit("getMessage", data);
+    
+    // Send push notification to receiver if they're not active in the room
+    try {
+      await sendNotificationToRecipient(data);
+    } catch (error) {
+      console.error("Error sending push notification:", error);
+    }
   });
 
   // Handle message delivery confirmations with more details
@@ -199,6 +225,93 @@ app.use(
 app.use("/", express.static(path.join(__dirname, "public")));
 app.use(errorHandler);
 
+// Modify to ensure push notifications are sent when messages are created via API
+app.use((req, res, next) => {
+  // Store the original send method
+  const originalSend = res.send;
+  
+  res.send = function(body) {
+    // Check if this is a message creation response
+    if (req.method === 'POST' && 
+        req.originalUrl.includes('/api/v1/messages') && 
+        res.statusCode >= 200 && 
+        res.statusCode < 300) {
+      
+      try {
+        // Parse response body if it's a string
+        const data = typeof body === 'string' ? JSON.parse(body) : body;
+        
+        console.log('Message API response structure:', JSON.stringify(data));
+        
+        // If this is a new message created through the API
+        if (data && data.success && data.message) {
+          console.log('Message created via API, triggering push notification');
+          
+          const message = data.message;
+          console.log('Message object from API:', JSON.stringify(message));
+          
+          // Handle nested objects in the response
+          if (message) {
+            // Extract the message ID and content
+            const messageId = message._id;
+            const content = message.content;
+            const carId = message.carId;
+            
+            // Extract sender/receiver info, handling both string IDs and nested objects
+            let senderId, receiverId, senderName;
+            
+            if (typeof message.senderId === 'object') {
+              // If it's a populated object, extract the _id and name
+              senderId = message.senderId._id;
+              senderName = `${message.senderId.firstName} ${message.senderId.lastName}`;
+            } else {
+              // If it's a string ID
+              senderId = message.senderId;
+            }
+            
+            if (typeof message.receiverId === 'object') {
+              // If it's a populated object, extract the _id
+              receiverId = message.receiverId._id;
+            } else {
+              // If it's a string ID
+              receiverId = message.receiverId;
+            }
+            
+            if (senderId && receiverId && carId) {
+              console.log(`Extracted data - senderId: ${senderId}, receiverId: ${receiverId}, carId: ${carId}`);
+              
+              // Create room ID
+              const roomId = [senderId, receiverId, carId].sort().join('-');
+              
+              // Try to send push notification
+              sendDirectPushNotification({
+                messageId,
+                text: content,
+                roomId,
+                senderId,
+                receiverId,
+                carId,
+                senderName // Pass sender name if we have it from the populated object
+              }).catch(err => {
+                console.error('Error sending direct push notification:', err);
+              });
+            } else {
+              console.error('Missing required data from message response');
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error processing message response:', error);
+      }
+    }
+    
+    // Call the original send
+    return originalSend.call(this, body);
+  };
+  
+  next();
+});
+
 // Routes
 app.use("/", require("./routes/root"));
 app.use("/api/v1", auth);
@@ -226,6 +339,120 @@ app.all("*", (req, res) => {
     res.type("txt").send("404 Not Found");
   }
 });
+
+// New function to send push directly without socket dependency
+async function sendDirectPushNotification(data) {
+  const { text, senderId, receiverId, carId, messageId, senderName } = data;
+  
+  console.log(`Attempting direct push notification from ${senderId} to ${receiverId}`);
+  
+  try {
+    // Try to find the receiver by _id first (MongoDB ID)
+    let recipient = await User.findById(receiverId);
+    
+    // If not found, try by uid field
+    if (!recipient) {
+      console.log(`User not found by _id, trying uid field: ${receiverId}`);
+      recipient = await User.findOne({ uid: receiverId });
+    }
+    
+    if (!recipient) {
+      console.error(`Recipient not found with either _id or uid: ${receiverId}`);
+      return null;
+    }
+    
+    console.log(`Recipient found: ${recipient.firstName} ${recipient.lastName}, Push tokens: ${recipient.pushTokens?.length || 0}`);
+    
+    if (recipient.pushTokens && recipient.pushTokens.length > 0) {
+      // Get sender info for notification title
+      let senderDisplayName = senderName; // Use name passed from populated object if available
+      
+      if (!senderDisplayName) {
+        // Try to find sender by _id first
+        let sender = await User.findById(senderId);
+        if (!sender) {
+          sender = await User.findOne({ uid: senderId });
+        }
+        
+        senderDisplayName = sender 
+          ? `${sender.firstName} ${sender.lastName}` 
+          : "Someone";
+      }
+
+      // Fetch car details to include car name in notification
+      let carName = "a car";
+      try {
+        const Car = require('./models/Cars');
+        const car = await Car.findById(carId);
+        if (car) {
+          carName = `${car.brand} ${car.model}`;
+        }
+      } catch (carError) {
+        console.error('Error fetching car details:', carError);
+      }
+      
+      console.log(`Sending push notification from ${senderDisplayName} about ${carName} to ${recipient.firstName} with ${recipient.pushTokens.length} tokens`);
+      
+      // Send notification with enhanced navigation data and car name in title
+      const notificationResult = await sendExpoNotifications({
+        tokens: recipient.pushTokens,
+        title: `${senderDisplayName} about ${carName}`,
+        body: text.length > 100 ? `${text.substring(0, 97)}...` : text,
+        data: {
+          type: 'message',
+          senderId,
+          receiverId,
+          carId,
+          messageId,
+          // Add navigation data to route to ChatScreen when notification is clicked
+          navigation: {
+            screen: 'ChatScreen',
+            params: {
+              recipientId: senderId, // The sender becomes the recipient when they click the notification
+              carId: carId,
+              chatName: `${senderDisplayName} - ${carName}` // Include car name in chat header
+            }
+          }
+        },
+        sound: true,
+        badge: true
+      });
+      
+      console.log(`Push notification sent to ${recipient.firstName}, result:`, 
+        notificationResult?.length > 0 ? `${notificationResult.length} tickets` : 'No tickets');
+        
+      return notificationResult;
+    } else {
+      console.log(`No push tokens found for user ${recipient.firstName} ${recipient.lastName}`);
+    }
+  } catch (error) {
+    console.error('Error sending direct push notification:', error);
+  }
+  
+  return null;
+}
+
+// Update the existing function to use the direct push approach
+async function sendNotificationToRecipient(data) {
+  const { text, senderId, receiverId, carId, messageId } = data;
+  
+  console.log(`Attempting to send push notification from ${senderId} to ${receiverId}`);
+  
+  // Check if receiver is active in the socket connections
+  const receiverSocket = getUser(receiverId);
+  const isReceiverActive = !!receiverSocket;
+  
+  console.log(`Receiver ${receiverId} active status: ${isReceiverActive}`);
+  
+  // If receiver is not active, send push notification
+  if (!isReceiverActive) {
+    return sendDirectPushNotification(data);
+  } else {
+    console.log(`Skipping push notification as receiver ${receiverId} is active`);
+  }
+  
+  return null;
+}
 
 mongoose.connection.once("open", () => {
   console.log("Connected to MongoDB");
