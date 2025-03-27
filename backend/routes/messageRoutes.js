@@ -10,12 +10,14 @@ const {
   getCarUserMessages,
   getCarInquiries,
   markMessagesAsRead,
+  markMessageRead,
+  markMessageDelivered, // Add this new controller function
 } = require("../controllers/messageController");
 
 router.post(
   "/messages",
   isAuthenticatedUser,
-  upload.array("images"),
+  upload.array("images", 5), // Allow up to 5 images
   sendMessage
 );
 router.get("/messages/:userId", isAuthenticatedUser, getMessages);
@@ -31,6 +33,12 @@ router.put(
   "/messages/read/:senderId/:carId",
   isAuthenticatedUser,
   markMessagesAsRead
+);
+router.put("/messages/:id/read", isAuthenticatedUser, markMessageRead);
+router.put(
+  "/messages/:id/delivered",
+  isAuthenticatedUser,
+  markMessageDelivered
 );
 
 module.exports = router;

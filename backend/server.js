@@ -58,16 +58,114 @@ const getUser = (userId) => {
 };
 
 io.on("connection", (socket) => {
-  console.log("A user connected");
+  console.log(`User connected: ${socket.id}`);
 
   socket.on("addUser", (userId) => {
+    if (!userId) {
+      console.log("addUser called without userId");
+      return;
+    }
+
+    console.log(`User ${userId} added with socket ${socket.id}`);
     addUser(userId, socket.id);
     io.emit("getUsers", users);
+
+    // Store userId in socket for later use
+    socket.userId = userId;
   });
 
+  // Handle joining a chat room with more detailed info
+  socket.on("joinRoom", (data) => {
+    // Handle both string and object formats for backwards compatibility
+    const roomId = typeof data === "string" ? data : data.roomId;
+
+    if (!roomId) {
+      console.log("joinRoom called without roomId");
+      return;
+    }
+
+    console.log(`Socket ${socket.id} joining room: ${roomId}`);
+    socket.join(roomId);
+
+    // If we have detailed info, store it
+    if (typeof data === "object") {
+      const { userId, recipientId, carId } = data;
+      socket.chatData = { roomId, userId, recipientId, carId };
+      console.log(
+        `Chat data stored for ${socket.id}: ${JSON.stringify(socket.chatData)}`
+      );
+    }
+
+    // Acknowledge room join to client
+    socket.emit("roomJoined", { roomId });
+  });
+
+  // Handle message delivery confirmations with more details
+  socket.on("confirmDelivery", (data) => {
+    const { messageId, receiverId, senderId, carId } = data;
+
+    if (!messageId || !receiverId) {
+      console.log("confirmDelivery called with missing data", data);
+      return;
+    }
+
+    console.log(
+      `Message ${messageId} delivery confirmed by ${socket.userId || "unknown"}`
+    );
+
+    // Find the sender socket
+    const sender = getUser(senderId || receiverId);
+    if (sender && sender.socketId) {
+      // Notify the sender that their message was delivered
+      console.log(
+        `Notifying sender ${sender.userId} via socket ${sender.socketId}`
+      );
+      io.to(sender.socketId).emit("messageDelivered", { messageId });
+    } else {
+      console.log(`Sender socket not found for ${senderId || receiverId}`);
+    }
+
+    // If we have carId, also emit to the room
+    if (carId) {
+      const roomId = [senderId || socket.userId, receiverId, carId]
+        .sort()
+        .join("-");
+      console.log(`Also emitting delivery confirmation to room ${roomId}`);
+      io.to(roomId).emit("messageDelivered", { messageId });
+
+      // Add refresh signal for both users to fetch all messages
+      io.to(roomId).emit("refreshMessages", {
+        action: "messageDelivered",
+        messageId,
+        timestamp: Date.now(),
+      });
+    }
+  });
+
+  // Handle leaving a chat room
+  socket.on("leaveRoom", (roomId) => {
+    if (!roomId) return;
+
+    console.log(`Socket ${socket.id} leaving room: ${roomId}`);
+    socket.leave(roomId);
+
+    // Clear chat data if it matches
+    if (socket.chatData && socket.chatData.roomId === roomId) {
+      socket.chatData = null;
+    }
+  });
+
+  // Handle disconnection with better cleanup
   socket.on("disconnect", () => {
+    console.log(`User disconnected: ${socket.id}`);
     removeUser(socket.id);
     io.emit("getUsers", users);
+
+    // If we have chat data, leave any rooms
+    if (socket.chatData && socket.chatData.roomId) {
+      console.log(`Leaving room ${socket.chatData.roomId} on disconnect`);
+      socket.leave(socket.chatData.roomId);
+    }
   });
 });
 
@@ -86,8 +184,13 @@ app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 app.use(logger);
 
-app.use(cors({
-    origin: ["https://borrow-my-wheel.vercel.app", "http://localhost:5173", "http://localhost:8081"],
+app.use(
+  cors({
+    origin: [
+      "https://borrow-my-wheel.vercel.app",
+      "http://localhost:5173",
+      "http://localhost:8081",
+    ],
     methods: ["POST", "GET", "PUT", "DELETE"],
     credentials: true,
   })
