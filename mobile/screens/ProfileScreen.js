@@ -93,19 +93,17 @@ const ProfileScreen = () => {
       <View style={styles.profileHeader}>
         <View style={styles.avatarContainer}>
           {user?.avatar?.url ? (
+            // Display the user's avatar image
             <Image source={{ uri: user.avatar?.url }} style={styles.avatar} />
           ) : (
-            <View
-              style={[
-                styles.avatarPlaceholder,
-                { backgroundColor: colors.primary },
-              ]}
-            >
+            // Fallback: Display an icon or placeholder with the user's initial
+            <View style={styles.avatarPlaceholder}>
               <Text style={styles.avatarInitial}>
                 {user.firstName ? user.firstName[0].toUpperCase() : "U"}
               </Text>
             </View>
           )}
+
           <TouchableOpacity
             style={[
               styles.editAvatarButton,

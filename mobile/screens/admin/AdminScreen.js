@@ -1,37 +1,61 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform } from 'react-native';
-import Icon from 'react-native-vector-icons/FontAwesome';
-import { useTheme } from '../../context/ThemeContext';
-import { useNavigation } from '@react-navigation/native';
+import React from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Platform,
+} from "react-native";
+import Icon from "react-native-vector-icons/FontAwesome";
+import { useTheme } from "../../context/ThemeContext";
+import { useNavigation } from "@react-navigation/native";
 
 const AdminScreen = () => {
   const { colors } = useTheme();
   const navigation = useNavigation();
-  
+
+  // Updated routes to match drawer navigation structure
   const adminMenuItems = [
-    { name: 'Dashboard', icon: 'dashboard', route: 'Dashboard' },
-    { name: 'User Management', icon: 'users', route: 'UserManagement' },
-    { name: 'Cars Management', icon: 'car', route: 'CarsManagement' },
-    { name: 'Rental Management', icon: 'calendar-check-o', route: 'RentalManagement' },
-    { name: 'Reviews Management', icon: 'star', route: 'ReviewsManagement' },
-    { name: 'Discounts Management', icon: 'percent', route: 'DiscountsManagement' },
+    { name: "Dashboard", icon: "dashboard", route: "Dashboard" },
+    { name: "User Management", icon: "users", route: "UserManagement" },
+    { name: "Cars Management", icon: "car", route: "CarsStack" },
+    {
+      name: "Rental Management",
+      icon: "calendar-check-o",
+      route: "RentalManagement",
+    },
+    { name: "Reviews Management", icon: "star", route: "ReviewsManagement" },
+    { name: "Discounts Management", icon: "percent", route: "DiscountsStack" },
   ];
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
+    <ScrollView
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
       <View style={styles.header}>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Admin Panel</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>
+          Admin Panel
+        </Text>
+        <TouchableOpacity
+          style={styles.menuButton}
+          onPress={() => navigation.toggleDrawer()}
+        >
+          <Icon name="bars" size={24} color={colors.text} />
+        </TouchableOpacity>
       </View>
-      
+
       <View style={styles.menuGrid}>
         {adminMenuItems.map((item) => (
-          <TouchableOpacity 
+          <TouchableOpacity
             key={item.name}
             style={[styles.menuItem, { backgroundColor: colors.card }]}
             onPress={() => navigation.navigate(item.route)}
           >
             <Icon name={item.icon} size={30} color={colors.primary} />
-            <Text style={[styles.menuText, { color: colors.text }]}>{item.name}</Text>
+            <Text style={[styles.menuText, { color: colors.text }]}>
+              {item.name}
+            </Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -45,29 +69,34 @@ const styles = StyleSheet.create({
   },
   header: {
     padding: 24,
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: 8,
   },
   headerTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: "bold",
+  },
+  menuButton: {
+    padding: 8,
   },
   menuGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-around',
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-around",
     padding: 12,
   },
   menuItem: {
-    width: '46%',
+    width: "46%",
     padding: 22,
     marginVertical: 12,
     borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     ...Platform.select({
       ios: {
-        shadowColor: '#000',
+        shadowColor: "#000",
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.15,
         shadowRadius: 3,
@@ -80,8 +109,8 @@ const styles = StyleSheet.create({
   menuText: {
     marginTop: 12,
     fontSize: 15,
-    fontWeight: '600',
-    textAlign: 'center',
+    fontWeight: "600",
+    textAlign: "center",
   },
 });
 
