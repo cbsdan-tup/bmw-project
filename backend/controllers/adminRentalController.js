@@ -130,7 +130,18 @@ const updateRentalStatus = async (req, res) => {
             data: { 
               rentalId: rental._id.toString(),
               status: status,
-              type: 'rentalUpdate'
+              type: 'rentalUpdate',
+              navigation: {
+                screen: 'ProfileTab',
+                params: {
+                  screen: 'BookingDetails',
+                  params: {
+                    booking: {
+                      _id: rental._id.toString()
+                    }
+                  }
+                }
+              }
             },
           });
           

@@ -244,7 +244,7 @@ export const NotificationProvider = ({ children }) => {
               vibrate: [0, 250, 250, 250],
               categoryIdentifier: data?.type || 'default',
             },
-            trigger: null, // Display immediately
+            trigger: null, 
           });
         }
         
@@ -255,14 +255,28 @@ export const NotificationProvider = ({ children }) => {
     const responseListener = Notifications.addNotificationResponseReceivedListener(
       (response) => {
         console.log('🔔 Notification tapped by user:', response);
-        // Handle deep linking based on notification data
         const data = response.notification.request.content.data;
         console.log('Notification data:', data);
         
-        // Handle specific notification types
         if (data?.type === 'rentalUpdate') {
           console.log('Handling rental update notification click');
-          // You could navigate to the specific rental screen here
+          
+          if (data.navigation) {
+            console.log('Setting navigation from rental update notification:', data.navigation);
+            setNotificationNavigation(data.navigation);
+          } else {
+            setNotificationNavigation({
+              screen: 'ProfileTab',
+              params: {
+                screen: 'BookingDetails',
+                params: {
+                  booking: {
+                    _id: data.rentalId
+                  }
+                }
+              }
+            });
+          }
         } else if (data?.type === 'newDiscount') {
           console.log('Handling discount notification click', data);
           // Store navigation data to be handled by navigation container

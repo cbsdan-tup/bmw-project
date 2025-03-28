@@ -12,6 +12,7 @@ import MyCar from "../screens/MyCar";
 import PutCarOnRent from "../screens/PutCarOnRent";
 import ChatScreen from "../screens/ChatScreen";
 import RentalHistoryScreen from "../screens/RentalHistory";
+import BookingDetailsScreen from "../screens/BookingDetailsScreen";
 
 const Stack = createStackNavigator();
 
@@ -75,6 +76,14 @@ const ProfileNavigator = () => {
         options={{
           headerShown: true,
           title: "My Bookings",
+        }}
+      />
+      <Stack.Screen
+        name="BookingDetails"
+        component={BookingDetailsScreen}
+        options={{
+          headerShown: true,
+          title: "Booking Details",
         }}
       />
       <Stack.Screen
