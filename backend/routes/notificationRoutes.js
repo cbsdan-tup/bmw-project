@@ -1,26 +1,20 @@
 const express = require('express');
 const router = express.Router();
 const { 
-  getNotifications, 
+  getNotifications,
+  getNotificationCount,
   markAsRead, 
   markAllAsRead,
-  createFromMessage
+  createFromMessage,
+  deleteNotification 
 } = require('../controllers/notificationController');
 const { isAuthenticatedUser } = require('../middleware/auth');
 
-// Require authentication for all routes
-router.use(isAuthenticatedUser);
-
-// Get notifications
-router.get('/notifications', getNotifications);
-
-// Mark notification as read
-router.put('/notifications/:id/read', markAsRead);
-
-// Mark all notifications as read
-router.put('/notifications/mark-all-read', markAllAsRead);
-
-// Create notification from message
-router.post('/notifications/message', createFromMessage);
+router.get('/notifications', isAuthenticatedUser, getNotifications);
+router.get('/notifications/count', isAuthenticatedUser, getNotificationCount);
+router.put('/notifications/:id/read', isAuthenticatedUser, markAsRead);
+router.put('/notifications/mark-all-read', isAuthenticatedUser, markAllAsRead);
+router.post('/notifications/message', isAuthenticatedUser, createFromMessage);
+router.delete('/notifications/:id', isAuthenticatedUser, deleteNotification);
 
 module.exports = router;

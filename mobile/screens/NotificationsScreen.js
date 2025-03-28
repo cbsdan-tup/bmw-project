@@ -12,7 +12,8 @@ import {
   StatusBar,
   ScrollView,
   Animated,
-  Dimensions
+  Dimensions,
+  Alert
 } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
@@ -22,14 +23,11 @@ import api from '../services/api';
 import { useDispatch } from 'react-redux';
 import { decrementNotificationCount, clearNotificationCount } from '../redux/slices/notificationSlice';
 
-const { width } = Dimensions.get('window');
-const CARD_MARGIN = 12;
-
 const NotificationsScreen = () => {
   const { colors } = useTheme();
   const { user, token } = useAuth();
   const navigation = useNavigation();
-  const dispatch = useDispatch(); // Add dispatch
+  const dispatch = useDispatch();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -39,7 +37,6 @@ const NotificationsScreen = () => {
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const translateY = useRef(new Animated.Value(0)).current;
 
-  // Animation for marking as read
   const animateItem = (callback) => {
     Animated.sequence([
       Animated.timing(fadeAnim, {
@@ -53,6 +50,22 @@ const NotificationsScreen = () => {
         useNativeDriver: true,
       })
     ]).start(callback);
+  };
+
+  const filterLatestNotifications = (notifications) => {
+    const notificationMap = new Map();
+    
+    notifications.forEach(notification => {
+      const relatedId = notification.relatedId;
+      
+      if (!notificationMap.has(relatedId) || 
+          new Date(notification.createdAt) > new Date(notificationMap.get(relatedId).createdAt)) {
+        notificationMap.set(relatedId, notification);
+      }
+    });
+    
+    return Array.from(notificationMap.values())
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   };
 
   useEffect(() => {
@@ -73,7 +86,8 @@ const NotificationsScreen = () => {
       });
       
       if (response.data.success) {
-        setNotifications(response.data.notifications);
+        const filteredNotifications = filterLatestNotifications(response.data.notifications);
+        setNotifications(filteredNotifications);
         setUnreadCount(response.data.unreadCount || 0);
       } else {
         throw new Error(response.data.message || 'Failed to fetch notifications');
@@ -98,7 +112,6 @@ const NotificationsScreen = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      // Update local state with animation
       animateItem(() => {
         setNotifications(prevNotifications => 
           prevNotifications.map(notification => 
@@ -108,7 +121,6 @@ const NotificationsScreen = () => {
           )
         );
         
-        // Update unread count - both local and Redux state
         setUnreadCount(prev => Math.max(0, prev - 1));
         dispatch(decrementNotificationCount());
       });
@@ -123,7 +135,6 @@ const NotificationsScreen = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      // Update local state with animation
       Animated.timing(translateY, {
         toValue: 20,
         duration: 300,
@@ -133,11 +144,9 @@ const NotificationsScreen = () => {
           prevNotifications.map(notification => ({ ...notification, isRead: true }))
         );
         
-        // Reset unread count - both local and Redux state
         setUnreadCount(0);
         dispatch(clearNotificationCount());
         
-        // Reset animation
         translateY.setValue(0);
       });
     } catch (error) {
@@ -145,10 +154,25 @@ const NotificationsScreen = () => {
     }
   };
 
+  const deleteNotification = async (notificationId) => {
+    try {
+      await api.delete(`/notifications/${notificationId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      animateItem(() => {
+        setNotifications(prevNotifications => 
+          prevNotifications.filter(notification => notification._id !== notificationId)
+        );
+      });
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+    }
+  };
+
   const handleNotificationPress = (notification) => {
     markAsRead(notification._id);
     
-    // Navigate based on notification type
     switch (notification.type) {
       case 'my_car_inquiries':
       case 'my_inquiries':
@@ -177,12 +201,10 @@ const NotificationsScreen = () => {
         });
         break;
       default:
-        // Just mark as read but don't navigate
         break;
     }
   };
 
-  // Improved Filter tabs component
   const FilterTabs = () => (
     <View style={styles.filterTabsContainer}>
       <ScrollView 
@@ -288,7 +310,6 @@ const NotificationsScreen = () => {
         iconName = 'bell';
     }
     
-    // Format sender name
     let senderName = '';
     if (item.sender) {
       if (typeof item.sender === 'object') {
@@ -298,7 +319,6 @@ const NotificationsScreen = () => {
       }
     }
     
-    // Format car name
     let carName = '';
     if (item.carId) {
       if (typeof item.carId === 'object') {
@@ -308,7 +328,6 @@ const NotificationsScreen = () => {
       }
     }
     
-    // Animate opacity for the item
     return (
       <Animated.View 
         style={{ 
@@ -322,7 +341,6 @@ const NotificationsScreen = () => {
             { 
               backgroundColor: item.isRead ? colors.card : colors.card,
               borderLeftColor: item.isRead ? colors.border : colors.primary,
-              // Add a subtle shadow effect
               shadowColor: '#000',
               shadowOffset: { width: 0, height: 1 },
               shadowOpacity: item.isRead ? 0.1 : 0.2,
@@ -400,9 +418,42 @@ const NotificationsScreen = () => {
             )}
           </View>
           
-          {!item.isRead && (
-            <View style={[styles.unreadIndicator, { backgroundColor: colors.primary }]} />
-          )}
+          <View style={styles.actionContainer}>
+            {!item.isRead && (
+              <View style={[styles.unreadIndicator, { backgroundColor: colors.primary }]} />
+            )}
+            
+            {item.isRead && (
+              <TouchableOpacity
+                style={styles.deleteButton}
+                onPress={() => {
+                  if (Platform.OS === 'web') {
+                    if (confirm('Are you sure you want to delete this notification?')) {
+                      deleteNotification(item._id);
+                    }
+                  } else {
+                    Alert.alert(
+                      'Delete Notification',
+                      'Are you sure you want to delete this notification?',
+                      [
+                        {
+                          text: 'Cancel',
+                          style: 'cancel'
+                        },
+                        {
+                          text: 'Delete',
+                          style: 'destructive',
+                          onPress: () => deleteNotification(item._id)
+                        }
+                      ]
+                    );
+                  }
+                }}
+              >
+                <Icon name="trash" size={16} color={colors.error} />
+              </TouchableOpacity>
+            )}
+          </View>
         </TouchableOpacity>
       </Animated.View>
     );
@@ -467,7 +518,6 @@ const NotificationsScreen = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Add Filter Tabs */}
       <FilterTabs />
 
       {loading && !refreshing ? (
@@ -668,6 +718,18 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 16,
     right: 16,
+  },
+  actionContainer: {
+    position: 'absolute',
+    bottom: 12,
+    right: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  deleteButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 0, 0, 0.1)',
   },
   centerContent: {
     flex: 1,

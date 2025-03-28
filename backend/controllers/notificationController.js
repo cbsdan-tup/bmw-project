@@ -39,6 +39,29 @@ exports.getNotifications = async (req, res) => {
   }
 };
 
+// Get notification count only (new efficient endpoint)
+exports.getNotificationCount = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    
+    const unreadCount = await Notification.countDocuments({
+      userId,
+      isRead: false
+    });
+    
+    res.status(200).json({
+      success: true,
+      unreadCount
+    });
+  } catch (error) {
+    console.error('Error getting notification count:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching notification count'
+    });
+  }
+};
+
 // Mark notification as read
 exports.markAsRead = async (req, res) => {
   try {
@@ -213,6 +236,36 @@ exports.createFromMessage = async (req, res) => {
       success: false,
       message: 'Error creating notification',
       error: error.message
+    });
+  }
+};
+
+// Delete a notification
+exports.deleteNotification = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const notification = await Notification.findOneAndDelete({
+      _id: id,
+      userId: req.user._id
+    });
+    
+    if (!notification) {
+      return res.status(404).json({
+        success: false,
+        message: 'Notification not found or already deleted'
+      });
+    }
+    
+    res.status(200).json({
+      success: true,
+      message: 'Notification deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting notification:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting notification'
     });
   }
 };
