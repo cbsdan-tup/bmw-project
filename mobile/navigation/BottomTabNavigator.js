@@ -1,8 +1,11 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createStackNavigator } from "@react-navigation/stack";
 import Icon from "react-native-vector-icons/FontAwesome";
 import { Platform, Text, View } from "react-native";
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchNotificationCount } from '../redux/slices/notificationSlice';
+import { useAuth } from '../context/AuthContext';
 import HomeScreen from "../screens/HomeScreen";
 import CarDetailsScreen from "../screens/CarDetailsScreen";
 import ProfileScreen from "../screens/ProfileScreen";
@@ -133,9 +136,63 @@ const SearchStack = () => {
   );
 };
 
+// Add Notifications Stack Navigator
+const NotificationsStack = () => {
+  const { colors } = useTheme();
+
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: colors.headerBackground,
+        },
+        headerTintColor: colors.headerText,
+        headerTitleStyle: {
+          fontWeight: "bold",
+        },
+      }}
+    >
+      <Stack.Screen
+        name="NotificationsScreen"
+        component={NotificationsScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="ChatScreen"
+        component={ChatScreen}
+        options={({ route }) => ({ title: route.params?.chatName || "Chat" })}
+      />
+      <Stack.Screen
+        name="CarDetails"
+        component={CarDetailsScreen}
+        options={{ headerShown: false }}
+      />
+    </Stack.Navigator>
+  );
+};
+
 // Bottom Tab Navigator
 const BottomTabNavigator = ({ userRole }) => {
   const { colors } = useTheme();
+  const dispatch = useDispatch();
+  const { user, token } = useAuth();
+  const { unreadCount } = useSelector(state => state.notifications);
+  
+  // Fetch notification count on mount and set up interval
+  useEffect(() => {
+    if (user && token) {
+      // Initial fetch
+      dispatch(fetchNotificationCount());
+      
+      // Set up interval to refresh count (every 30 seconds)
+      const interval = setInterval(() => {
+        dispatch(fetchNotificationCount());
+      }, 2000);
+      
+      // Clean up interval on unmount
+      return () => clearInterval(interval);
+    }
+  }, [dispatch, user, token, unreadCount]);
 
   return (
     <Tab.Navigator
@@ -178,12 +235,37 @@ const BottomTabNavigator = ({ userRole }) => {
         }}
       />
       
+      {/* Notification tab with badge */}
       <Tab.Screen
-        name="Notifications"
-        component={NotificationsScreen}
+        name="NotificationsTab"
+        component={NotificationsStack}
         options={{
+          title: 'Notifications',
           tabBarIcon: ({ color, size }) => (
-            <Icon name="bell" size={size} color={color} />
+            <View>
+              <Icon name="bell" size={size} color={color} />
+              {user && unreadCount > 0 && (
+                <View style={{
+                  position: 'absolute',
+                  right: -6,
+                  top: -3,
+                  backgroundColor: colors.notification || '#FF3B30',
+                  borderRadius: 10,
+                  width: unreadCount > 99 ? 22 : (unreadCount > 9 ? 18 : 16),
+                  height: 16,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}>
+                  <Text style={{
+                    color: '#FFFFFF',
+                    fontSize: 10,
+                    fontWeight: 'bold',
+                  }}>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </Text>
+                </View>
+              )}
+            </View>
           ),
         }}
       />

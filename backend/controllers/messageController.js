@@ -1,6 +1,7 @@
 const Message = require("../models/message");
 const cloudinary = require("cloudinary");
 const { getUser } = require("../utils/onlineUsers");
+const Car = require("../models/Cars");
 
 exports.sendMessage = async (req, res) => {
   try {
@@ -93,6 +94,29 @@ exports.sendMessage = async (req, res) => {
     const populatedMessage = await Message.findById(message._id)
       .populate("senderId", "firstName lastName email avatar")
       .populate("receiverId", "firstName lastName email avatar");
+
+    // Create notification for this message
+    try {
+      // Get car details
+      const car = await Car.findById(carId);
+      
+      if (car) {
+        // Create notification
+        await Notification.create({
+          userId: receiverId,
+          title: `New message about ${car.brand} ${car.model}`,
+          message: content.length > 100 ? content.substring(0, 97) + '...' : content,
+          type: car.owner.toString() === receiverId ? 'my_car_inquiries' : 'my_inquiries',
+          isRead: false,
+          relatedId: message._id.toString(),
+          sender: req.user._id,
+          carId: car._id
+        });
+      }
+    } catch (notificationError) {
+      console.error('Error creating notification:', notificationError);
+      // Don't fail the message send if notification creation fails
+    }
 
     // Emit socket event for real-time message
     const io = req.app.get("io");

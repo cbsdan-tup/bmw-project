@@ -9,6 +9,7 @@ import adminRentalReducer from './slices/adminRentalSlice';
 import adminReviewReducer from './slices/adminReviewSlice';
 import adminDiscountReducer from './slices/adminDiscountSlice';
 import adminDashboardReducer from './slices/adminDashboardSlice';
+import notificationReducer from './slices/notificationSlice';
 
 export const store = configureStore({
   reducer: {
@@ -22,6 +23,7 @@ export const store = configureStore({
     adminReviews: adminReviewReducer,
     adminDiscounts: adminDiscountReducer,
     adminDashboard: adminDashboardReducer,
+    notifications: notificationReducer, // Add the notification reducer
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

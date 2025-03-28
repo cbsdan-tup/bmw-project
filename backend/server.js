@@ -18,6 +18,9 @@ const cloudinary = require("cloudinary");
 const User = require("./models/User");
 // Add expoNotifications utility
 const { sendExpoNotifications } = require("./utils/expoNotifications");
+// Add Notification model for creating notifications
+const Notification = require("./models/Notification");
+const Car = require("./models/Cars");
 
 const auth = require("./routes/auth");
 const discount = require("./routes/discount");
@@ -32,6 +35,7 @@ const carsManagementRoutes = require("./routes/carsManagementRoutes");
 const rentalManagementRoutes = require("./routes/rentalManagementRoutes");
 const adminStatsRoutes = require("./routes/adminStatsRoutes");
 const pushNotificationRoutes = require("./routes/pushNotificationRoutes");
+const notificationRoutes = require("./routes/notificationRoutes"); // Add this line
 
 const http = require("http");
 const socketIO = require("socket.io");
@@ -230,7 +234,7 @@ app.use((req, res, next) => {
   // Store the original send method
   const originalSend = res.send;
   
-  res.send = function(body) {
+  res.send = async function(body) {
     // Check if this is a message creation response
     if (req.method === 'POST' && 
         req.originalUrl.includes('/api/v1/messages') && 
@@ -245,7 +249,7 @@ app.use((req, res, next) => {
         
         // If this is a new message created through the API
         if (data && data.success && data.message) {
-          console.log('Message created via API, triggering push notification');
+          console.log('Message created via API, triggering notification creation');
           
           const message = data.message;
           console.log('Message object from API:', JSON.stringify(message));
@@ -278,9 +282,9 @@ app.use((req, res, next) => {
             }
             
             if (senderId && receiverId && carId) {
-              console.log(`Extracted data - senderId: ${senderId}, receiverId: ${receiverId}, carId: ${carId}`);
+              console.log(`Extracted data for notification - senderId: ${senderId}, receiverId: ${receiverId}, carId: ${carId}`);
               
-              // Create room ID
+              // Create room ID for socket communication
               const roomId = [senderId, receiverId, carId].sort().join('-');
               
               // Try to send push notification
@@ -295,8 +299,20 @@ app.use((req, res, next) => {
               }).catch(err => {
                 console.error('Error sending direct push notification:', err);
               });
+              
+              // Create notification for the message - with improved error handling
+              try {
+                console.log('Calling createNotificationFromMessage...');
+                const notifications = await createNotificationFromMessage(messageId, senderId, receiverId, content, carId);
+                console.log(`Notification creation result: ${notifications ? 'Success' : 'Failed'}`);
+                if (notifications) {
+                  console.log(`Created ${notifications.length} notifications`);
+                }
+              } catch (notificationError) {
+                console.error('Error creating notification from message:', notificationError);
+              }
             } else {
-              console.error('Missing required data from message response');
+              console.error('Missing required data for notification creation:', { senderId, receiverId, carId });
             }
           }
         }
@@ -311,6 +327,102 @@ app.use((req, res, next) => {
   
   next();
 });
+
+// Function to create a notification from a message
+async function createNotificationFromMessage(messageId, senderId, receiverId, content, carId) {
+  try {
+    console.log(`Creating notification for message: ${messageId}`);
+    console.log(`Parameters: senderId=${senderId}, receiverId=${receiverId}, carId=${carId}`);
+    
+    // Validate all required parameters
+    if (!messageId || !senderId || !receiverId || !carId) {
+      console.error('Missing required parameters for notification creation');
+      return null;
+    }
+    
+    // Get car details with explicit error handling
+    let car = null;
+    try {
+      car = await Car.findById(carId);
+      console.log(`Car lookup result: ${car ? 'Found' : 'Not found'}`);
+    } catch (carError) {
+      console.error(`Error finding car with ID ${carId}:`, carError);
+      return null;
+    }
+    
+    if (!car) {
+      console.error(`Car not found for ID: ${carId}`);
+      return null;
+    }
+    
+    // Explicitly log owner ID and comparison results for debugging
+    const carOwnerId = car.owner.toString();
+    console.log(`Car owner ID: ${carOwnerId}`);
+    console.log(`Receiver ID: ${receiverId}`);
+    console.log(`Sender ID: ${senderId}`);
+    
+    // Check if receiver is car owner
+    const isCarOwnerReceiver = carOwnerId === receiverId.toString();
+    console.log(`Is receiver the car owner? ${isCarOwnerReceiver}`);
+
+    // Check if sender is car owner
+    const isSenderCarOwner = carOwnerId === senderId.toString();
+    console.log(`Is sender the car owner? ${isSenderCarOwner}`);
+    
+    const notifications = [];
+    
+    // 1. Always create a notification for the receiver
+    try {
+      const receiverType = isCarOwnerReceiver ? 'my_car_inquiries' : 'my_inquiries';
+      console.log(`Creating ${receiverType} notification for receiver ${receiverId}`);
+      
+      const receiverNotification = await Notification.create({
+        userId: receiverId,
+        title: `New message about ${car.brand} ${car.model}`,
+        message: content && content.length > 100 ? content.substring(0, 97) + '...' : (content || ''),
+        type: receiverType,
+        isRead: false,
+        relatedId: messageId.toString(),
+        sender: senderId,
+        carId: car._id
+      });
+      
+      console.log(`Receiver notification created: ${receiverNotification._id}`);
+      notifications.push(receiverNotification);
+    } catch (receiverError) {
+      console.error('Error creating receiver notification:', receiverError);
+    }
+    
+    // 2. Create notification for the sender if they're not the car owner
+    if (!isSenderCarOwner) {
+      try {
+        console.log(`Creating my_inquiries notification for sender ${senderId}`);
+        
+        const senderNotification = await Notification.create({
+          userId: senderId,
+          title: `Your inquiry about ${car.brand} ${car.model}`,
+          message: content && content.length > 100 ? content.substring(0, 97) + '...' : (content || ''),
+          type: 'my_inquiries',
+          isRead: true, // Mark as read for sender since they just sent it
+          relatedId: messageId.toString(),
+          sender: receiverId,
+          carId: car._id
+        });
+        
+        console.log(`Sender notification created: ${senderNotification._id}`);
+        notifications.push(senderNotification);
+      } catch (senderError) {
+        console.error('Error creating sender notification:', senderError);
+      }
+    }
+    
+    console.log(`Created ${notifications.length} notifications successfully`);
+    return notifications;
+  } catch (error) {
+    console.error('Error in createNotificationFromMessage:', error);
+    return null;
+  }
+}
 
 // Routes
 app.use("/", require("./routes/root"));
@@ -327,6 +439,7 @@ app.use("/api/v1", carsManagementRoutes);
 app.use("/api/v1", rentalManagementRoutes);
 app.use("/api/v1", adminStatsRoutes);
 app.use("/api/v1", pushNotificationRoutes);
+app.use("/api/v1", notificationRoutes); // Add this line
 
 //404 not found routes
 app.all("*", (req, res) => {
