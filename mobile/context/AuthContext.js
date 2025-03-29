@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import axios from 'axios';
 import { auth, refreshFirebaseToken } from '../config/firebase-config';
 import { 
@@ -13,6 +14,7 @@ import {
   Platform
 } from 'react-native';
 import api from '../services/api';
+
 // Create auth context
 export const AuthContext = createContext();
 
@@ -45,7 +47,7 @@ export const AuthProvider = ({ children }) => {
           setToken(newToken);
           setTokenExpiration(newExpiration);
           
-          await AsyncStorage.setItem('token', newToken);
+          await SecureStore.setItemAsync('auth_token', newToken);
           await AsyncStorage.setItem('tokenExpiration', newExpiration.toString());
           
           axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
@@ -82,7 +84,7 @@ export const AuthProvider = ({ children }) => {
     const loadUserFromStorage = async () => {
       setIsLoading(true);
       try {
-        const storedToken = await AsyncStorage.getItem('token');
+        const storedToken = await SecureStore.getItemAsync('auth_token');
         const storedUser = await AsyncStorage.getItem('user');
         const storedExpiration = await AsyncStorage.getItem('tokenExpiration');
         
@@ -101,7 +103,8 @@ export const AuthProvider = ({ children }) => {
             axios.defaults.headers.common['Authorization'] = `Bearer ${validToken}`;
           } catch (e) {
             console.log('Token verification failed, user will need to login again');
-            await AsyncStorage.multiRemove(['token', 'user', 'tokenExpiration']);
+            await SecureStore.deleteItemAsync('auth_token');
+            await AsyncStorage.multiRemove(['user', 'tokenExpiration']);
           }
         }
       } catch (err) {
@@ -163,8 +166,8 @@ export const AuthProvider = ({ children }) => {
         console.log("User Token: ", idToken);
         setTokenExpiration(expirationTime);
         
-        // Save to AsyncStorage
-        await AsyncStorage.setItem('token', idToken);
+        // Save to storage
+        await SecureStore.setItemAsync('auth_token', idToken);
         await AsyncStorage.setItem('user', JSON.stringify(userData));
         await AsyncStorage.setItem('tokenExpiration', expirationTime.toString());
         
@@ -225,7 +228,7 @@ export const AuthProvider = ({ children }) => {
           setToken(firebaseToken);
           setUser(userData);
           
-          await AsyncStorage.setItem('token', firebaseToken);
+          await SecureStore.setItemAsync('auth_token', firebaseToken);
           await AsyncStorage.setItem('user', JSON.stringify(userData));
           
           axios.defaults.headers.common['Authorization'] = `Bearer ${firebaseToken}`;
@@ -282,7 +285,7 @@ export const AuthProvider = ({ children }) => {
           setToken(firebaseToken);
           setUser(newUser);
           
-          await AsyncStorage.setItem('token', firebaseToken);
+          await SecureStore.setItemAsync('auth_token', firebaseToken);
           await AsyncStorage.setItem('user', JSON.stringify(newUser));
           
           axios.defaults.headers.common['Authorization'] = `Bearer ${firebaseToken}`;
@@ -390,8 +393,9 @@ export const AuthProvider = ({ children }) => {
       setToken(null);
       setTokenExpiration(null);
       
-      // Remove from AsyncStorage
-      await AsyncStorage.multiRemove(['token', 'user', 'tokenExpiration']);
+      // Remove from storage
+      await SecureStore.deleteItemAsync('auth_token');
+      await AsyncStorage.multiRemove(['user', 'tokenExpiration']);
       
       // Remove Authorization header
       delete axios.defaults.headers.common['Authorization'];

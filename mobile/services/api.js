@@ -1,5 +1,6 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { 
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword,
@@ -19,7 +20,7 @@ const api = axios.create({
 api.interceptors.request.use(
   async (config) => {
     try {
-      const token = await AsyncStorage.getItem('token');
+      const token = await SecureStore.getItemAsync('auth_token');
       
       if (token) {
         config.headers['Authorization'] = `Bearer ${token}`;
@@ -50,7 +51,7 @@ api.interceptors.response.use(
         if (newToken) {
           originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
           
-          await AsyncStorage.setItem('token', newToken);
+          await SecureStore.setItemAsync('auth_token', newToken);
           
           return api(originalRequest);
         }
@@ -64,7 +65,7 @@ api.interceptors.response.use(
 );
 
 const storeUserData = async (authToken, userData) => {
-  await AsyncStorage.setItem('token', authToken);
+  await SecureStore.setItemAsync('auth_token', authToken);
   await AsyncStorage.setItem('user', JSON.stringify(userData));
 };
 
@@ -236,7 +237,7 @@ export const authService = {
   logout: async () => {
     try {
       await auth.signOut();
-      await AsyncStorage.removeItem('token');
+      await SecureStore.deleteItemAsync('auth_token');
       await AsyncStorage.removeItem('user');
     } catch (error) {
       console.log("Logout error:", error);
@@ -246,7 +247,7 @@ export const authService = {
   
   isAuthenticated: async () => {
     try {
-      const token = await AsyncStorage.getItem('token');
+      const token = await SecureStore.getItemAsync('auth_token');
       const user = await AsyncStorage.getItem('user');
       return !!token && !!user;
     } catch (error) {
