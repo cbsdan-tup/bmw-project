@@ -7,7 +7,6 @@ import {
   ScrollView,
   TextInput,
   TouchableOpacity,
-  Dimensions,
   FlatList,
   Image,
   Alert,
@@ -19,17 +18,24 @@ import * as ImagePicker from "expo-image-picker";
 import { useTheme } from "../context/ThemeContext";
 import { Picker } from "@react-native-picker/picker";
 import { useAuth } from "../context/AuthContext";
-import { auth } from "../config/firebase-config";
-import api from "../services/api";
 import { MaterialIcons } from "@expo/vector-icons";
+import { useDispatch, useSelector } from "react-redux";
+import {
+  fetchUserCars,
+  createCar,
+  updateCar,
+  deleteCar,
+  clearError,
+} from "../redux/slices/carSlice";
 
 const PutCarOnRent = ({ navigation }) => {
   const { colors } = useTheme();
   const { user, isAuthenticated } = useAuth();
+  const dispatch = useDispatch();
+  const { userCars, loading, error } = useSelector((state) => state.cars);
+
   const [currentUserId, setCurrentUserId] = useState(null);
-  const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [userCars, setUserCars] = useState([]);
   const [carData, setCarData] = useState({
     brand: "",
     model: "",
@@ -46,14 +52,20 @@ const PutCarOnRent = ({ navigation }) => {
     termsAndConditions: "",
     isActive: true,
     isAutoApproved: false,
-    owner: "", // Replace with actual user ID from auth context
+    owner: "",
   });
   const [images, setImages] = useState([]);
   const [editingCar, setEditingCar] = useState(null);
   const [showImageOptions, setShowImageOptions] = useState(false);
   const [removedImageIds, setRemovedImageIds] = useState([]);
 
-  // Debug auth state
+  useEffect(() => {
+    if (error) {
+      Alert.alert("Error", error);
+      dispatch(clearError());
+    }
+  }, [error, dispatch]);
+
   useEffect(() => {
     console.log("PutCarOnRent - Auth State:", { user, isAuthenticated });
     if (user?._id) {
@@ -65,29 +77,18 @@ const PutCarOnRent = ({ navigation }) => {
     }
   }, [user, isAuthenticated]);
 
-  const fetchUserCars = async () => {
-    try {
-      if (!user?._id) return;
-      const response = await api.get(`/my-cars/${user._id}`);
-      setUserCars(response.data.cars || []);
-      setShowForm(response.data.cars?.length === 0);
-    } catch (error) {
-      console.error("Error fetching user cars:", error);
-      if (error?.response?.status === 401) {
-        // Handle unauthorized error - could redirect to login or refresh token
-        alert("Session expired. Please login again.");
-        // Optional: Trigger logout or token refresh
-      } else {
-        alert("Failed to fetch your listed cars");
-      }
-    }
-  };
-
   useEffect(() => {
     if (user?._id) {
-      fetchUserCars();
+      dispatch(fetchUserCars(user._id));
+      setShowForm(userCars.length === 0);
     }
-  }, [user?._id]);
+  }, [user?._id, dispatch]);
+
+  useEffect(() => {
+    if (userCars && userCars.length === 0) {
+      setShowForm(true);
+    }
+  }, [userCars]);
 
   const openCamera = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -107,7 +108,6 @@ const PutCarOnRent = ({ navigation }) => {
     });
 
     if (!result.canceled && result.assets) {
-      // Add new image to existing images array
       setImages([...images, ...result.assets.map((asset) => asset.uri)]);
     }
     setShowImageOptions(false);
@@ -132,14 +132,12 @@ const PutCarOnRent = ({ navigation }) => {
     });
 
     if (!result.canceled && result.assets) {
-      // Add new images to existing images array
       setImages([...images, ...result.assets.map((asset) => asset.uri)]);
     }
     setShowImageOptions(false);
   };
 
   const removeImage = (index) => {
-    // If we're editing and the image is a URL (from server), track its ID for removal
     if (editingCar && images[index] && images[index].startsWith("http")) {
       const imageToRemove = editingCar.images.find((img) => {
         const imgUrl = typeof img === "string" ? img : img.url;
@@ -151,7 +149,6 @@ const PutCarOnRent = ({ navigation }) => {
       }
     }
 
-    // Remove from UI
     const newImages = [...images];
     newImages.splice(index, 1);
     setImages(newImages);
@@ -169,7 +166,6 @@ const PutCarOnRent = ({ navigation }) => {
         return;
       }
 
-      // Form validation
       const requiredFields = [
         "brand",
         "model",
@@ -188,14 +184,11 @@ const PutCarOnRent = ({ navigation }) => {
         return;
       }
 
-      setLoading(true);
       const formData = new FormData();
 
-      // Ensure owner is a single string value
       const ownerId = user._id.toString();
       formData.append("owner", ownerId);
 
-      // Add all car data fields except owner (since we handled it above)
       Object.keys(carData).forEach((key) => {
         if (
           key !== "owner" &&
@@ -206,7 +199,6 @@ const PutCarOnRent = ({ navigation }) => {
         }
       });
 
-      // Handle multiple images
       const imagesToUpload = images.filter((img) => !img.startsWith("http"));
 
       if (imagesToUpload.length > 0) {
@@ -223,7 +215,6 @@ const PutCarOnRent = ({ navigation }) => {
         });
       }
 
-      // For edit mode, include existing images that weren't removed
       if (editingCar) {
         const existingImagesUrls = images.filter((img) =>
           img.startsWith("http")
@@ -232,79 +223,49 @@ const PutCarOnRent = ({ navigation }) => {
           formData.append("existingImages", JSON.stringify(existingImagesUrls));
         }
 
-        // Include IDs of images to be removed
         if (removedImageIds.length > 0) {
           formData.append("removedImageIds", JSON.stringify(removedImageIds));
         }
       }
 
-      let response;
+      let result;
       if (editingCar) {
-        // Ensure we're using the correct ID format
         const carId = editingCar._id.toString();
-        response = await api.put(`/Cars/${carId}`, formData, {
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "multipart/form-data",
-          },
-        });
-        if (response.data.success) {
-          setUserCars((prevCars) =>
-            prevCars.map((car) => (car._id === carId ? response.data.car : car))
-          );
-        }
+        result = await dispatch(updateCar({ carId, formData })).unwrap();
       } else {
-        response = await api.post("/CreateCar", formData, {
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "multipart/form-data",
-          },
-        });
-        if (response.data.success) {
-          // Add the new car to the state directly
-          setUserCars((prevCars) => [...prevCars, response.data.car]);
-        }
+        result = await dispatch(createCar(formData)).unwrap();
       }
 
-      if (response.data.success) {
-        Alert.alert(
-          "Success",
-          editingCar ? "Car updated successfully!" : "Car listed successfully!"
-        );
-        // Reset form
-        setCarData({
-          brand: "",
-          model: "",
-          year: new Date().getFullYear().toString(),
-          vehicleType: "Sedan",
-          transmission: "Automatic",
-          fuel: "Petrol",
-          seatCapacity: "",
-          displacement: "",
-          mileage: "",
-          pricePerDay: "",
-          description: "",
-          pickUpLocation: "",
-          termsAndConditions: "",
-          isActive: true,
-          isAutoApproved: false,
-          owner: user._id,
-        });
-        setImages([]);
-        setEditingCar(null);
-        setShowForm(false);
-      }
+      Alert.alert(
+        "Success",
+        editingCar ? "Car updated successfully!" : "Car listed successfully!"
+      );
 
-      // Reset the removedImageIds when form is reset
+      setCarData({
+        brand: "",
+        model: "",
+        year: new Date().getFullYear().toString(),
+        vehicleType: "Sedan",
+        transmission: "Automatic",
+        fuel: "Petrol",
+        seatCapacity: "",
+        displacement: "",
+        mileage: "",
+        pricePerDay: "",
+        description: "",
+        pickUpLocation: "",
+        termsAndConditions: "",
+        isActive: true,
+        isAutoApproved: false,
+        owner: user._id,
+      });
+      setImages([]);
+      setEditingCar(null);
+      setShowForm(false);
       setRemovedImageIds([]);
     } catch (error) {
       console.error("Error saving car:", error);
-      Alert.alert(
-        "Error",
-        error.response?.data?.message || "Failed to save car listing"
-      );
-    } finally {
-      setLoading(false);
+      Alert.alert("Error", error.message || "Failed to save car listing");
     }
   };
 
@@ -321,29 +282,16 @@ const PutCarOnRent = ({ navigation }) => {
           {
             text: "Delete",
             onPress: async () => {
-              setLoading(true);
-              const response = await api.delete(`/Cars/${carId}`);
-              setLoading(false);
-              if (response.data.success) {
-                Alert.alert("Success", "Car deleted successfully!");
-                // Update the state directly instead of fetching again
-                setUserCars((prevCars) =>
-                  prevCars.filter((car) => car._id !== carId)
-                );
-              }
+              await dispatch(deleteCar(carId)).unwrap();
+              Alert.alert("Success", "Car deleted successfully!");
             },
             style: "destructive",
           },
         ]
       );
     } catch (error) {
-      setLoading(false);
       console.error("Error deleting car:", error);
-      if (error?.response?.status === 401) {
-        Alert.alert("Session Expired", "Please login again.");
-      } else {
-        Alert.alert("Error", "Failed to delete car");
-      }
+      Alert.alert("Error", "Failed to delete car");
     }
   };
 
@@ -368,10 +316,8 @@ const PutCarOnRent = ({ navigation }) => {
       owner: car.owner || user._id,
     });
 
-    // Reset removedImageIds when starting a new edit
     setRemovedImageIds([]);
 
-    // Handle images from the existing car
     if (car.images && car.images.length > 0) {
       const imageUrls = car.images.map((img) =>
         typeof img === "string" ? img : img.url
@@ -456,7 +402,6 @@ const PutCarOnRent = ({ navigation }) => {
     </View>
   );
 
-  // Render an image preview item with delete button
   const renderImageItem = ({ item, index }) => (
     <View style={styles.imageContainer}>
       <Image source={{ uri: item }} style={styles.imagePreview} />
@@ -469,7 +414,6 @@ const PutCarOnRent = ({ navigation }) => {
     </View>
   );
 
-  // Image options modal component
   const ImageOptionsModal = () => (
     <Modal
       animationType="slide"
@@ -600,7 +544,9 @@ const PutCarOnRent = ({ navigation }) => {
                   { color: colors.text, borderColor: colors.borderCars },
                 ]}
                 value={carData.brand}
-                onChangeText={(text) => setCarData({ ...carData, brand: text })}
+                onChangeText={(text) =>
+                  setCarData({ ...carData, brand: text })
+                }
                 placeholder="Enter car brand"
                 placeholderTextColor={colors.secondary}
               />
@@ -615,7 +561,9 @@ const PutCarOnRent = ({ navigation }) => {
                   { color: colors.text, borderColor: colors.borderCars },
                 ]}
                 value={carData.model}
-                onChangeText={(text) => setCarData({ ...carData, model: text })}
+                onChangeText={(text) =>
+                  setCarData({ ...carData, model: text })
+                }
                 placeholder="Enter car model"
                 placeholderTextColor={colors.secondary}
               />
@@ -628,7 +576,9 @@ const PutCarOnRent = ({ navigation }) => {
                   { color: colors.text, borderColor: colors.borderCars },
                 ]}
                 value={carData.year}
-                onChangeText={(text) => setCarData({ ...carData, year: text })}
+                onChangeText={(text) =>
+                  setCarData({ ...carData, year: text })
+                }
                 placeholder="Enter year (2009 or later)"
                 keyboardType="numeric"
                 placeholderTextColor={colors.secondary}
@@ -636,7 +586,10 @@ const PutCarOnRent = ({ navigation }) => {
             </View>
 
             <View
-              style={[styles.formGroup, { backgroundColor: colors.background }]}
+              style={[
+                styles.formGroup,
+                { backgroundColor: colors.background },
+              ]}
             >
               <Text style={[styles.label, { color: colors.text }]}>
                 Vehicle Type *
@@ -897,7 +850,6 @@ const additionalStyles = {
   formSection: {
     marginBottom: 20,
     borderBottomWidth: 1,
-    // borderBottomColor: colors.borderCars,
     paddingBottom: 15,
   },
   sectionTitle: {
@@ -994,7 +946,6 @@ const additionalStyles = {
     padding: 10,
     borderRadius: 8,
     borderWidth: 1,
-    // borderColor: colors.borderCars,
     justifyContent: "center",
     alignItems: "center",
     marginTop: 5,
@@ -1080,7 +1031,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     borderWidth: 1,
-    // borderColor is applied dynamically in the component
   },
   carTitle: {
     fontSize: 18,

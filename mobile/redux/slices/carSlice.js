@@ -127,12 +127,81 @@ export const deleteFavoriteCar = createAsyncThunk(
   }
 );
 
+export const fetchUserCars = createAsyncThunk(
+  'cars/fetchUserCars',
+  async (userId, { rejectWithValue }) => {
+    try {
+      if (!userId) {
+        throw new Error('User ID is required');
+      }
+      
+      const response = await api.get(`/my-cars/${userId}`);
+      return response.data.cars || [];
+    } catch (error) {
+      console.error('Error fetching user cars:', error);
+      return rejectWithValue(error.response?.data || 'Failed to fetch your cars');
+    }
+  }
+);
+
+export const createCar = createAsyncThunk(
+  'cars/createCar',
+  async (formData, { rejectWithValue }) => {
+    try {
+      const response = await api.post('/CreateCar', formData, {
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      
+      return response.data.car;
+    } catch (error) {
+      console.error('Error creating car:', error);
+      return rejectWithValue(error.response?.data || 'Failed to create car');
+    }
+  }
+);
+
+export const updateCar = createAsyncThunk(
+  'cars/updateCar',
+  async ({ carId, formData }, { rejectWithValue }) => {
+    try {
+      const response = await api.put(`/Cars/${carId}`, formData, {
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      
+      return response.data.car;
+    } catch (error) {
+      console.error('Error updating car:', error);
+      return rejectWithValue(error.response?.data || 'Failed to update car');
+    }
+  }
+);
+
+export const deleteCar = createAsyncThunk(
+  'cars/deleteCar',
+  async (carId, { rejectWithValue }) => {
+    try {
+      const response = await api.delete(`/Cars/${carId}`);
+      return { carId, success: response.data.success };
+    } catch (error) {
+      console.error('Error deleting car:', error);
+      return rejectWithValue(error.response?.data || 'Failed to delete car');
+    }
+  }
+);
+
 const initialState = {
   featuredCars: [],
   filteredCars: [],
   currentCar: null,
   favorites: [],
   favoriteCarsData: [], 
+  userCars: [], // Add this for storing user's own cars
   loading: false,
   error: null,
   filterParams: {
@@ -257,6 +326,64 @@ const carSlice = createSlice({
       })
       .addCase(deleteFavoriteCar.rejected, (state, action) => {
         state.error = action.payload || 'Failed to delete favorite car';
+      })
+
+      // Fetch User Cars
+      .addCase(fetchUserCars.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchUserCars.fulfilled, (state, action) => {
+        state.loading = false;
+        state.userCars = action.payload;
+      })
+      .addCase(fetchUserCars.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Failed to fetch user cars';
+      })
+
+      // Create Car
+      .addCase(createCar.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(createCar.fulfilled, (state, action) => {
+        state.loading = false;
+        state.userCars.push(action.payload);
+      })
+      .addCase(createCar.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Failed to create car';
+      })
+
+      // Update Car
+      .addCase(updateCar.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateCar.fulfilled, (state, action) => {
+        state.loading = false;
+        state.userCars = state.userCars.map(car => 
+          car._id === action.payload._id ? action.payload : car
+        );
+      })
+      .addCase(updateCar.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Failed to update car';
+      })
+
+      // Delete Car
+      .addCase(deleteCar.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(deleteCar.fulfilled, (state, action) => {
+        state.loading = false;
+        state.userCars = state.userCars.filter(car => car._id !== action.payload.carId);
+      })
+      .addCase(deleteCar.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Failed to delete car';
       });
   }
 });
