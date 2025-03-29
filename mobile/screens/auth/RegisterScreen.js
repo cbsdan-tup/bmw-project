@@ -9,7 +9,8 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
-  Image
+  Image,
+  Modal
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../context/AuthContext';
@@ -19,12 +20,10 @@ import { globalStyles } from '../../styles/globalStyles';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useToast } from '../../context/ToastContext';
 import { GOOGLE_SIGNIN_CONFIG } from '../../config/google-auth-config';
-// Replace React Native Firebase imports with Web SDK
 import { auth, app } from '../../config/firebase-config';
 import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 
-// Initialize Google Sign-in
 GoogleSignin.configure(GOOGLE_SIGNIN_CONFIG);
 
 const RegisterScreen = ({ navigation }) => {
@@ -39,6 +38,7 @@ const RegisterScreen = ({ navigation }) => {
   const [avatar, setAvatar] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
   const [registrationInProgress, setRegistrationInProgress] = useState(false);
+  const [isModalVisible, setIsModalVisible] = useState(false);
   
   const textInputStyle = {
     backgroundColor: colors.surface,
@@ -46,7 +46,11 @@ const RegisterScreen = ({ navigation }) => {
     borderColor: colors.border,
   };
   
-  const handlePickAvatar = async () => {
+  const handlePickAvatar = () => {
+    setIsModalVisible(true);
+  };
+  
+  const handleChooseFromLibrary = async () => {
     try {
       const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
       
@@ -73,6 +77,37 @@ const RegisterScreen = ({ navigation }) => {
     } catch (error) {
       console.error("Error picking image:", error);
       toast.error('Failed to pick an image. Please try again.');
+    } finally {
+      setIsModalVisible(false);
+    }
+  };
+  
+  const handleTakePhoto = async () => {
+    try {
+      const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+      
+      if (permissionResult.granted === false) {
+        toast.warning('You need to allow camera access to take a photo.');
+        return;
+      }
+      
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+      
+      if (!result.canceled) {
+        if (result.assets && result.assets.length > 0) {
+          setAvatar(result.assets[0].uri);
+          console.log("Image captured:", result.assets[0].uri);
+        }
+      }
+    } catch (error) {
+      console.error("Error taking photo:", error);
+      toast.error('Failed to take a photo. Please try again.');
+    } finally {
+      setIsModalVisible(false);
     }
   };
   
@@ -117,16 +152,12 @@ const RegisterScreen = ({ navigation }) => {
       setRegistrationInProgress(true);
       console.log('Starting Google Sign-in process...');
       
-      // Check if your device has Google Play Services installed
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
       console.log('Google Play Services check passed');
       
-      // Get the user ID token
-      console.log('Requesting Google sign-in...');
       const signInResult = await GoogleSignin.signIn();
       console.log('Google sign-in successful, full result:', JSON.stringify(signInResult));
       
-      // The idToken is nested inside the data property, not directly on the result
       const idToken = signInResult.idToken || signInResult.data?.idToken;
       
       if (!idToken) {
@@ -135,11 +166,8 @@ const RegisterScreen = ({ navigation }) => {
       
       console.log('Successfully retrieved idToken');
       
-      // Create a Firebase credential with the token using the Web SDK
-      console.log('Creating Firebase credential');
       const googleCredential = GoogleAuthProvider.credential(idToken);
       
-      // Sign in with credential to Firebase using the Web SDK
       console.log('Signing in to Firebase');
       const userCredential = await signInWithCredential(auth, googleCredential);
       const firebaseUser = userCredential.user;
@@ -148,17 +176,14 @@ const RegisterScreen = ({ navigation }) => {
       console.log('Firebase User Email:', firebaseUser.email);
       console.log('Firebase User DisplayName:', firebaseUser.displayName);
       
-      // Use our auth context's googleSignIn method to properly save the user data
       console.log('Calling auth context googleSignIn method');
       const result = await googleSignIn(idToken);
       console.log('Auth context googleSignIn completed:', result);
       
       if (result && result.success) {
-        // Show success message with user's name
         const displayName = result.user?.firstName || firebaseUser.displayName || 'User';
         toast.success(`Welcome ${displayName}!`);
         
-        // Navigate to main app
         navigation.reset({
           index: 0,
           routes: [{ name: 'MainTabs' }]
@@ -170,7 +195,6 @@ const RegisterScreen = ({ navigation }) => {
       }
       
     } catch (error) {
-      // Comprehensive error logging
       console.error('Google sign in error details:', error);
       console.error('Error type:', typeof error);
       console.error('Error toString:', String(error));
@@ -184,7 +208,6 @@ const RegisterScreen = ({ navigation }) => {
         }
       }
       
-      // Safe error message extraction
       let errorMessage = 'Google sign in failed. Please try again.';
       
       if (error) {
@@ -192,7 +215,6 @@ const RegisterScreen = ({ navigation }) => {
           if (error.message) {
             errorMessage = `Google sign in error: ${error.message}`;
           }
-          // Only check code if we know it exists
           if ('code' in error) {
             if (error.code === 'CANCELED') {
               errorMessage = 'Sign in was canceled';
@@ -244,9 +266,7 @@ const RegisterScreen = ({ navigation }) => {
         </Text>
         
         <View style={styles.inputContainer}>
-          {/* First Name and Last Name in one row */}
           <View style={styles.nameRow}>
-            {/* First Name */}
             <View style={styles.nameInputGroup}>
               <Text style={[styles.label, { color: colors.secondary }]}>First Name</Text>
               <View style={[styles.inputWrapper, textInputStyle]}>
@@ -261,7 +281,6 @@ const RegisterScreen = ({ navigation }) => {
               </View>
             </View>
             
-            {/* Last Name */}
             <View style={[styles.nameInputGroup, { marginLeft: 10 }]}>
               <Text style={[styles.label, { color: colors.secondary }]}>Last Name</Text>
               <View style={[styles.inputWrapper, textInputStyle]}>
@@ -277,7 +296,6 @@ const RegisterScreen = ({ navigation }) => {
             </View>
           </View>
           
-          {/* Email */}
           <Text style={[styles.label, { color: colors.secondary, marginTop: 16 }]}>Email</Text>
           <View style={[styles.inputWrapper, textInputStyle]}>
             <Icon name="email-outline" size={20} color={colors.secondary} style={styles.inputIcon} />
@@ -292,7 +310,6 @@ const RegisterScreen = ({ navigation }) => {
             />
           </View>
           
-          {/* Password */}
           <Text style={[styles.label, { color: colors.secondary, marginTop: 16 }]}>Password</Text>
           <View style={[styles.inputWrapper, textInputStyle]}>
             <Icon name="lock-outline" size={20} color={colors.secondary} style={styles.inputIcon} />
@@ -355,6 +372,42 @@ const RegisterScreen = ({ navigation }) => {
           </View>
         </View>
       </ScrollView>
+      
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={isModalVisible}
+        onRequestClose={() => setIsModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Profile Photo</Text>
+            
+            <TouchableOpacity 
+              style={[styles.modalOption, { borderBottomColor: colors.border }]} 
+              onPress={handleTakePhoto}
+            >
+              <Icon name="camera" size={24} color={colors.primary} style={styles.modalOptionIcon} />
+              <Text style={[styles.modalOptionText, { color: colors.text }]}>Take Photo</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.modalOption} 
+              onPress={handleChooseFromLibrary}
+            >
+              <Icon name="image" size={24} color={colors.primary} style={styles.modalOptionIcon} />
+              <Text style={[styles.modalOptionText, { color: colors.text }]}>Choose from Gallery</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[styles.cancelButton, { backgroundColor: colors.background }]}
+              onPress={() => setIsModalVisible(false)}
+            >
+              <Text style={[styles.cancelButtonText, { color: colors.primary }]}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 };
@@ -377,7 +430,7 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   placeholder: {
-    width: 40, // To balance the header
+    width: 40,
   },
   title: {
     fontSize: 24,
@@ -463,7 +516,45 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     marginTop: 24,
-  }
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  modalOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+  },
+  modalOptionIcon: {
+    marginRight: 15,
+  },
+  modalOptionText: {
+    fontSize: 16,
+  },
+  cancelButton: {
+    marginTop: 20,
+    paddingVertical: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
 });
 
 export default RegisterScreen;

@@ -9,7 +9,8 @@ import {
   ActivityIndicator,
   SafeAreaView,
   ScrollView,
-  Platform
+  Platform,
+  Modal
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useTheme } from '../context/ThemeContext';
@@ -30,6 +31,7 @@ const EditProfileScreen = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [imageSelected, setImageSelected] = useState(false);
+  const [isModalVisible, setIsModalVisible] = useState(false);
   
   useEffect(() => {
     if (user) {
@@ -49,8 +51,18 @@ const EditProfileScreen = () => {
     })();
   }, []);
   
+  const openPhotoOptions = () => {
+    setIsModalVisible(true);
+  };
+
   const pickImage = async () => {
     try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        toast.warning('Permission needed to access your photos');
+        return;
+      }
+      
       let result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -65,6 +77,34 @@ const EditProfileScreen = () => {
     } catch (error) {
       console.error('Error picking image:', error);
       toast.error('Failed to select image');
+    } finally {
+      setIsModalVisible(false);
+    }
+  };
+  
+  const takePhoto = async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        toast.warning('Permission needed to access your camera');
+        return;
+      }
+      
+      let result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.7,
+      });
+      
+      if (!result.cancelled && result.assets && result.assets.length > 0) {
+        setAvatar(result.assets[0].uri);
+        setImageSelected(true);
+      }
+    } catch (error) {
+      console.error('Error taking photo:', error);
+      toast.error('Failed to take photo');
+    } finally {
+      setIsModalVisible(false);
     }
   };
   
@@ -142,7 +182,7 @@ const EditProfileScreen = () => {
           
           <TouchableOpacity 
             style={[styles.changePhotoButton, { backgroundColor: colors.primary }]}
-            onPress={pickImage}
+            onPress={openPhotoOptions}
           >
             <Icon name="camera" size={16} color="#FFFFFF" style={styles.cameraIcon} />
             <Text style={styles.changePhotoText}>Change Photo</Text>
@@ -195,6 +235,42 @@ const EditProfileScreen = () => {
           </TouchableOpacity>
         </View>
       </ScrollView>
+      
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={isModalVisible}
+        onRequestClose={() => setIsModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Change Profile Photo</Text>
+            
+            <TouchableOpacity 
+              style={[styles.modalOption, { borderBottomColor: colors.border, borderBottomWidth: 1 }]} 
+              onPress={takePhoto}
+            >
+              <Icon name="camera" size={24} color={colors.primary} style={styles.modalOptionIcon} />
+              <Text style={[styles.modalOptionText, { color: colors.text }]}>Take Photo</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.modalOption} 
+              onPress={pickImage}
+            >
+              <Icon name="image" size={24} color={colors.primary} style={styles.modalOptionIcon} />
+              <Text style={[styles.modalOptionText, { color: colors.text }]}>Choose from Gallery</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[styles.cancelButton, { backgroundColor: colors.background }]}
+              onPress={() => setIsModalVisible(false)}
+            >
+              <Text style={[styles.cancelButtonText, { color: colors.primary }]}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -283,6 +359,43 @@ const styles = StyleSheet.create({
   },
   saveButtonText: {
     color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  modalOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 15,
+  },
+  modalOptionIcon: {
+    marginRight: 15,
+  },
+  modalOptionText: {
+    fontSize: 16,
+  },
+  cancelButton: {
+    marginTop: 20,
+    paddingVertical: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  cancelButtonText: {
     fontSize: 16,
     fontWeight: 'bold',
   },
