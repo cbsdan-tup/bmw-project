@@ -21,6 +21,7 @@ import { store } from "./redux/store";
 import { ToastProvider } from "./context/ToastContext";
 import { LogBox } from "react-native";
 import { onAuthStateChanged } from "firebase/auth";
+import * as SecureStore from "expo-secure-store";
 // Import Firebase config early to ensure initialization happens first
 import app, { auth } from "./config/firebase-config";
 import { fetchUserBookings } from "./redux/slices/bookingSlice";
@@ -194,11 +195,25 @@ export default function App() {
       app ? "Firebase app loaded" : "Firebase app missing"
     );
 
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       console.log(
         "Firebase Auth State Changed:",
         user ? user.email : "No user"
       );
+      
+      // If a user is found in Firebase but no token in storage, refresh it
+      if (user) {
+        try {
+          const storedToken = await SecureStore.getItemAsync('auth_token');
+          if (!storedToken) {
+            console.log("User present but no token found, refreshing token...");
+            const newToken = await user.getIdToken(true);
+            await SecureStore.setItemAsync('auth_token', newToken);
+          }
+        } catch (error) {
+          console.error("Token check/refresh error:", error);
+        }
+      }
     });
 
     return () => unsubscribe();

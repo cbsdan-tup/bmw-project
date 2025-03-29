@@ -1,6 +1,7 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, initializeAuth, getReactNativePersistence } from "firebase/auth";
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 
 const firebaseConfig = {
   apiKey: "AIzaSyBcOEq0wpqykcX7m2qfwywtkJBpPJwWyLI",
@@ -31,22 +32,28 @@ if (getApps().length === 0) {
   console.log("Retrieved existing Firebase app:", app.name);
 }
 
-// Initialize auth with explicit app reference
+// Initialize auth with proper initialization check
 let auth;
 try {
-  console.log("Initializing Firebase auth");
+  console.log("Checking for existing Firebase auth instance");
+  // First try to get the existing auth instance
   auth = getAuth(app);
-  if (!auth) {
-    console.log("Auth not available with getAuth, trying initializeAuth");
+  
+  // If we get here, auth was successfully retrieved
+  console.log("Existing Firebase auth instance found");
+} catch (error) {
+  console.log("No existing auth instance found, initializing with persistence");
+  try {
+    // Only initialize auth with persistence if it doesn't exist yet
     auth = initializeAuth(app, {
       persistence: getReactNativePersistence(AsyncStorage)
     });
+    console.log("Firebase auth initialized with persistence");
+  } catch (initError) {
+    console.error("Error during auth initialization:", initError);
+    // Last resort fallback
+    auth = getAuth(app);
   }
-  console.log("Firebase auth initialized successfully");
-} catch (error) {
-  console.error("Error during auth initialization:", error);
-  // Last attempt to get auth
-  auth = getAuth(app);
 }
 
 // Export the app first, then other services
@@ -60,11 +67,18 @@ export const refreshFirebaseToken = async () => {
     console.log("No user signed in, checking for stored session...");
     try {
       const storedUser = await AsyncStorage.getItem('user');
-      const storedToken = await AsyncStorage.getItem('token');
+      // Check both storage locations for token with both possible keys
+      const storedToken = await SecureStore.getItemAsync('auth_token') || 
+                           await AsyncStorage.getItem('token');
       
       if (storedUser && storedToken) {
         console.log("Found stored user but Firebase auth is null - authentication state is inconsistent");
-
+        // Store token in new location if found in old location
+        if (await AsyncStorage.getItem('token')) {
+          await SecureStore.setItemAsync('auth_token', storedToken);
+          // Consider removing the old token
+          await AsyncStorage.removeItem('token');
+        }
         return storedToken;
       }
     } catch (error) {
@@ -79,12 +93,16 @@ export const refreshFirebaseToken = async () => {
     console.log("Refreshing token for user:", auth.currentUser.email);
     const newToken = await auth.currentUser.getIdToken(true);
     console.log("Token refreshed successfully");
+    // Store the refreshed token in SecureStore
+    await SecureStore.setItemAsync('auth_token', newToken);
     return newToken;
   } catch (error) {
     console.error("Error refreshing token:", error);
     if (error.code === 'auth/network-request-failed') {
       console.log("Network error during token refresh");
-      const storedToken = await AsyncStorage.getItem('token');
+      // Check both locations for fallback token
+      const storedToken = await SecureStore.getItemAsync('auth_token') || 
+                           await AsyncStorage.getItem('token');
       return storedToken;
     }
     throw error;

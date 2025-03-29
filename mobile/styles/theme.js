@@ -76,7 +76,7 @@ export const lightTheme = {
 export const darkTheme = {
   background: "#121212",
   text: "#ffffff",
-  primary: "#3399ff", // Lighter blue for dark mode
+  primary: "#0259b0", // Lighter blue for dark mode
   secondary: "#a0a0a0",
   accent: "#ff9900",
   surface: "#1e1e1e",
