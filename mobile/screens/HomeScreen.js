@@ -684,12 +684,12 @@ const HomeScreen = () => {
               {
                 icon: "car",
                 title: "Choose a car",
-                description: "Browse our collection of BMW vehicles",
+                description: "Browse our collection of quality and assured vehicles from our verified car owners",
               },
               {
                 icon: "handshake-o",
                 title: "Meet the seller",
-                description: "Coordinate pickup details",
+                description: "Coomunicate and coordinate pickup details",
               },
               {
                 icon: "check-circle",
@@ -769,7 +769,9 @@ const HomeScreen = () => {
                 },
               ]}
             >
-              <Text style={{ color: colors.primary }}>Learn More</Text>
+              <Text style={{ color: colors.primary }} onPress={()=>{
+                navigation.navigate("AboutUsScreen")
+              }}>Learn More</Text>
             </TouchableOpacity>
           </View>
         </View>

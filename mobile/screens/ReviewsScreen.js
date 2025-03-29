@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -10,29 +10,38 @@ import {
   Image,
   Modal,
   Dimensions,
-} from 'react-native';
-import { useDispatch, useSelector } from 'react-redux';
-import { useRoute, useNavigation } from '@react-navigation/native';
-import { useTheme } from '../context/ThemeContext';
-import { useAuth } from '../context/AuthContext';
-import { fetchReviewsByCarId } from '../redux/slices/reviewSlice';
-import Icon from 'react-native-vector-icons/FontAwesome';
-import StarRating from '../components/StarRating';
+} from "react-native";
+import { useDispatch, useSelector } from "react-redux";
+import { useRoute, useNavigation } from "@react-navigation/native";
+import { useTheme } from "../context/ThemeContext";
+import { useAuth } from "../context/AuthContext";
+import { fetchReviewsByCarId } from "../redux/slices/reviewSlice";
+import Icon from "react-native-vector-icons/FontAwesome";
+import StarRating from "../components/StarRating";
 
-const { width, height } = Dimensions.get('window');
+const { width, height } = Dimensions.get("window");
 
 const createSimpleFilter = () => {
-  const badWords = ['gago', 'tanga', 'tangina', 'bullshit', 'shit', 'ass', 'fuck', 'fucked']; 
+  const badWords = [
+    "gago",
+    "tanga",
+    "tangina",
+    "bullshit",
+    "shit",
+    "ass",
+    "fuck",
+    "fucked",
+  ];
   return {
     clean: (text) => {
-      if (!text) return '';
+      if (!text) return "";
       let filteredText = text;
-      badWords.forEach(word => {
-        const regex = new RegExp('\\b' + word + '\\b', 'gi');
-        filteredText = filteredText.replace(regex, '***');
+      badWords.forEach((word) => {
+        const regex = new RegExp("\\b" + word + "\\b", "gi");
+        filteredText = filteredText.replace(regex, "***");
       });
       return filteredText;
-    }
+    },
   };
 };
 
@@ -41,10 +50,10 @@ let Filter;
 let filter;
 try {
   // Dynamic import to avoid direct reference that might cause build issues
-  Filter = require('bad-words');
+  Filter = require("bad-words");
   filter = new Filter();
 } catch (error) {
-  console.log('Bad-words library not available, using fallback filter');
+  console.log("Bad-words library not available, using fallback filter");
   filter = createSimpleFilter();
 }
 
@@ -54,72 +63,102 @@ const ReviewsScreen = () => {
   const route = useRoute();
   const navigation = useNavigation();
   const dispatch = useDispatch();
-  
+
   const { carId, carTitle } = route.params || {};
-  const { reviews, loading, error, averageRating } = useSelector(state => state.reviews);
+  const { reviews, loading, error, averageRating } = useSelector(
+    (state) => state.reviews
+  );
   const [selectedRatingFilter, setSelectedRatingFilter] = useState(0); // 0 means no filter
   const [filteredReviews, setFilteredReviews] = useState([]);
   const [selectedImage, setSelectedImage] = useState(null);
   const [imageViewerVisible, setImageViewerVisible] = useState(false);
-  
+
   useEffect(() => {
     // Set the title in the header
     navigation.setOptions({
-      title: `Reviews for ${carTitle || 'Car'}`,
+      title: `Reviews for ${carTitle || "Car"}`,
     });
-    
+
     loadReviews();
   }, [carId, navigation, carTitle]);
-  
+
   useEffect(() => {
     if (selectedRatingFilter === 0) {
       setFilteredReviews(reviews);
     } else {
-      setFilteredReviews(reviews.filter(review => Math.round(review.rating) === selectedRatingFilter));
+      setFilteredReviews(
+        reviews.filter(
+          (review) => Math.round(review.rating) === selectedRatingFilter
+        )
+      );
     }
   }, [reviews, selectedRatingFilter]);
-  
+
   const loadReviews = () => {
     if (carId) {
       dispatch(fetchReviewsByCarId(carId));
     } else {
-      console.error('No car ID provided');
+      console.error("No car ID provided");
     }
   };
-  
+
   // Function to filter bad words - with error handling
   const filterBadWords = (text) => {
     try {
-      if (!text) return '';
+      if (!text) return "";
       return filter.clean(text);
     } catch (error) {
-      console.error('Error filtering bad words:', error);
+      console.error("Error filtering bad words:", error);
       return text;
     }
+  };
+
+  // Function to censor a name by replacing middle characters with asterisks
+  const censorName = (name) => {
+    if (!name || name.length <= 2) return name; // Don't censor very short names
+    
+    const firstChar = name.charAt(0);
+    const lastChar = name.charAt(name.length - 1);
+    const middleChars = '*'.repeat(name.length - 2);
+    
+    return `${firstChar}${middleChars}${lastChar}`;
   };
 
   const handleImagePress = (imageUri) => {
     setSelectedImage(imageUri);
     setImageViewerVisible(true);
   };
-  
+
   const renderReviewItem = ({ item }) => {
-    const reviewDate = new Date(item.createdAt || Date.now()).toLocaleDateString();
-    
+    const reviewDate = new Date(
+      item.createdAt || Date.now()
+    ).toLocaleDateString();
+
     return (
       <View style={[styles.reviewCard, { backgroundColor: colors.card }]}>
         <View style={styles.reviewHeader}>
           <View>
-            <Text style={[styles.reviewerName, { color: colors.text }]}>
-              {item.user ? `${item.user.firstName} ${item.user.lastName}` : 'Anonymous'}
-            </Text>
-            <Text style={[styles.reviewDate, { color: colors.secondary }]}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <Image
+                source={{
+                  uri: item.renter?.avatar?.url || "default-profile.jpg",
+                }}
+                style={{ width: 30, height: 30, borderRadius: 20, marginTop: 10 }}
+                resizeMode="cover"
+              />
+              <Text style={[styles.reviewerName, { color: colors.text }]}>
+                {item.renter
+                  ? `${censorName(item.renter?.firstName)} ${censorName(item.renter?.lastName)}`
+                  : "Anonymous"}
+              </Text>
+            </View>
+            <Text style={[styles.reviewDate, { color: colors.secondary, marginLeft: 38 }]}>
               {reviewDate}
             </Text>
           </View>
           <StarRating rating={item.rating} size={16} />
         </View>
-        
+
         <Text style={[styles.reviewText, { color: colors.text }]}>
           {filterBadWords(item.comment)}
         </Text>
@@ -128,14 +167,14 @@ const ReviewsScreen = () => {
         {item.images && item.images.length > 0 && (
           <View style={styles.reviewImagesContainer}>
             {item.images.map((image, index) => (
-              <TouchableOpacity 
-                key={index} 
+              <TouchableOpacity
+                key={index}
                 style={styles.reviewImageWrapper}
                 onPress={() => handleImagePress(image.url || image)}
               >
-                <Image 
-                  source={{ uri: image.url || image }} 
-                  style={styles.reviewImage} 
+                <Image
+                  source={{ uri: image.url || image }}
+                  style={styles.reviewImage}
                   resizeMode="cover"
                 />
               </TouchableOpacity>
@@ -155,13 +194,13 @@ const ReviewsScreen = () => {
       onRequestClose={() => setImageViewerVisible(false)}
     >
       <View style={styles.imageViewerContainer}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.closeButton}
           onPress={() => setImageViewerVisible(false)}
         >
           <Icon name="close" size={24} color="#FFFFFF" />
         </TouchableOpacity>
-        
+
         <Image
           source={{ uri: selectedImage }}
           style={styles.fullScreenImage}
@@ -170,9 +209,11 @@ const ReviewsScreen = () => {
       </View>
     </Modal>
   );
-  
+
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
       {/* Reviews List Section */}
       <View style={styles.summarySection}>
         <View style={styles.ratingSummary}>
@@ -187,38 +228,52 @@ const ReviewsScreen = () => {
 
         {/* Rating Filter */}
         <View style={styles.ratingFilterContainer}>
-          {[0, 5, 4, 3, 2, 1].map(rating => (
+          {[0, 5, 4, 3, 2, 1].map((rating) => (
             <TouchableOpacity
               key={rating}
               style={[
                 styles.filterButton,
-                selectedRatingFilter === rating && { 
+                selectedRatingFilter === rating && {
                   backgroundColor: colors.primary,
-                  borderColor: colors.primary 
+                  borderColor: colors.primary,
                 },
-                { borderColor: colors.border }
+                { borderColor: colors.border },
               ]}
               onPress={() => setSelectedRatingFilter(rating)}
             >
               {rating === 0 ? (
-                <Text style={[
-                  styles.filterButtonText,
-                  { color: selectedRatingFilter === 0 ? '#FFFFFF' : colors.text }
-                ]}>
+                <Text
+                  style={[
+                    styles.filterButtonText,
+                    {
+                      color:
+                        selectedRatingFilter === 0 ? "#FFFFFF" : colors.text,
+                    },
+                  ]}
+                >
                   All
                 </Text>
               ) : (
                 <View style={styles.filterButtonContent}>
-                  <Text style={[
-                    styles.filterButtonText,
-                    { color: selectedRatingFilter === rating ? '#FFFFFF' : colors.text }
-                  ]}>
+                  <Text
+                    style={[
+                      styles.filterButtonText,
+                      {
+                        color:
+                          selectedRatingFilter === rating
+                            ? "#FFFFFF"
+                            : colors.text,
+                      },
+                    ]}
+                  >
                     {rating}
                   </Text>
-                  <Icon 
-                    name="star" 
-                    size={12} 
-                    color={selectedRatingFilter === rating ? '#FFFFFF' : '#FFD700'} 
+                  <Icon
+                    name="star"
+                    size={12}
+                    color={
+                      selectedRatingFilter === rating ? "#FFFFFF" : "#FFD700"
+                    }
                   />
                 </View>
               )}
@@ -235,7 +290,9 @@ const ReviewsScreen = () => {
       ) : error ? (
         <View style={styles.centeredContent}>
           <Text style={[styles.errorText, { color: colors.error }]}>
-            {typeof error === 'object' ? error.message || JSON.stringify(error) : String(error)}
+            {typeof error === "object"
+              ? error.message || JSON.stringify(error)
+              : String(error)}
           </Text>
           <TouchableOpacity
             style={[styles.retryButton, { backgroundColor: colors.primary }]}
@@ -278,17 +335,17 @@ const styles = StyleSheet.create({
   },
   summarySection: {
     padding: 16,
-    alignItems: 'center',
+    alignItems: "center",
   },
   ratingSummary: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 16,
   },
   averageRating: {
     fontSize: 32,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginRight: 8,
   },
   reviewCount: {
@@ -296,9 +353,9 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   ratingFilterContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
     marginBottom: 8,
   },
   filterButton: {
@@ -310,21 +367,21 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   filterButtonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   filterButtonText: {
-    fontWeight: '500',
+    fontWeight: "500",
     marginRight: 4,
   },
   centeredContent: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: 20,
   },
   errorText: {
-    textAlign: 'center',
+    textAlign: "center",
     marginBottom: 16,
   },
   retryButton: {
@@ -333,12 +390,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   retryButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
+    color: "#FFFFFF",
+    fontWeight: "600",
   },
   noReviewsText: {
     marginTop: 16,
-    textAlign: 'center',
+    textAlign: "center",
   },
   reviewsList: {
     padding: 16,
@@ -349,13 +406,13 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   reviewHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
     marginBottom: 8,
   },
   reviewerName: {
-    fontWeight: 'bold',
+    fontWeight: "bold",
     fontSize: 16,
   },
   reviewDate: {
@@ -367,8 +424,8 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   reviewImagesContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     marginTop: 8,
   },
   reviewImageWrapper: {
@@ -377,25 +434,25 @@ const styles = StyleSheet.create({
     marginRight: 8,
     marginBottom: 8,
     borderRadius: 4,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   reviewImage: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
   },
   imageViewerContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.9)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(0,0,0,0.9)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   closeButton: {
-    position: 'absolute',
+    position: "absolute",
     top: 40,
     right: 20,
     zIndex: 10,
     padding: 10,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: "rgba(0,0,0,0.5)",
     borderRadius: 20,
   },
   fullScreenImage: {

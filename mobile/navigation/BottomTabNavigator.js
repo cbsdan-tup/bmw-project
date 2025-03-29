@@ -17,6 +17,7 @@ import DiscountScreen from "../screens/DiscountScreen"; // Import the DiscountSc
 import { useTheme } from "../context/ThemeContext";
 import ProfileNavigator from "./ProfileNavigator";
 import AdminNavigator from "./AdminNavigator";
+import AboutUsScreen from "../screens/AboutUsScreen";
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -41,6 +42,11 @@ const HomeStack = () => {
         name="HomeScreen"
         component={HomeScreen}
         options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="AboutUsScreen"
+        component={AboutUsScreen}
+        options={{ title: "About BMW" }}
       />
       <Stack.Screen
         name="CarDetails"
