@@ -1202,3 +1202,60 @@ exports.getUserCompletedRentals = async (req, res) => {
     });
   }
 };
+
+exports.updateCarStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { isActive } = req.body;
+
+    if (isActive === undefined || isActive === null) {
+      return res.status(400).json({
+        success: false,
+        message: 'isActive field is required'
+      });
+    }
+
+    // First find the car to check ownership
+    const existingCar = await Cars.findById(id);
+    
+    if (!existingCar) {
+      return res.status(404).json({
+        success: false,
+        message: 'Car not found'
+      });
+    }
+
+    // Verify ownership
+    if (existingCar.owner.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'You are not authorized to update this car status'
+      });
+    }
+
+    const car = await Cars.findByIdAndUpdate(
+      id,
+      { isActive },
+      { new: true, runValidators: true }
+    ).populate('owner', 'firstName lastName email');
+
+    // Format the response
+    const formattedCar = {
+      ...car.toObject(),
+      images: car.images.map(img => img.url)
+    };
+
+    res.status(200).json({
+      success: true,
+      message: `Car ${isActive ? 'activated' : 'deactivated'} successfully`,
+      car: formattedCar
+    });
+  } catch (error) {
+    console.error('Error updating car status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};

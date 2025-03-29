@@ -193,9 +193,9 @@ const MyCar = ({ navigation }) => {
         const rentedCarIds =
           rentedCarsResponse.data.activeRentedCars?.map((car) => car._id) || [];
 
-        // Filter out cars that are already being rented
+        // Filter out cars that are already being rented AND only include active cars
         const availableCars = response.data.cars.filter(
-          (car) => !rentedCarIds.includes(car._id)
+          (car) => !rentedCarIds.includes(car._id) && car.isActive === true
         );
 
         setMyAvailableCars(availableCars || []);
@@ -1215,7 +1215,7 @@ const MyCar = ({ navigation }) => {
                       borderColor: colors.borderCars,
                     },
                   ]}
-                  onPress={() => navigation.navigate("ListCar")}
+                  onPress={() => navigation.navigate("PutCarOnRent")}
                 >
                   <Text style={styles.actionButtonText}>List a Car</Text>
                 </TouchableOpacity>
@@ -1305,7 +1305,7 @@ const MyCar = ({ navigation }) => {
                       borderColor: colors.borderCars,
                     },
                   ]}
-                  onPress={() => navigation.navigate("ListCar")}
+                  onPress={() => navigation.navigate("PutCarOnRent")}
                 >
                   <Text style={styles.actionButtonText}>List a Car</Text>
                 </TouchableOpacity>

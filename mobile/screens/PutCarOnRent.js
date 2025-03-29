@@ -26,6 +26,7 @@ import {
   updateCar,
   deleteCar,
   clearError,
+  updateCarStatus,
 } from "../redux/slices/carSlice";
 
 const PutCarOnRent = ({ navigation }) => {
@@ -329,6 +330,42 @@ const PutCarOnRent = ({ navigation }) => {
     setShowForm(true);
   };
 
+  const handleToggleStatus = async (car) => {
+    try {
+      const newStatus = !car.isActive;
+
+      Alert.alert(
+        "Confirm Status Change",
+        `Are you sure you want to ${newStatus ? "activate" : "deactivate"} this car listing?`,
+        [
+          {
+            text: "Cancel",
+            style: "cancel",
+          },
+          {
+            text: "Confirm",
+            onPress: async () => {
+              await dispatch(
+                updateCarStatus({
+                  carId: car._id,
+                  isActive: newStatus,
+                })
+              ).unwrap();
+
+              Alert.alert(
+                "Success",
+                `Car has been ${newStatus ? "activated" : "deactivated"} successfully!`
+              );
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      console.error("Error toggling car status:", error);
+      Alert.alert("Error", "Failed to update car status");
+    }
+  };
+
   const CarCard = ({ car }) => (
     <View
       style={[
@@ -358,7 +395,15 @@ const PutCarOnRent = ({ navigation }) => {
         Price per day: ₱{car.pricePerDay}
       </Text>
       <Text style={[styles.carDetails, { color: colors.text }]}>
-        Status: {car.isActive ? "Active" : "Inactive"}
+        Status:{" "}
+        <Text
+          style={{
+            fontWeight: "bold",
+            color: car.isActive ? "green" : "red",
+          }}
+        >
+          {car.isActive ? "Active" : "Inactive"}
+        </Text>
       </Text>
       <View style={styles.cardButtons}>
         <TouchableOpacity
@@ -367,6 +412,19 @@ const PutCarOnRent = ({ navigation }) => {
         >
           <Text style={styles.buttonText}>Edit</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.toggleButton,
+            { backgroundColor: car.isActive ? "#ff9500" : "#4CAF50" },
+          ]}
+          onPress={() => handleToggleStatus(car)}
+        >
+          <Text style={styles.buttonText}>
+            {car.isActive ? "Deactivate" : "Activate"}
+          </Text>
+        </TouchableOpacity>
+
         <TouchableOpacity
           style={[styles.deleteButton, { backgroundColor: "red" }]}
           onPress={() => handleDelete(car._id)}
@@ -1076,6 +1134,13 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     flex: 1,
     marginRight: 5,
+    alignItems: "center",
+  },
+  toggleButton: {
+    padding: 8,
+    borderRadius: 5,
+    flex: 1.2,
+    marginHorizontal: 5,
     alignItems: "center",
   },
   deleteButton: {

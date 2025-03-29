@@ -195,6 +195,19 @@ export const deleteCar = createAsyncThunk(
   }
 );
 
+export const updateCarStatus = createAsyncThunk(
+  'cars/updateCarStatus',
+  async ({ carId, isActive }, { rejectWithValue }) => {
+    try {
+      const response = await api.patch(`/cars/${carId}/status`, { isActive });
+      return response.data.car;
+    } catch (error) {
+      console.error('Error updating car status:', error);
+      return rejectWithValue(error.response?.data || 'Failed to update car status');
+    }
+  }
+);
+
 const initialState = {
   featuredCars: [],
   filteredCars: [],
@@ -384,6 +397,22 @@ const carSlice = createSlice({
       .addCase(deleteCar.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload || 'Failed to delete car';
+      })
+
+      // Update Car Status
+      .addCase(updateCarStatus.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateCarStatus.fulfilled, (state, action) => {
+        state.loading = false;
+        state.userCars = state.userCars.map(car => 
+          car._id === action.payload._id ? action.payload : car
+        );
+      })
+      .addCase(updateCarStatus.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Failed to update car status';
       });
   }
 });

@@ -17,6 +17,7 @@ const {
   searchAndFilterCars,
   getUserCarsWithActiveRentals,
   getUserCompletedRentals,
+  updateCarStatus,
 } = require("../controllers/carControllers");
 
 router.get("/Cars", getAllCars);
@@ -49,5 +50,11 @@ router
   .delete(isAuthenticatedUser, deleteCar);
 
 router.get("/car-availability", getCarAvailability);
+
+router.patch(
+  "/cars/:id/status",
+  isAuthenticatedUser,
+  updateCarStatus
+);
 
 module.exports = router;
