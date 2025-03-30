@@ -194,7 +194,7 @@ const ProfileScreen = () => {
 
         <TouchableOpacity
           style={[styles.menuItem, { borderBottomColor: colors.border }]}
-          onPress={() => navigation.navigate("PersonalInfo")}
+          onPress={() => navigation.navigate("EditProfile")}
         >
           <View style={styles.menuItemLeft}>
             <Icon
@@ -310,7 +310,9 @@ const ProfileScreen = () => {
 
       <TouchableOpacity
         style={[styles.settingItem, { borderBottomColor: colors.border }]}
-        onPress={() => navigation.navigate("NotificationSettings")}
+        onPress={() => navigation.navigate("NotificationsTab", {
+          screen: "NotificationsScreen"
+        })}
       >
         <View style={styles.settingInfo}>
           <Icon

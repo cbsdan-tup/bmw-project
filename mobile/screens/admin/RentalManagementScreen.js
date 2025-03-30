@@ -298,7 +298,7 @@ const RentalDetailModal = ({ visible, rental, onClose, colors }) => {
                   <View style={styles.detailContent}>
                     <Text style={[styles.detailLabel, { color: colors.text + '80' }]}>Price Per Day</Text>
                     <Text style={[styles.detailValue, { color: colors.text }]}>
-                      ${rental.car?.pricePerDay}
+                      ₱{rental.car?.pricePerDay}
                     </Text>
                   </View>
                 </View>
@@ -312,10 +312,45 @@ const RentalDetailModal = ({ visible, rental, onClose, colors }) => {
                   <View style={styles.detailContent}>
                     <Text style={[styles.detailLabel, { color: colors.text + '80' }]}>Total Amount</Text>
                     <Text style={[styles.detailValue, { color: colors.text, fontWeight: '700' }]}>
-                      ${totalAmount}
+                      ₱{totalAmount}
                     </Text>
                   </View>
                 </View>
+
+                {rental.discount && rental.discount.code && (
+                  <>
+                    <View style={styles.detailDivider} />
+                    
+                    <View style={styles.detailRow}>
+                      <View style={styles.iconContainer}>
+                        <MaterialIcons name="local-offer" size={20} color={colors.primary} />
+                      </View>
+                      <View style={styles.detailContent}>
+                        <Text style={[styles.detailLabel, { color: colors.text + '80' }]}>Discount Applied</Text>
+                        <Text style={[styles.detailValue, { color: colors.text }]}>
+                          {rental.discount.code} ({rental.discount.discountPercentage}% off)
+                        </Text>
+                        <Text style={[styles.detailSubvalue, { color: colors.text }]}>
+                          -₱{rental.discount.discountAmount || (totalAmount * rental.discount.discountPercentage / 100).toFixed(2)} saved
+                        </Text>
+                      </View>
+                    </View>
+                    
+                    <View style={styles.detailDivider} />
+                    
+                    <View style={styles.detailRow}>
+                      <View style={styles.iconContainer}>
+                        <MaterialIcons name="attach-money" size={20} color={colors.primary} />
+                      </View>
+                      <View style={styles.detailContent}>
+                        <Text style={[styles.detailLabel, { color: colors.text + '80' }]}>Final Amount</Text>
+                        <Text style={[styles.detailValue, { color: colors.text, fontWeight: '700' }]}>
+                          ₱{rental.finalAmount || (totalAmount - (rental.discount.discountAmount || (totalAmount * rental.discount.discountPercentage / 100)))}
+                        </Text>
+                      </View>
+                    </View>
+                  </>
+                )}
                 
                 <View style={styles.detailDivider} />
                 

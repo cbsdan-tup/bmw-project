@@ -70,6 +70,10 @@ const CarDetailsScreen = () => {
   const [loadingInquiries, setLoadingInquiries] = useState(false);
   const [unreadCounts, setUnreadCounts] = useState({});
 
+  const [showRentalHistoryModal, setShowRentalHistoryModal] = useState(false);
+  const [carRentals, setCarRentals] = useState([]);
+  const [loadingRentals, setLoadingRentals] = useState(false);
+
   const markMessagesAsRead = async (senderId) => {
     try {
       await api.put(`/messages/read/${senderId}/${carId}`);
@@ -93,7 +97,7 @@ const CarDetailsScreen = () => {
           inquiry.sender &&
           inquiry.messages &&
           inquiry.messages.length > 0 &&
-          inquiry.sender._id !== currentCar.owner._id // Add this line to filter out owner's replies
+          inquiry.sender._id !== currentCar.owner._id
       );
 
       const counts = {};
@@ -110,6 +114,25 @@ const CarDetailsScreen = () => {
     }
   };
 
+  const fetchCarRentals = async () => {
+    if (!carId) return;
+
+    setLoadingRentals(true);
+    try {
+      const response = await api.get(`/car-rentals/${carId}`);
+      // Sort by date (newest first) and limit to latest 10
+      const sortedRentals = (response.data || [])
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        .slice(0, 10);
+      setCarRentals(sortedRentals);
+    } catch (error) {
+      console.error("Error fetching car rentals:", error);
+      toast.error("Failed to load rental history");
+    } finally {
+      setLoadingRentals(false);
+    }
+  };
+
   useEffect(() => {
     if (carId) {
       dispatch(fetchCarByID(carId));
@@ -121,19 +144,6 @@ const CarDetailsScreen = () => {
       setIsFavorite(favorites.includes(currentCar._id));
     }
   }, [currentCar, favorites]);
-
-  useEffect(() => {
-    if (bookingSuccess) {
-      toast.success("Booking confirmed! Please wait for owner approval");
-      dispatch(resetBookingSuccess());
-      dispatch(fetchUserBookings(user?._id));
-      resetBookingState();
-
-      navigation.navigate("Profile", {
-        screen: "MyBookings",
-      });
-    }
-  }, [bookingSuccess, dispatch, navigation, toast]);
 
   useEffect(() => {
     if (bookingError) {
@@ -156,6 +166,12 @@ const CarDetailsScreen = () => {
       fetchCarInquiries();
     }
   }, [showInquiriesModal]);
+
+  useEffect(() => {
+    if (showRentalHistoryModal) {
+      fetchCarRentals();
+    }
+  }, [showRentalHistoryModal]);
 
   const handleFavoritePress = () => {
     if (!user) {
@@ -266,26 +282,16 @@ const CarDetailsScreen = () => {
 
   const handleShowConfirmation = () => {
     if (!validateBookingForm()) return;
-    setConfirmDialogVisible(true);
-  };
 
-  const handleConfirmBooking = () => {
-    const bookingData = {
-      car: carId,
-      renter: user._id,
-      pickUpDate: pickupDate.toISOString(),
-      returnDate: returnDate.toISOString(),
-      status: "Pending",
-      paymentMethod: paymentMode,
-      paymentStatus: "Paid",
-    };
+    navigation.navigate("CheckoutScreen", {
+      car: currentCar,
+      pickupDate,
+      returnDate,
+      rentalDays,
+      paymentMode,
+    });
 
-    dispatch(createBooking(bookingData))
-      .unwrap()
-      .then(() => {})
-      .catch((err) => {
-        console.log("Booking error:", err);
-      });
+    setShowBookingModal(false);
   };
 
   const handleImagePress = (index) => {
@@ -306,12 +312,28 @@ const CarDetailsScreen = () => {
 
   const getProfilePictureUri = (sender) => {
     if (!sender) return null;
-        // Check if sender has avatar object with url
     if (sender.avatar && sender.avatar.url) {
       return sender.avatar.url;
     }
-  
+
     return null;
+  };
+
+  const getStatusColor = (status, colors) => {
+    switch (status) {
+      case "Confirmed":
+        return colors.success;
+      case "Pending":
+        return colors.warning;
+      case "Completed":
+        return colors.primary;
+      case "Cancelled":
+        return colors.error;
+      case "Active":
+        return "#8e44ad";
+      default:
+        return colors.secondary;
+    }
   };
 
   const InquiriesModal = () => {
@@ -358,7 +380,10 @@ const CarDetailsScreen = () => {
                         source={{ uri: getProfilePictureUri(item.sender) }}
                         style={styles.inquiryUserAvatar}
                         onError={(e) => {
-                          console.log("Error loading avatar:", e.nativeEvent.error);
+                          console.log(
+                            "Error loading avatar:",
+                            e.nativeEvent.error
+                          );
                         }}
                       />
                     ) : (
@@ -455,6 +480,250 @@ const CarDetailsScreen = () => {
         </View>
       </Modal>
     );
+  };
+
+  const RentalHistoryModal = () => {
+    if (!showRentalHistoryModal) return null;
+
+    return (
+      <Modal
+        visible={true}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowRentalHistoryModal(false)}
+        statusBarTranslucent
+      >
+        <View style={styles.modalOverlay}>
+          <View
+            style={[styles.rentalHistoryModal, { backgroundColor: colors.card }]}
+          >
+            <View style={styles.bookingFormHandle} />
+            <View style={styles.modalHeaderContainer}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                Rental History
+              </Text>
+              <Text style={[styles.modalSubtitle, { color: colors.secondary }]}>
+                {carRentals.length > 0 ? 'Latest rentals' : 'No rental history'}
+              </Text>
+            </View>
+
+            {loadingRentals ? (
+              <ActivityIndicator
+                color={colors.primary}
+                style={{ marginVertical: 30 }}
+                size="large"
+              />
+            ) : carRentals.length > 0 ? (
+              <FlatList
+                data={carRentals}
+                keyExtractor={(item) => item._id}
+                renderItem={({ item }) => (
+                  <View
+                    style={[
+                      styles.rentalItem,
+                      { backgroundColor: colors.background },
+                    ]}
+                  >
+                    <View style={styles.rentalHeader}>
+                      <View style={styles.rentalUserInfo}>
+                        {item.renter?.avatar?.url ? (
+                          <Image
+                            source={{ uri: item.renter.avatar.url }}
+                            style={styles.renterAvatar}
+                            onError={(e) => {
+                              console.log(
+                                "Error loading renter avatar:",
+                                e.nativeEvent.error
+                              );
+                            }}
+                          />
+                        ) : (
+                          <View
+                            style={[
+                              styles.avatarPlaceholder,
+                              { backgroundColor: colors.primary },
+                            ]}
+                          >
+                            <Text style={styles.avatarInitial}>
+                              {item.renter?.firstName
+                                ? item.renter.firstName[0].toUpperCase()
+                                : "U"}
+                            </Text>
+                          </View>
+                        )}
+
+                        <View style={styles.rentalUserDetails}>
+                          <Text
+                            style={[styles.renterName, { color: colors.text }]}
+                          >
+                            {item.renter?.firstName || "Anonymous"}{" "}
+                            {item.renter?.lastName
+                              ? item.renter.lastName[0] + "."
+                              : ""}
+                          </Text>
+                          <Text 
+                            style={[styles.rentalDate, { color: colors.secondary }]}
+                            numberOfLines={1}
+                          >
+                            {new Date(item.createdAt || item.pickUpDate).toLocaleDateString()}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <View
+                        style={[
+                          styles.statusBadge,
+                          {
+                            backgroundColor: getStatusColor(
+                              item.status,
+                              colors
+                            ),
+                          },
+                        ]}
+                      >
+                        <Text style={styles.statusText}>{item.status}</Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.rentalDates}>
+                      <View style={styles.dateContainer}>
+                        <View style={styles.dateIconContainer}>
+                          <Icon name="calendar-check-o" size={18} color={colors.primary} />
+                        </View>
+                        <View style={styles.dateColumn}>
+                          <Text
+                            style={[styles.dateLabel, { color: colors.secondary }]}
+                          >
+                            Pick-up
+                          </Text>
+                          <Text
+                            style={[styles.dateValue, { color: colors.text }]}
+                          >
+                            {new Date(item.pickUpDate).toLocaleDateString()}
+                          </Text>
+                          <Text
+                            style={[styles.timeValue, { color: colors.secondary }]}
+                          >
+                            {new Date(item.pickUpDate).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <View style={styles.dateConnector}>
+                        <View style={[styles.connector, { backgroundColor: colors.border }]} />
+                        <Icon
+                          name="arrow-right"
+                          size={14}
+                          color={colors.secondary}
+                        />
+                        <View style={[styles.connector, { backgroundColor: colors.border }]} />
+                      </View>
+
+                      <View style={styles.dateContainer}>
+                        <View style={styles.dateIconContainer}>
+                          <Icon name="calendar-times-o" size={18} color={colors.primary} />
+                        </View>
+                        <View style={styles.dateColumn}>
+                          <Text
+                            style={[styles.dateLabel, { color: colors.secondary }]}
+                          >
+                            Return
+                          </Text>
+                          <Text
+                            style={[styles.dateValue, { color: colors.text }]}
+                          >
+                            {new Date(item.returnDate).toLocaleDateString()}
+                          </Text>
+                          <Text
+                            style={[styles.timeValue, { color: colors.secondary }]}
+                          >
+                            {new Date(item.returnDate).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+
+                    <View style={[styles.rentalFooter, { borderTopColor: colors.border }]}>
+                      <View style={styles.paymentMethodContainer}>
+                        <Icon
+                          name={getPaymentIcon(item.paymentMethod)}
+                          size={14} 
+                          color={colors.secondary}
+                          style={styles.paymentIcon}
+                        />
+                        <Text
+                          style={[styles.paymentMethod, { color: colors.text }]}
+                        >
+                          {item.paymentMethod || "Cash"}
+                        </Text>
+                      </View>
+                      <View style={styles.paymentStatusContainer}>
+                        <Text
+                          style={[
+                            styles.paymentStatus,
+                            {
+                              color:
+                                item.paymentStatus === "Paid"
+                                  ? colors.success
+                                  : colors.error,
+                            },
+                          ]}
+                        >
+                          {item.paymentStatus || "Pending"}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                )}
+                contentContainerStyle={{ paddingBottom: 20 }}
+                showsVerticalScrollIndicator={false}
+              />
+            ) : (
+              <View style={styles.emptyRentals}>
+                <Icon name="calendar" size={60} color={colors.border} />
+                <Text
+                  style={[styles.emptyRentalsText, { color: colors.secondary }]}
+                >
+                  No rental history found
+                </Text>
+                <Text
+                  style={[styles.emptyRentalsSubtext, { color: colors.secondary }]}
+                >
+                  Previous rentals of this car will appear here
+                </Text>
+              </View>
+            )}
+
+            <TouchableOpacity
+              style={[styles.closeModalButton, { borderTopColor: colors.border }]}
+              onPress={() => setShowRentalHistoryModal(false)}
+            >
+              <Text style={{ color: colors.secondary, fontWeight: '500' }}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    );
+  };
+
+  // Helper function to get payment method icon
+  const getPaymentIcon = (method) => {
+    switch (method?.toLowerCase() || '') {
+      case 'credit card':
+        return 'credit-card';
+      case 'gcash':
+        return 'mobile';
+      case 'cash':
+        return 'money';
+      default:
+        return 'credit-card-alt';
+    }
   };
 
   if (loading) {
@@ -574,145 +843,6 @@ const CarDetailsScreen = () => {
                 ]}
               />
             ))}
-          </View>
-        </View>
-      </Modal>
-    );
-  };
-
-  const BookingConfirmDialog = () => {
-    if (!confirmDialogVisible) {
-      return null;
-    }
-
-    return (
-      <Modal
-        visible={true}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setConfirmDialogVisible(false)}
-        statusBarTranslucent
-      >
-        <View style={[styles.confirmModalOverlay]}>
-          <View
-            style={[styles.confirmDialog, { backgroundColor: colors.card }]}
-          >
-            <Text style={[styles.dialogTitle, { color: colors.text }]}>
-              Confirm Your Booking
-            </Text>
-
-            <View style={styles.dialogContent}>
-              <View style={styles.dialogSection}>
-                <Text
-                  style={[styles.dialogSectionTitle, { color: colors.text }]}
-                >
-                  Car
-                </Text>
-                <Text style={[styles.dialogText, { color: colors.text }]}>
-                  {currentCar.brand} {currentCar.model} ({currentCar.year})
-                </Text>
-                <Text style={[styles.dialogText, { color: colors.text }]}>
-                  {currentCar.vehicleType} - {currentCar.seatCapacity} Seats
-                </Text>
-              </View>
-
-              <View style={styles.dialogSection}>
-                <Text
-                  style={[styles.dialogSectionTitle, { color: colors.text }]}
-                >
-                  Booking Details
-                </Text>
-                <View style={styles.dialogRow}>
-                  <Text
-                    style={[styles.dialogLabel, { color: colors.secondary }]}
-                  >
-                    Pick-up:
-                  </Text>
-                  <Text style={[styles.dialogValue, { color: colors.text }]}>
-                    {pickupDate?.toLocaleString()}
-                  </Text>
-                </View>
-
-                <View style={styles.dialogRow}>
-                  <Text
-                    style={[styles.dialogLabel, { color: colors.secondary }]}
-                  >
-                    Return:
-                  </Text>
-                  <Text style={[styles.dialogValue, { color: colors.text }]}>
-                    {returnDate?.toLocaleString()}
-                  </Text>
-                </View>
-
-                <View style={styles.dialogRow}>
-                  <Text
-                    style={[styles.dialogLabel, { color: colors.secondary }]}
-                  >
-                    Days:
-                  </Text>
-                  <Text style={[styles.dialogValue, { color: colors.text }]}>
-                    {rentalDays}
-                  </Text>
-                </View>
-
-                <View style={styles.dialogRow}>
-                  <Text
-                    style={[styles.dialogLabel, { color: colors.secondary }]}
-                  >
-                    Pick-up Location:
-                  </Text>
-                  <Text style={[styles.dialogValue, { color: colors.text }]}>
-                    {currentCar?.pickUpLocation}
-                  </Text>
-                </View>
-
-                <View style={styles.dialogRow}>
-                  <Text
-                    style={[styles.dialogLabel, { color: colors.secondary }]}
-                  >
-                    Payment:
-                  </Text>
-                  <Text style={[styles.dialogValue, { color: colors.text }]}>
-                    {paymentMode}
-                  </Text>
-                </View>
-              </View>
-
-              <View
-                style={[styles.totalSection, { borderTopColor: colors.border }]}
-              >
-                <Text style={[styles.totalLabel, { color: colors.secondary }]}>
-                  Total Payment:
-                </Text>
-                <Text style={[styles.totalValue, { color: colors.primary }]}>
-                  ₱{rentalDays * currentCar.pricePerDay}
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.dialogActions}>
-              <TouchableOpacity
-                style={[styles.dialogButton, { backgroundColor: "#f44336" }]}
-                onPress={() => setConfirmDialogVisible(false)}
-              >
-                <Text style={styles.dialogButtonText}>Cancel</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.dialogButton,
-                  { backgroundColor: colors.primary },
-                ]}
-                onPress={handleConfirmBooking}
-                disabled={bookingLoading}
-              >
-                {bookingLoading ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <Text style={styles.dialogButtonText}>Confirm</Text>
-                )}
-              </TouchableOpacity>
-            </View>
           </View>
         </View>
       </Modal>
@@ -1114,7 +1244,7 @@ const CarDetailsScreen = () => {
                 </Text>
               </TouchableOpacity>
             </View>
-          ) : (
+          ) : currentCar.isOnRental === true ? (
             <View
               style={[
                 styles.sectionContainer,
@@ -1133,6 +1263,35 @@ const CarDetailsScreen = () => {
                   This Car is currently on Rental
                 </Text>
               </View>
+            </View>
+          ) : (
+            <View
+              style={[
+                styles.sectionContainer,
+                { borderBottomColor: colors.border },
+              ]}
+            >
+              <View
+                style={[styles.locationBox, { backgroundColor: colors.card }]}
+              >
+                <Text
+                  style={[
+                    styles.locationText,
+                    { color: colors.text, textAlign: "center" },
+                  ]}
+                >
+                  Sign in to book this vehicle
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={[
+                  styles.bookButton,
+                  { backgroundColor: colors.primary, marginTop: 10 },
+                ]}
+                onPress={() => navigation.navigate("Login")}
+              >
+                <Text style={styles.bookButtonText}>Sign In</Text>
+              </TouchableOpacity>
             </View>
           )}
 
@@ -1244,13 +1403,15 @@ const CarDetailsScreen = () => {
               <Text style={[styles.sectionTitle, { color: colors.text }]}>
                 Car Owner
               </Text>
-              <View style={[styles.ownerBox, { backgroundColor: colors.card }]}>
+              <View style={[styles.ownerBox, { backgroundColor: colors.card, borderBottomWidth: 1  }]}>
                 <View style={styles.ownerAvatarContainer}>
                   {currentCar.owner?.avatar?.url ? (
                     <Image
                       source={{ uri: currentCar.owner.avatar.url }}
                       style={styles.ownerAvatar}
-                      onError={() => console.log("Error loading owner avatar")}
+                      onError={() =>
+                        console.log("Error loading owner avatar")
+                      }
                     />
                   ) : (
                     <View
@@ -1299,21 +1460,34 @@ const CarDetailsScreen = () => {
                         color="#FFFFFF"
                         style={styles.contactIcon}
                       />
-                      <Text style={styles.contactButtonText}>
-                        Message
-                      </Text>
+                      <Text style={styles.contactButtonText}>Message</Text>
                     </TouchableOpacity>
                   )}
               </View>
+              <TouchableOpacity
+                style={[
+                  styles.historyButton,
+                  { backgroundColor: colors.background },
+                ]}
+                onPress={() => setShowRentalHistoryModal(true)}
+              >
+                <Icon
+                  name="history"
+                  size={16}
+                  color={colors.primary}
+                  style={styles.historyIcon}
+                />
+                <Text style={[styles.historyButtonText, {color: colors.primary}]}>View Rental History</Text>
+              </TouchableOpacity>
             </View>
           )}
         </View>
       </ScrollView>
       <ImageViewer />
-      <BookingConfirmDialog />
       <BookingFormModal />
       <DatePickerModals />
       <InquiriesModal />
+      <RentalHistoryModal />
     </SafeAreaView>
   );
 };
@@ -1336,6 +1510,179 @@ const newStyles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 12,
     fontWeight: "bold",
+  },
+});
+
+const rentalHistoryStyles = StyleSheet.create({
+  rentalHistoryModal: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    paddingTop: 10,
+    maxHeight: "80%",
+  },
+  modalHeaderContainer: {
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: "600",
+    marginBottom: 4,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    opacity: 0.7,
+  },
+  rentalItem: {
+    borderRadius: 12,
+    marginBottom: 16,
+    padding: 16,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  rentalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  rentalUserInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  renterAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  rentalUserDetails: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  renterName: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  rentalDate: {
+    fontSize: 13,
+    marginTop: 2,
+  },
+  rentalId: {
+    fontSize: 12,
+  },
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  statusText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  rentalDates: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+    paddingHorizontal: 6,
+  },
+  dateContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  dateIconContainer: {
+    marginRight: 8,
+  },
+  dateColumn: {
+    flex: 1,
+  },
+  dateLabel: {
+    fontSize: 12,
+    marginBottom: 2,
+  },
+  dateValue: {
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  timeValue: {
+    fontSize: 12,
+  },
+  dateConnector: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    width: 60,
+    justifyContent: "center",
+  },
+  connector: {
+    height: 1,
+    flex: 1,
+  },
+  rentalFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingTop: 12,
+    borderTopWidth: 1,
+  },
+  paymentMethodContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  paymentIcon: {
+    marginRight: 6,
+  },
+  paymentMethod: {
+    fontSize: 14,
+  },
+  paymentStatus: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  emptyRentals: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 60,
+  },
+  emptyRentalsText: {
+    marginTop: 16,
+    fontSize: 18,
+    fontWeight: "600",
+  },
+  emptyRentalsSubtext: {
+    marginTop: 8,
+    fontSize: 14,
+    textAlign: "center",
+    paddingHorizontal: 20,
+  },
+  closeModalButton: {
+    padding: 16,
+    alignItems: "center",
+    marginTop: 8,
+    borderTopWidth: 1,
+  },
+  historyButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 14,
+    borderRadius: 8,
+    marginTop: 16,
+  },
+  historyButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginLeft: 8,
+  },
+  historyIcon: {
+    marginRight: 4,
   },
 });
 
@@ -1485,7 +1832,6 @@ const styles = StyleSheet.create({
   sectionContainer: {
     marginBottom: 24,
     paddingBottom: 16,
-    borderBottomWidth: 1,
   },
   sectionTitle: {
     fontSize: 18,
@@ -1620,7 +1966,6 @@ const styles = StyleSheet.create({
     width: width,
     height: height * 0.8,
   },
-  // Add new styles for booking form
   bookingForm: {
     padding: 16,
     borderRadius: 8,
@@ -1691,32 +2036,11 @@ const styles = StyleSheet.create({
     padding: 16,
     alignItems: "center",
   },
-
-  // Confirmation dialog styles
   modalOverlay: {
     flex: 1,
-    justifyContent: "flex-end", // Makes modal appear from bottom
+    justifyContent: "flex-end",
     backgroundColor: "rgba(0,0,0,0.5)",
     zIndex: 1000,
-  },
-  confirmModalOverlay: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.5)",
-    zIndex: 2000, // Higher than booking form modal
-  },
-  confirmDialog: {
-    width: "90%",
-    maxHeight: "80%",
-    borderRadius: 12,
-    padding: 20,
-    elevation: 25, // Higher elevation for Android
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    zIndex: 2000,
   },
   bookingFormModal: {
     borderTopLeftRadius: 20,
@@ -1728,7 +2052,6 @@ const styles = StyleSheet.create({
     zIndex: 1000,
     position: "relative",
   },
-  // Update and add styles for the modal booking form
   bookingFormHandle: {
     alignSelf: "center",
     width: 40,
@@ -1736,88 +2059,6 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     backgroundColor: "#ccc",
     marginBottom: 15,
-  },
-  dialogTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 20,
-  },
-  dialogContent: {
-    marginBottom: 20,
-  },
-  dialogSection: {
-    marginBottom: 16,
-  },
-  dialogSectionTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 8,
-  },
-  dialogText: {
-    fontSize: 16,
-    marginBottom: 4,
-  },
-  dialogRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  dialogLabel: {
-    fontSize: 16,
-  },
-  dialogValue: {
-    fontSize: 16,
-    fontWeight: "500",
-  },
-  dialogActions: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    marginTop: 20,
-  },
-  dialogButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    marginLeft: 10,
-  },
-  dialogButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  totalSection: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingTop: 16,
-    marginTop: 16,
-    borderTopWidth: 1,
-  },
-  totalLabel: {
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  totalValue: {
-    fontSize: 24,
-    fontWeight: "bold",
-  },
-  chatButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    marginTop: 8,
-    alignSelf: "flex-start",
-  },
-  chatIcon: {
-    marginRight: 6,
-  },
-  chatButtonText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "600",
   },
   inquiriesModal: {
     borderTopLeftRadius: 20,
@@ -1895,6 +2136,7 @@ const styles = StyleSheet.create({
     marginRight: 4,
   },
   ...newStyles,
+  ...rentalHistoryStyles,
 });
 
 export default CarDetailsScreen;

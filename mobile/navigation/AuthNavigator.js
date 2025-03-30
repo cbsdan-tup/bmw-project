@@ -45,7 +45,7 @@ const AuthNavigator = () => {
       <Stack.Screen
         name="Login"
         component={LoginScreen}
-        options={{ title: "Sign In" }}
+        options={{ title: "Sign In", presentation: 'modal', }}
       />
       <Stack.Screen
         name="Register"

@@ -36,11 +36,43 @@ export const createBooking = createAsyncThunk(
   'bookings/createBooking',
   async (bookingData, { rejectWithValue }) => {
     try {
+      // Log booking data for debugging
+      console.log('Creating booking with data:', JSON.stringify(bookingData));
+      
+      // Make sure discount structure is correct before sending
+      if (bookingData.discount) {
+        console.log('Discount included:', JSON.stringify(bookingData.discount));
+      }
+      
       const response = await api.post('/createRental', bookingData);
+      
+      // Log the response
+      console.log('Booking created response:', JSON.stringify(response.data));
+      
       return response.data;
     } catch (error) {
+      console.error('Error creating booking:', error.response || error);
       return rejectWithValue(
         error.response?.data?.message || 'Failed to create booking'
+      );
+    }
+  }
+);
+
+export const updateRentalStatus = createAsyncThunk(
+  'bookings/updateRentalStatus',
+  async ({rentalId, status}, { rejectWithValue }) => {
+    try {
+      console.log(`Updating rental ${rentalId} to status: ${status}`);
+      const response = await api.put(
+        `/rentals/${rentalId}`, 
+        {status}
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error updating rental status:', error.response || error);
+      return rejectWithValue(
+        error.response?.data?.message || 'Failed to update rental status'
       );
     }
   }
@@ -122,9 +154,8 @@ const bookingSlice = createSlice({
       })
       .addCase(createBooking.fulfilled, (state, action) => {
         state.loading = false;
-        state.bookings.push(action.payload);
-        state.bookingsCount = state.bookings.length;
-        state.bookingSuccess = true;
+        state.bookingSuccess = action.payload;  // Store the full response
+        state.error = null;
       })
       .addCase(createBooking.rejected, (state, action) => {
         state.loading = false;
@@ -132,6 +163,29 @@ const bookingSlice = createSlice({
         state.bookingSuccess = false;
       })
 
+      // Update rental status
+      .addCase(updateRentalStatus.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateRentalStatus.fulfilled, (state, action) => {
+        state.loading = false;
+        // Update the rental in the bookings list
+        const index = state.bookings.findIndex(
+          booking => booking._id === action.payload._id
+        );
+        if (index !== -1) {
+          state.bookings[index] = action.payload;
+        }
+        // Update selected booking if it's the same
+        if (state.selectedBooking && state.selectedBooking._id === action.payload._id) {
+          state.selectedBooking = action.payload;
+        }
+      })
+      .addCase(updateRentalStatus.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      });
   },
 });
 

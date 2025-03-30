@@ -1328,11 +1328,6 @@ const RentalHistory = () => {
                 </Text>
               </View>
             }
-            ListHeaderComponent={
-              <Text style={[styles.title, { color: colors.text }]}>
-                Car Rental History
-              </Text>
-            }
           />
         </>
       )}
@@ -1346,6 +1341,7 @@ const RentalHistory = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingTop: 16,
   },
   centerContainer: {
     flex: 1,

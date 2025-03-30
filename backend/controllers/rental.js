@@ -57,6 +57,9 @@ const createRent = async (req, res) => {
       status,
       paymentMethod,
       paymentStatus,
+      discount,
+      originalAmount,
+      finalAmount
     } = req.body;
 
     if (!car || !renter || !pickUpDate || !returnDate || !status) {
@@ -68,7 +71,19 @@ const createRent = async (req, res) => {
       return res.status(400).json({ message: "Car is currently on rental." });
     }
 
-    let rental = new Rental(req.body);
+    let rental = new Rental({
+      car,
+      renter,
+      pickUpDate,
+      returnDate,
+      status,
+      paymentMethod,
+      paymentStatus,
+      discount,
+      originalAmount,
+      finalAmount
+    });
+    
     const carDetails = await Car.findById(car).populate("owner");
     const renterDetails = await User.findById(renter);
 
@@ -103,115 +118,284 @@ const createRent = async (req, res) => {
 
     const rentalDays = calculateRentalDays(pickUpDate, returnDate);
     const pricePerDay = carDetails.pricePerDay;
-    const totalPayment = rentalDays * pricePerDay;
+    const calculatedTotalPayment = rentalDays * pricePerDay;
+    
+    const totalPayment = finalAmount || calculatedTotalPayment;
+
+    let discountInfo = '';
+    if (discount && discount.code) {
+      discountInfo = `
+        <tr>
+          <td style="padding: 12px; border-bottom: 1px solid #E1E1E1; color: #333333;">Discount Applied</td>
+          <td style="padding: 12px; border-bottom: 1px solid #E1E1E1; color: #333333;"><span style="color: #0066B1; font-weight: bold;">${discount.code}</span> (${discount.discountPercentage}%)</td>
+        </tr>
+        <tr>
+          <td style="padding: 12px; border-bottom: 1px solid #E1E1E1; color: #333333;">Discount Amount</td>
+          <td style="padding: 12px; border-bottom: 1px solid #E1E1E1; color: #333333;">₱${discount.discountAmount.toLocaleString()}</td>
+        </tr>
+        <tr>
+          <td style="padding: 12px; border-bottom: 1px solid #E1E1E1; color: #333333;">Original Amount</td>
+          <td style="padding: 12px; border-bottom: 1px solid #E1E1E1; color: #333333; text-decoration: line-through;">₱${(originalAmount || calculatedTotalPayment).toLocaleString()}</td>
+        </tr>
+      `;
+    }
 
     const formattedPickUpDate = formatDate(pickUpDate);
     const formattedReturnDate = formatDate(returnDate);
 
     const rentalInfo = `
-        <table border="1" cellpadding="10" cellspacing="0">
-        <thead>
-            <tr>
-            <th colspan="2">Booking Details</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-            <td>Car</td>
-            <td>${carDetails.brand} ${carDetails.model} (${
-      carDetails.year
-    })</td>
-            </tr>
-            <tr>
-            <td>Type</td>
-            <td>${carDetails.vehicleType}</td>
-            </tr>
-            <tr>
-            <td>Capacity</td>
-            <td>${carDetails.seatCapacity}</td>
-            </tr>
-            <tr>
-            <td>Fuel</td>
-            <td>${carDetails.fuel}</td>
-            </tr>
-            <tr>
-            <td>Transmission</td>
-            <td>${carDetails.transmission}</td>
-            </tr>
-            <tr>
-            <td>Status</td>
-            <td>${status}</td>
-            </tr>
-            <tr>
-            <td>Pick-up Date</td>
-            <td>${formattedPickUpDate}</td>
-            </tr>
-            <tr>
-            <td>Return Date</td>
-            <td>${formattedReturnDate}</td>
-            </tr>
-            <tr>
-            <td>Price Per Day</td>
-            <td>₱${pricePerDay}</td>
-            </tr>
-            <tr>
-            <td>Rental Day/s</td>
-            <td>${rentalDays}</td>
-            </tr>
-            <tr>
-            <td>Payment</td>
-            <td>₱${totalPayment}</td>
-            </tr>
-            <tr>
-            <td>Mode of Payment</td>
-            <td>${paymentMethod}</td>
-            </tr>
-            <tr>
-            <td>Payment Status</td>
-            <td>${paymentStatus}</td>
-            </tr>
-            <tr>
-            <td>Owner</td>
-            <td>${carDetails.owner?.firstName} ${
-      carDetails.owner?.lastName
-    }</td>
-            </tr>
-            <tr>
-            <td>Owner Email Address</td>
-            <td>${carDetails.owner?.email}</td>
-            </tr>
-            <tr>
-            <td>Pick Up Location</td>
-            <td>${carDetails.pickUpLocation}</td>
-            </tr>
-            <tr>
-            <td>Terms and Conditions</td>
-            <td>${carDetails.termsAndConditions || "N/A"}</td>
-            </tr>
-        </tbody>
-        </table>
-      `;
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <title>BMW Rental Confirmation</title>
+      <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
+        body { 
+          font-family: 'Roboto', Arial, sans-serif;
+          line-height: 1.6;
+          color: #333333;
+          margin: 0;
+          padding: 0;
+        }
+        .email-container {
+          max-width: 600px;
+          margin: 0 auto;
+          background-color: #ffffff;
+        }
+        .email-header {
+          background-color: #0066B1;
+          padding: 20px;
+          text-align: center;
+        }
+        .email-logo {
+          width: 180px;
+          height: auto;
+        }
+        .email-title {
+          color: #ffffff;
+          font-size: 24px;
+          margin-top: 10px;
+          margin-bottom: 0;
+        }
+        .email-subtitle {
+          color: #ffffff;
+          font-size: 16px;
+          margin-top: 5px;
+          font-weight: 300;
+        }
+        .email-body {
+          padding: 30px 20px;
+        }
+        .greeting {
+          font-size: 18px;
+          margin-bottom: 20px;
+        }
+        .booking-details-table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-bottom: 30px;
+        }
+        .booking-details-table th {
+          background-color: #0066B1;
+          color: #ffffff;
+          padding: 12px;
+          text-align: left;
+          font-weight: 500;
+        }
+        .booking-details-table td {
+          padding: 12px;
+          border-bottom: 1px solid #E1E1E1;
+          color: #333333;
+        }
+        .section-title {
+          background-color: #F2F2F2;
+          padding: 10px 12px;
+          font-weight: 500;
+          color: #0066B1;
+        }
+        .total-row td {
+          font-weight: bold;
+          font-size: 18px;
+          background-color: #F8F8F8;
+        }
+        .price-value {
+          color: #0066B1;
+          font-weight: bold;
+        }
+        .email-footer {
+          background-color: #333333;
+          color: #ffffff;
+          padding: 20px;
+          text-align: center;
+          font-size: 14px;
+        }
+        .footer-links {
+          margin-bottom: 10px;
+        }
+        .footer-links a {
+          color: #ffffff;
+          text-decoration: none;
+          margin: 0 10px;
+        }
+        .car-image {
+          width: 100%;
+          height: auto;
+          margin-bottom: 20px;
+          border-radius: 5px;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="email-container">
+        <div class="email-header">
+          <h1 class="email-title">Booking Confirmation</h1>
+          <p class="email-subtitle">Borrow My Wheels Rentals</p>
+        </div>
+        
+        <div class="email-body">
+          <p class="greeting">Dear ${renterDetails.firstName},</p>
+          
+          <p>Thank you for choosing <strong>BMW Rentals</strong>! Your booking has been confirmed. Below are the details of your reservation:</p>
+                    
+          <table class="booking-details-table">
+            <thead>
+              <tr>
+                <th colspan="2">Booking Details</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td colspan="2" class="section-title">Car Information</td>
+              </tr>
+              <tr>
+                <td style="padding: 12px; border-bottom: 1px solid #E1E1E1; color: #333333;">Car</td>
+                <td style="padding: 12px; border-bottom: 1px solid #E1E1E1; color: #333333;"><strong>${carDetails.brand} ${carDetails.model}</strong> (${carDetails.year})</td>
+              </tr>
+              <tr>
+                <td style="padding: 12px; border-bottom: 1px solid #E1E1E1; color: #333333;">Type</td>
+                <td style="padding: 12px; border-bottom: 1px solid #E1E1E1; color: #333333;">${carDetails.vehicleType}</td>
+              </tr>
+              <tr>
+                <td style="padding: 12px; border-bottom: 1px solid #E1E1E1; color: #333333;">Capacity</td>
+                <td style="padding: 12px; border-bottom: 1px solid #E1E1E1; color: #333333;">${carDetails.seatCapacity} Seats</td>
+              </tr>
+              <tr>
+                <td style="padding: 12px; border-bottom: 1px solid #E1E1E1; color: #333333;">Fuel</td>
+                <td style="padding: 12px; border-bottom: 1px solid #E1E1E1; color: #333333;">${carDetails.fuel}</td>
+              </tr>
+              <tr>
+                <td style="padding: 12px; border-bottom: 1px solid #E1E1E1; color: #333333;">Transmission</td>
+                <td style="padding: 12px; border-bottom: 1px solid #E1E1E1; color: #333333;">${carDetails.transmission}</td>
+              </tr>
+              
+              <tr>
+                <td colspan="2" class="section-title">Reservation Details</td>
+              </tr>
+              <tr>
+                <td style="padding: 12px; border-bottom: 1px solid #E1E1E1; color: #333333;">Status</td>
+                <td style="padding: 12px; border-bottom: 1px solid #E1E1E1; color: #333333;"><span style="background-color: ${status === 'Confirmed' ? '#28a745' : '#FFC107'}; color: #fff; padding: 3px 8px; border-radius: 4px; font-size: 12px;">${status}</span></td>
+              </tr>
+              <tr>
+                <td style="padding: 12px; border-bottom: 1px solid #E1E1E1; color: #333333;">Pick-up Date</td>
+                <td style="padding: 12px; border-bottom: 1px solid #E1E1E1; color: #333333;">${formattedPickUpDate}</td>
+              </tr>
+              <tr>
+                <td style="padding: 12px; border-bottom: 1px solid #E1E1E1; color: #333333;">Return Date</td>
+                <td style="padding: 12px; border-bottom: 1px solid #E1E1E1; color: #333333;">${formattedReturnDate}</td>
+              </tr>
+              <tr>
+                <td style="padding: 12px; border-bottom: 1px solid #E1E1E1; color: #333333;">Pick Up Location</td>
+                <td style="padding: 12px; border-bottom: 1px solid #E1E1E1; color: #333333;">${carDetails.pickUpLocation}</td>
+              </tr>
+              
+              <tr>
+                <td colspan="2" class="section-title">Payment Information</td>
+              </tr>
+              <tr>
+                <td style="padding: 12px; border-bottom: 1px solid #E1E1E1; color: #333333;">Price Per Day</td>
+                <td style="padding: 12px; border-bottom: 1px solid #E1E1E1; color: #333333;">₱${pricePerDay.toLocaleString()}</td>
+              </tr>
+              <tr>
+                <td style="padding: 12px; border-bottom: 1px solid #E1E1E1; color: #333333;">Rental Day/s</td>
+                <td style="padding: 12px; border-bottom: 1px solid #E1E1E1; color: #333333;">${rentalDays}</td>
+              </tr>
+              ${discountInfo}
+              <tr class="total-row">
+                <td style="padding: 12px; border-bottom: 1px solid #E1E1E1;">Total Payment</td>
+                <td style="padding: 12px; border-bottom: 1px solid #E1E1E1;" class="price-value">₱${totalPayment.toLocaleString()}</td>
+              </tr>
+              <tr>
+                <td style="padding: 12px; border-bottom: 1px solid #E1E1E1; color: #333333;">Mode of Payment</td>
+                <td style="padding: 12px; border-bottom: 1px solid #E1E1E1; color: #333333;">${paymentMethod}</td>
+              </tr>
+              <tr>
+                <td style="padding: 12px; border-bottom: 1px solid #E1E1E1; color: #333333;">Payment Status</td>
+                <td style="padding: 12px; border-bottom: 1px solid #E1E1E1; color: #333333;"><span style="background-color: ${paymentStatus === 'Paid' ? '#28a745' : '#FFC107'}; color: #fff; padding: 3px 8px; border-radius: 4px; font-size: 12px;">${paymentStatus}</span></td>
+              </tr>
+              
+              <tr>
+                <td colspan="2" class="section-title">Owner Information</td>
+              </tr>
+              <tr>
+                <td style="padding: 12px; border-bottom: 1px solid #E1E1E1; color: #333333;">Owner</td>
+                <td style="padding: 12px; border-bottom: 1px solid #E1E1E1; color: #333333;">${carDetails.owner?.firstName} ${carDetails.owner?.lastName}</td>
+              </tr>
+              <tr>
+                <td style="padding: 12px; border-bottom: 1px solid #E1E1E1; color: #333333;">Owner Email Address</td>
+                <td style="padding: 12px; border-bottom: 1px solid #E1E1E1; color: #333333;">${carDetails.owner?.email}</td>
+              </tr>
+            </tbody>
+          </table>
+          
+          <div style="background-color: #F2F2F2; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+            <h3 style="margin-top: 0; color: #0066B1;">Terms and Conditions</h3>
+            <p style="margin-bottom: 0;">${carDetails.termsAndConditions || "N/A"}</p>
+          </div>
+          
+          <p>If you have any questions or need to make changes to your reservation, please contact us or the car owner directly.</p>
+          
+          <p>We wish you a pleasant driving experience!</p>
+          
+          <p>Best regards,<br>
+          <strong>BMW Rentals Team</strong></p>
+        </div>
+        
+        <div class="email-footer">
+          <div class="footer-links">
+            <a href="#">Privacy Policy</a> | 
+            <a href="#">Terms of Service</a> | 
+            <a href="#">Contact Us</a>
+          </div>
+          <p>&copy; ${new Date().getFullYear()} Borrow My Wheels (BMW) Rentals. All rights reserved.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+    `;
 
     const emailOptions = {
       email: renterDetails.email,
-      subject: "BMW Bookings",
-      message: `
-          Dear ${renterDetails.firstName},\n\n
-          Your booking for the car ${carDetails.brand} ${carDetails.model} (${carDetails.year}) has been confirmed.\n\n
-          Booking Details:\n
-          ${rentalInfo}\n
-          Thank you for choosing BMW Rentals!\n
-        `,
+      subject: `BMW Rentals - Booking Confirmation #${rental._id.toString().substring(0, 8)}`,
+      message: rentalInfo,
+      html: true
     };
 
     sendEmail(emailOptions).catch((emailError) => {
       console.error("Failed to send email:", emailError);
     });
 
+    // Log the full rental object to help debug
+    console.log('Created rental:', JSON.stringify(rental));
+
+    // Make sure we return the rental in a consistent way
     res.status(201).json({
+      success: true,
       message: "Rental created successfully",
       rental,
-      rentalDetails: rentalInfo,
+      booking: {
+        _id: rental._id.toString() 
+      }
     });
   } catch (error) {
     console.error("Error creating rental:", error);
@@ -275,7 +459,6 @@ const calculateSalesChart = async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
 
-    // If no startDate or endDate is provided, default to the current year
     const currentDate = new Date();
     const startOfRange = startDate
       ? new Date(startDate)
@@ -291,7 +474,7 @@ const calculateSalesChart = async (req, res) => {
 
     const salesData = rentals.reduce((acc, rental) => {
       const returnDate = rental.returnDate;
-      const dayKey = returnDate.toISOString().split("T")[0]; // Format as "YYYY-MM-DD"
+      const dayKey = returnDate.toISOString().split("T")[0];
 
       const totalPrice =
         rental.car.pricePerDay *
@@ -309,7 +492,6 @@ const calculateSalesChart = async (req, res) => {
       (a, b) => new Date(a.day) - new Date(b.day)
     );
 
-    // If no sales data found, return zero data for the full range
     const daysInRange = [];
     for (
       let d = new Date(startOfRange);
@@ -372,7 +554,7 @@ const getAllRentDetails = async (req, res) => {
         path: "car",
         populate: { path: "owner" },
       })
-      .populate("renter discountCode")
+      .populate("renter")
       .sort({ createdAt: -1 });
 
     res.json(rentals);
@@ -385,9 +567,7 @@ const myRentals = async (req, res) => {
   try {
     const { renterId } = req.params;
 
-    // Check if renterId is a Firebase UID (not a MongoDB ObjectId)
     if (renterId && renterId.length !== 24) {
-      // First find the user with this Firebase UID
       const user = await User.findOne({ firebaseUID: renterId });
 
       if (!user) {
@@ -396,13 +576,12 @@ const myRentals = async (req, res) => {
         });
       }
 
-      // Use the MongoDB ObjectId of the user for querying rentals
       const rentals = await Rental.find({ renter: user._id })
         .populate({
           path: "car",
           populate: { path: "owner" },
         })
-        .populate("renter discountCode")
+        .populate("renter")
         .sort({ createdAt: -1 });
 
       if (rentals.length === 0) {
@@ -435,13 +614,12 @@ const myRentals = async (req, res) => {
 
       res.json(rentalsWithReviews);
     } else {
-      // Original code path for MongoDB ObjectId
       const rentals = await Rental.find({ renter: renterId })
         .populate({
           path: "car",
           populate: { path: "owner" },
         })
-        .populate("renter discountCode")
+        .populate("renter")
         .sort({ createdAt: -1 });
 
       if (rentals.length === 0) {
@@ -495,7 +673,6 @@ const myCarRental = async (req, res) => {
         },
       })
       .populate("renter")
-      .populate("discountCode")
       .sort({ createdAt: -1 });
 
     const filteredRentals = rentals.filter(
@@ -523,7 +700,7 @@ const getRentDetails = async (req, res) => {
         path: "car",
         populate: { path: "owner" },
       })
-      .populate("renter discountCode")
+      .populate("renter")
       .sort({ createdAt: -1 });
     if (!rental) {
       return res.status(404).json({ message: "Rental not found" });
@@ -543,11 +720,11 @@ const getRentalsByCarId = async (req, res) => {
         path: "car",
         populate: { path: "owner" },
       })
-      .populate("renter discountCode")
+      .populate("renter")
       .sort({ createdAt: -1 });
 
     if (rentals.length === 0) {
-      return res.status(404).json({ message: "No rentals found for this car" });
+      return res.status(200).json([]);
     }
 
     res.json(rentals);
@@ -610,7 +787,6 @@ const getMonthlyIncome = async (req, res) => {
   }
 };
 
-// Check if car has active rentals
 const checkCarRentalStatus = async (req, res) => {
   try {
     const { carId } = req.params;
@@ -619,13 +795,11 @@ const checkCarRentalStatus = async (req, res) => {
       return res.status(400).json({ message: "Car ID is required" });
     }
 
-    // Find rentals with the specified car ID and active statuses
     const activeRentals = await Rental.find({
       car: carId,
       status: { $in: ["Pending", "Confirmed", "Active"] },
     });
 
-    // Return true if active rentals exist, false otherwise
     return res.status(200).json({
       success: true,
       isOnRental: activeRentals.length > 0,

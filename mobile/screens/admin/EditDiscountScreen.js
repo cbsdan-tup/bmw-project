@@ -196,7 +196,7 @@ const EditDiscountScreen = ({ route, navigation }) => {
         contentContainerStyle={styles.contentContainer}
       >
         <View style={styles.formSection}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Discount Information</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text, textAlign: "center" }]}>Discount Information</Text>
           
           <View style={styles.formGroup}>
             <Text style={[styles.label, { color: colors.text }]}>Discount Code*</Text>

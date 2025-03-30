@@ -723,6 +723,46 @@ const BookingDetailsScreen = ({ route }) => {
             </Text>
           </View>
 
+          {booking.discount && booking.discount.code && (
+            <>
+              <View style={styles.detailItem}>
+                <Text
+                  style={[styles.detailItemLabel, { color: colors.secondary }]}
+                >
+                  Original Amount:
+                </Text>
+                <Text style={[styles.detailItemValue, { color: colors.text, textDecorationLine: 'line-through' }]}>
+                  ₱{booking.originalAmount?.toLocaleString() || 
+                     (calculateRentalDays(booking.pickUpDate, booking.returnDate) * booking.car.pricePerDay).toLocaleString()}
+                </Text>
+              </View>
+
+              <View style={styles.detailItem}>
+                <Text
+                  style={[styles.detailItemLabel, { color: colors.secondary }]}
+                >
+                  Discount Code:
+                </Text>
+                <View style={styles.discountBadge}>
+                  <Text style={styles.discountBadgeText}>
+                    {booking.discount.code} ({booking.discount.discountPercentage}%)
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.detailItem}>
+                <Text
+                  style={[styles.detailItemLabel, { color: colors.secondary }]}
+                >
+                  Discount Amount:
+                </Text>
+                <Text style={[styles.detailItemValue, { color: colors.success }]}>
+                  -₱{booking.discount.discountAmount?.toLocaleString() || '0'}
+                </Text>
+              </View>
+            </>
+          )}
+
           <View style={styles.detailItem}>
             <Text
               style={[styles.detailItemLabel, { color: colors.secondary }]}
@@ -736,8 +776,8 @@ const BookingDetailsScreen = ({ route }) => {
               ]}
             >
               ₱
-              {calculateRentalDays(booking.pickUpDate, booking.returnDate) *
-                booking.car.pricePerDay}
+              {booking.finalAmount?.toLocaleString() || 
+                (calculateRentalDays(booking.pickUpDate, booking.returnDate) * booking.car.pricePerDay).toLocaleString()}
             </Text>
           </View>
         </View>
@@ -1138,6 +1178,17 @@ const styles = StyleSheet.create({
   retryButtonText: {
     color: '#FFFFFF',
     fontWeight: 'bold',
+  },
+  discountBadge: {
+    backgroundColor: '#28a745',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 4,
+  },
+  discountBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: "bold",
   },
 });
 

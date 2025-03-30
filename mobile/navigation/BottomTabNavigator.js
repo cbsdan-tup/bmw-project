@@ -13,7 +13,8 @@ import SearchScreen from "../screens/SearchScreen";
 import NotificationsScreen from "../screens/NotificationsScreen";
 import ReviewsScreen from "../screens/ReviewsScreen";
 import ChatScreen from "../screens/ChatScreen";
-import DiscountScreen from "../screens/DiscountScreen"; // Import the DiscountScreen
+import DiscountScreen from "../screens/DiscountScreen";
+import CheckoutScreen from "../screens/CheckoutScreen"; 
 import { useTheme } from "../context/ThemeContext";
 import ProfileNavigator from "./ProfileNavigator";
 import AdminNavigator from "./AdminNavigator";
@@ -81,11 +82,16 @@ const HomeStack = () => {
           title: 'Admin Dashboard'
         }}
       />
-      {/* Add DiscountScreen to the HomeStack */}
       <Stack.Screen
         name="DiscountScreen"
         component={DiscountScreen}
         options={{ headerShown: false }} // Using custom header in the screen itself
+      />
+      {/* Add CheckoutScreen to the HomeStack */}
+      <Stack.Screen
+        name="CheckoutScreen"
+        component={CheckoutScreen}
+        options={{ headerShown: false }}
       />
     </Stack.Navigator>
   );
@@ -126,16 +132,20 @@ const SearchStack = () => {
             : "Reviews",
         })}
       />
-      {/* Add ChatScreen to the SearchStack */}
       <Stack.Screen
         name="ChatScreen"
         component={ChatScreen}
         options={({ route }) => ({ title: route.params?.chatName || "Chat" })}
       />
-      {/* Add DiscountScreen to the SearchStack */}
       <Stack.Screen
         name="DiscountScreen"
         component={DiscountScreen}
+        options={{ headerShown: false }}
+      />
+      {/* Add CheckoutScreen to the SearchStack */}
+      <Stack.Screen
+        name="CheckoutScreen"
+        component={CheckoutScreen}
         options={{ headerShown: false }}
       />
     </Stack.Navigator>
@@ -171,6 +181,12 @@ const NotificationsStack = () => {
       <Stack.Screen
         name="CarDetails"
         component={CarDetailsScreen}
+        options={{ headerShown: false }}
+      />
+      {/* Add CheckoutScreen to the NotificationsStack */}
+      <Stack.Screen
+        name="CheckoutScreen"
+        component={CheckoutScreen}
         options={{ headerShown: false }}
       />
     </Stack.Navigator>

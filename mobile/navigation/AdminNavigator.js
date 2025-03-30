@@ -114,7 +114,7 @@ const CarsStack = () => {
       <Stack.Screen
         name="CarsManagement"
         component={CarsManagementScreen}
-        options={{ title: "Cars Management" }}
+        options={{ headerShown: false }}
       />
       <Stack.Screen
         name="EditCar"
@@ -147,17 +147,17 @@ const DiscountsStack = () => {
       <Stack.Screen
         name="DiscountsManagement"
         component={DiscountsManagementScreen}
-        options={{ title: "Discounts Management" }}
+        options={{ headerShown: false }}
       />
       <Stack.Screen
         name="CreateDiscount"
         component={CreateDiscountScreen}
-        options={{ title: "Create New Discount" }}
+        options={{ headerShown: false }}
       />
       <Stack.Screen
         name="EditDiscount"
         component={EditDiscountScreen}
-        options={{ title: "Edit Discount" }}
+        options={{ headerShown: false }}
       />
     </Stack.Navigator>
   );
@@ -215,10 +215,10 @@ const AdminNavigator = () => {
         }}
       />
       <Drawer.Screen
-        name="CarsStack"
+        name="Cars Management"
         component={CarsStack}
         options={{
-          title: "Cars Management",
+          headerShown: "Cars Management",
 
           drawerIcon: ({ color }) => <DrawerIcon name="car" color={color} />,
         }}

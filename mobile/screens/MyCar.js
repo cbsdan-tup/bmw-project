@@ -32,23 +32,22 @@ const MyCar = ({ navigation }) => {
   const { user, isAuthenticated } = useAuth();
   const [activeRentals, setActiveRentals] = useState([]);
   const [myRentedCars, setMyRentedCars] = useState([]);
-  const [myAvailableCars, setMyAvailableCars] = useState([]); // New state for available cars
+  const [myAvailableCars, setMyAvailableCars] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingMyCars, setLoadingMyCars] = useState(true);
-  const [loadingAvailableCars, setLoadingAvailableCars] = useState(true); // New loading state
+  const [loadingAvailableCars, setLoadingAvailableCars] = useState(true);
   const [error, setError] = useState(null);
   const [errorMyCars, setErrorMyCars] = useState(null);
-  const [errorAvailableCars, setErrorAvailableCars] = useState(null); // New error state
+  const [errorAvailableCars, setErrorAvailableCars] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState("renting-out"); // 'renting-out' or 'available'
+  const [activeTab, setActiveTab] = useState("renting-out");
   const [selectedRenter, setSelectedRenter] = useState(null);
   const [selectedCar, setSelectedCar] = useState(null);
   const [renterModalVisible, setRenterModalVisible] = useState(false);
+  const [sortOrder, setSortOrder] = useState("newest");
 
-  // Make sure we have a fallback for textSecondary if it doesn't exist in your theme
-  const textSecondaryColor = colors.textSecondary || colors.text + "80"; // 50% opacity fallback
+  const textSecondaryColor = colors.textSecondary || colors.text + "80";
 
-  // Monitor authentication state using AuthContext
   useEffect(() => {
     console.log("MyCar - Auth State:", { user, isAuthenticated });
   }, [user, isAuthenticated]);
@@ -66,19 +65,14 @@ const MyCar = ({ navigation }) => {
 
       console.log("Fetching rentals for user ID:", user._id);
 
-      // Try with different error handling
       try {
         const response = await api.get(`/my-rentals/${user._id}`);
-
-        // Log the response
         console.log("API Response:", response.status, response.data);
 
-        // Check if response has data
         if (!response.data) {
           throw new Error("No data returned from API");
         }
 
-        // Filter rentals with status: Confirmed, Active, Pending
         const filteredRentals = Array.isArray(response.data)
           ? response.data.filter((rental) =>
               ["Confirmed", "Active", "Pending"].includes(rental.status)
@@ -124,16 +118,14 @@ const MyCar = ({ navigation }) => {
 
       try {
         const response = await api.get(`/user-cars-with-rentals/${user._id}`);
-
-        // Log the response
         console.log("My Cars API Response:", response.status, response.data);
 
-        // Check if response has data
         if (!response.data) {
           throw new Error("No data returned from API");
         }
 
-        setMyRentedCars(response.data.activeRentedCars || []);
+        const cars = response.data.activeRentedCars || [];
+        setMyRentedCars(sortCarsByDate(cars, sortOrder));
       } catch (apiError) {
         console.error(
           "API Error details:",
@@ -158,7 +150,6 @@ const MyCar = ({ navigation }) => {
     }
   };
 
-  // New function to fetch available cars (cars not being rented)
   const fetchMyAvailableCars = async () => {
     try {
       setLoadingAvailableCars(true);
@@ -173,9 +164,7 @@ const MyCar = ({ navigation }) => {
       console.log("Fetching available cars for user ID:", user._id);
 
       try {
-        // Get all cars owned by the user
         const response = await api.get(`/my-cars/${user._id}`);
-
         console.log(
           "My Available Cars API Response:",
           response.status,
@@ -186,19 +175,17 @@ const MyCar = ({ navigation }) => {
           throw new Error("No data returned from API");
         }
 
-        // Get all cars with active rentals
         const rentedCarsResponse = await api.get(
           `/user-cars-with-rentals/${user._id}`
         );
         const rentedCarIds =
           rentedCarsResponse.data.activeRentedCars?.map((car) => car._id) || [];
 
-        // Filter out cars that are already being rented AND only include active cars
         const availableCars = response.data.cars.filter(
           (car) => !rentedCarIds.includes(car._id) && car.isActive === true
         );
 
-        setMyAvailableCars(availableCars || []);
+        setMyAvailableCars(sortCarsByDate(availableCars || [], sortOrder));
       } catch (apiError) {
         console.error(
           "API Error details:",
@@ -221,20 +208,57 @@ const MyCar = ({ navigation }) => {
     }
   };
 
+  const sortCarsByDate = (cars, order) => {
+    if (!cars || !Array.isArray(cars)) return [];
+
+    return [...cars].sort((a, b) => {
+      if (
+        a.activeRentals &&
+        a.activeRentals.length > 0 &&
+        b.activeRentals &&
+        b.activeRentals.length > 0
+      ) {
+        const dateA = new Date(a.activeRentals[0].pickUpDate);
+        const dateB = new Date(b.activeRentals[0].pickUpDate);
+        return order === "newest" ? dateB - dateA : dateA - dateB;
+      }
+
+      const dateA = new Date(a.createdAt || 0);
+      const dateB = new Date(b.createdAt || 0);
+      return order === "newest" ? dateB - dateA : dateA - dateB;
+    });
+  };
+
+  const toggleSortOrder = () => {
+    const newOrder = sortOrder === "newest" ? "oldest" : "newest";
+    setSortOrder(newOrder);
+
+    setMyRentedCars(sortCarsByDate(myRentedCars, newOrder));
+    setMyAvailableCars(sortCarsByDate(myAvailableCars, newOrder));
+  };
+
   useEffect(() => {
-    // Only fetch when user is authenticated
     if (isAuthenticated && user?._id) {
       fetchActiveRentals();
       fetchMyCarsWithRentals();
-      fetchMyAvailableCars(); // Fetch available cars
+      fetchMyAvailableCars();
     }
   }, [isAuthenticated, user]);
+
+  useEffect(() => {
+    if (myRentedCars.length > 0) {
+      setMyRentedCars(sortCarsByDate(myRentedCars, sortOrder));
+    }
+    if (myAvailableCars.length > 0) {
+      setMyAvailableCars(sortCarsByDate(myAvailableCars, sortOrder));
+    }
+  }, [sortOrder]);
 
   const onRefresh = () => {
     setRefreshing(true);
     fetchActiveRentals();
     fetchMyCarsWithRentals();
-    fetchMyAvailableCars(); // Refresh available cars
+    fetchMyAvailableCars();
     setRefreshing(false);
   };
 
@@ -267,15 +291,12 @@ const MyCar = ({ navigation }) => {
     }
 
     try {
-      // Handle both cases: when car is an ID string or an object
       let carData;
       if (typeof rental.car === "string") {
-        // If car is just an ID string, fetch the car details
         console.log("Fetching car details for ID:", rental.car);
         const response = await api.get(`/cars/${rental.car}`);
         carData = response.data.car;
       } else if (rental.car && rental.car._id) {
-        // If car is already an object with _id
         carData = rental.car;
       } else {
         console.error("Invalid car data:", rental.car);
@@ -295,7 +316,6 @@ const MyCar = ({ navigation }) => {
     }
   };
 
-  // Add this new function to mark messages as read
   const markMessagesAsRead = async (renterId, carId) => {
     try {
       if (!renterId || !carId) {
@@ -317,7 +337,6 @@ const MyCar = ({ navigation }) => {
     }
   };
 
-  // Update the navigate to chat function
   const navigateToChat = () => {
     if (!selectedRenter || !selectedCar) {
       console.error(
@@ -329,7 +348,6 @@ const MyCar = ({ navigation }) => {
     const renterId = selectedRenter._id;
     const carId = selectedCar._id;
 
-    // Validate IDs
     if (!renterId || !carId) {
       console.error("Invalid IDs for chat navigation:", {
         renterId,
@@ -350,13 +368,10 @@ const MyCar = ({ navigation }) => {
       }`.trim(),
     });
 
-    // Mark messages as read before navigating
     markMessagesAsRead(renterId, carId);
 
-    // Close the modal
     setRenterModalVisible(false);
 
-    // Navigate to chat screen with the required parameters
     navigation.navigate("ChatScreen", {
       recipientId: renterId,
       recipientName: `${selectedRenter.firstName || ""} ${
@@ -366,7 +381,7 @@ const MyCar = ({ navigation }) => {
       carDetails: `${selectedCar.brand || ""} ${selectedCar.model || ""} ${
         selectedCar.year ? `(${selectedCar.year})` : ""
       }`,
-      isOwner: true, // Indicates the user is the car owner in this chat
+      isOwner: true,
     });
   };
 
@@ -461,10 +476,10 @@ const MyCar = ({ navigation }) => {
   const renderRenterAvatar = (renter) => {
     if (!renter) return null;
 
-    if (renter.profileImage) {
+    if (renter.avatar) {
       return (
         <Image
-          source={{ uri: renter.profileImage }}
+          source={{ uri: renter.avatar?.url }}
           style={styles.renterAvatar}
         />
       );
@@ -486,7 +501,6 @@ const MyCar = ({ navigation }) => {
   };
 
   const renderCarRentalCard = ({ item }) => {
-    // Verify that item has activeRentals and item is a car object
     if (!item || !item.activeRentals || item.activeRentals.length === 0)
       return null;
 
@@ -501,59 +515,84 @@ const MyCar = ({ navigation }) => {
           },
         ]}
       >
-        <Image
-          source={{
-            uri:
-              item.images && item.images.length > 0
-                ? item.images[0]
-                : "https://via.placeholder.com/150",
-          }}
-          style={styles.carImage}
-        />
+        <TouchableOpacity
+          onPress={() =>
+            item.activeRentals.length === 1
+              ? navigation.navigate("MyCarRentalDetails", {
+                  rental: item.activeRentals[0],
+                  car: item,
+                })
+              : null
+          }
+          disabled={item.activeRentals.length !== 1}
+        >
+          <Image
+            source={{
+              uri:
+                item.images && item.images.length > 0
+                  ? item.images[0]
+                  : "https://via.placeholder.com/150",
+            }}
+            style={styles.carImage}
+          />
+        </TouchableOpacity>
 
         <View style={styles.cardContent}>
-          <Text style={[styles.carTitle, { color: colors.text }]}>
-            {item.brand} {item.model}
-          </Text>
+          <TouchableOpacity
+            onPress={() =>
+              item.activeRentals.length === 1
+                ? navigation.navigate("MyCarRentalDetails", {
+                    rental: item.activeRentals[0],
+                    car: item,
+                  })
+                : null
+            }
+            disabled={item.activeRentals.length !== 1}
+            style={styles.carInfoSection}
+          >
+            <Text style={[styles.carTitle, { color: colors.text }]}>
+              {item.brand} {item.model}
+            </Text>
 
-          <View style={styles.carDetailsRow}>
-            <View style={styles.carDetailItem}>
-              <MaterialCommunityIcons
-                name="car"
-                size={16}
-                color={colors.secondary}
-              />
-              <Text
-                style={[styles.carDetailText, { color: textSecondaryColor }]}
-              >
-                {item.year}
-              </Text>
+            <View style={styles.carDetailsRow}>
+              <View style={styles.carDetailItem}>
+                <MaterialCommunityIcons
+                  name="car"
+                  size={16}
+                  color={colors.secondary}
+                />
+                <Text
+                  style={[styles.carDetailText, { color: textSecondaryColor }]}
+                >
+                  {item.year}
+                </Text>
+              </View>
+              <View style={styles.carDetailItem}>
+                <MaterialCommunityIcons
+                  name="seat"
+                  size={16}
+                  color={colors.secondary}
+                />
+                <Text
+                  style={[styles.carDetailText, { color: textSecondaryColor }]}
+                >
+                  {item.seatCapacity} seats
+                </Text>
+              </View>
+              <View style={styles.carDetailItem}>
+                <MaterialIcons
+                  name="attach-money"
+                  size={16}
+                  color={colors.secondary}
+                />
+                <Text
+                  style={[styles.carDetailText, { color: textSecondaryColor }]}
+                >
+                  ₱{item.pricePerDay}/day
+                </Text>
+              </View>
             </View>
-            <View style={styles.carDetailItem}>
-              <MaterialCommunityIcons
-                name="seat"
-                size={16}
-                color={colors.secondary}
-              />
-              <Text
-                style={[styles.carDetailText, { color: textSecondaryColor }]}
-              >
-                {item.seatCapacity} seats
-              </Text>
-            </View>
-            <View style={styles.carDetailItem}>
-              <MaterialIcons
-                name="attach-money"
-                size={16}
-                color={colors.secondary}
-              />
-              <Text
-                style={[styles.carDetailText, { color: textSecondaryColor }]}
-              >
-                ₱{item.pricePerDay}/day
-              </Text>
-            </View>
-          </View>
+          </TouchableOpacity>
 
           <View style={styles.rentalHeaderRow}>
             <Text style={[styles.rentalCountText, { color: colors.primary }]}>
@@ -564,26 +603,36 @@ const MyCar = ({ navigation }) => {
 
           {item.activeRentals.map((rental, index) => (
             <View key={rental._id} style={styles.rentalItem}>
-              <View style={styles.statusContainer}>
-                <Text style={[styles.statusLabel, { color: colors.text }]}>
-                  Status:
-                </Text>
-                <View
-                  style={[
-                    styles.statusBadge,
-                    { backgroundColor: getStatusColor(rental.status) + "20" },
-                  ]}
-                >
-                  <Text
+              <TouchableOpacity
+                onPress={() =>
+                  navigation.navigate("MyCarRentalDetails", {
+                    rental: rental,
+                    car: item,
+                  })
+                }
+                activeOpacity={0.7}
+              >
+                <View style={styles.statusContainer}>
+                  <Text style={[styles.statusLabel, { color: colors.text }]}>
+                    Status:
+                  </Text>
+                  <View
                     style={[
-                      styles.statusValue,
-                      { color: getStatusColor(rental.status) },
+                      styles.statusBadge,
+                      { backgroundColor: getStatusColor(rental.status) + "20" },
                     ]}
                   >
-                    {rental.status}
-                  </Text>
+                    <Text
+                      style={[
+                        styles.statusValue,
+                        { color: getStatusColor(rental.status) },
+                      ]}
+                    >
+                      {rental.status}
+                    </Text>
+                  </View>
                 </View>
-              </View>
+              </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.renterRow}
@@ -612,7 +661,7 @@ const MyCar = ({ navigation }) => {
                   <Text
                     style={[styles.viewDetailsText, { color: colors.primary }]}
                   >
-                    Details
+                    Renter Details
                   </Text>
                   <MaterialIcons
                     name="chevron-right"
@@ -622,29 +671,35 @@ const MyCar = ({ navigation }) => {
                 </View>
               </TouchableOpacity>
 
-              <View style={styles.dateContainer}>
-                <View style={styles.dateItem}>
-                  <MaterialIcons
-                    name="date-range"
-                    size={16}
-                    color={colors.secondary}
-                  />
-                  <Text style={[styles.detailText, { color: colors.text }]}>
-                    Pickup: {formatDate(rental.pickUpDate)}
-                  </Text>
-                </View>
-
-                <View style={styles.dateItem}>
-                  <MaterialIcons
-                    name="event-return"
-                    size={16}
-                    color={colors.secondary}
-                  />
-                  <Text style={[styles.detailText, { color: colors.text }]}>
-                    Return: {formatDate(rental.returnDate)}
-                  </Text>
-                </View>
-              </View>
+              <TouchableOpacity
+                style={[
+                  styles.viewRentalButton,
+                  {
+                    backgroundColor: colors.primary + "15",
+                    borderColor: colors.primary,
+                  },
+                ]}
+                onPress={() =>
+                  navigation.navigate("MyCarRentalDetails", {
+                    rental: rental,
+                    car: item,
+                  })
+                }
+              >
+                <Text
+                  style={[
+                    styles.viewRentalButtonText,
+                    { color: colors.primary },
+                  ]}
+                >
+                  View Rental Details
+                </Text>
+                <MaterialIcons
+                  name="visibility"
+                  size={18}
+                  color={colors.primary}
+                />
+              </TouchableOpacity>
 
               {index < item.activeRentals.length - 1 && (
                 <View
@@ -661,7 +716,6 @@ const MyCar = ({ navigation }) => {
     );
   };
 
-  // New function to render available car card
   const renderAvailableCarCard = ({ item }) => {
     if (!item) return null;
 
@@ -782,7 +836,6 @@ const MyCar = ({ navigation }) => {
             { backgroundColor: colors.background },
           ]}
         >
-          {/* Modal Header */}
           <View
             style={[
               styles.modalHeader,
@@ -806,7 +859,6 @@ const MyCar = ({ navigation }) => {
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.modalScrollContentContainer}
           >
-            {/* Renter Profile Section */}
             <View
               style={[
                 styles.renterProfileSection,
@@ -817,9 +869,9 @@ const MyCar = ({ navigation }) => {
                 },
               ]}
             >
-              {selectedRenter.profileImage ? (
+              {selectedRenter.avatar ? (
                 <Image
-                  source={{ uri: selectedRenter.profileImage }}
+                  source={{ uri: selectedRenter.avatar?.url }}
                   style={styles.renterProfileImage}
                 />
               ) : (
@@ -847,7 +899,6 @@ const MyCar = ({ navigation }) => {
               </Text>
             </View>
 
-            {/* Action Buttons */}
             <View
               style={[
                 styles.actionButtonsContainer,
@@ -910,7 +961,6 @@ const MyCar = ({ navigation }) => {
               )}
             </View>
 
-            {/* Contact Information */}
             <View
               style={[
                 styles.contactInfoSection,
@@ -1039,7 +1089,6 @@ const MyCar = ({ navigation }) => {
               </View>
             </View>
 
-            {/* Quick Tips Section */}
             <View
               style={[
                 styles.tipsSection,
@@ -1083,7 +1132,6 @@ const MyCar = ({ navigation }) => {
     <SafeAreaView
       style={[styles.container, { backgroundColor: colors.background }]}
     >
-      {/* Tab Navigation */}
       <View
         style={[
           styles.tabContainer,
@@ -1147,8 +1195,35 @@ const MyCar = ({ navigation }) => {
         }
         style={styles.scrollContent}
       >
+        {((activeTab === "renting-out" && myRentedCars.length > 1) ||
+          (activeTab === "available" && myAvailableCars.length > 1)) && (
+          <View style={styles.sortContainer}>
+            <TouchableOpacity
+              style={[
+                styles.sortButton,
+                {
+                  backgroundColor: colors.cardBackground,
+                  borderColor: colors.borderCars,
+                },
+              ]}
+              onPress={toggleSortOrder}
+            >
+              <Text style={[styles.sortButtonText, { color: colors.text }]}>
+                {sortOrder === "newest" ? "Newest First" : "Oldest First"}
+              </Text>
+              <MaterialIcons
+                name={
+                  sortOrder === "newest" ? "arrow-downward" : "arrow-upward"
+                }
+                size={16}
+                color={colors.primary}
+                style={styles.sortIcon}
+              />
+            </TouchableOpacity>
+          </View>
+        )}
+
         {activeTab === "renting-out" ? (
-          // Cars being rented out view
           <>
             {loadingMyCars && !refreshing ? (
               <View style={styles.loaderContainer}>
@@ -1238,7 +1313,6 @@ const MyCar = ({ navigation }) => {
             )}
           </>
         ) : (
-          // Available cars view (replacing the renting view)
           <>
             {loadingAvailableCars && !refreshing ? (
               <View style={styles.loaderContainer}>
@@ -1415,9 +1489,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: "center",
     minWidth: 150,
-    borderWidth: 1, // Add solid border
-    borderColor: '#e0e0e0', // Use a static color instead of colors.borderCars
-    // borderWidth and borderColor removed
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
   },
   actionButtonText: {
     color: "white",
@@ -1446,8 +1519,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: '#e0e0e0', // Replace colors.borderCars
-    // borderWidth and borderColor removed
+    borderColor: "#e0e0e0",
   },
   carImage: {
     width: "100%",
@@ -1511,8 +1583,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: '#e0e0e0', // Replace colors.borderCars
-    // borderWidth and borderColor removed
+    borderColor: "#e0e0e0",
   },
   rentalCountText: {
     fontWeight: "bold",
@@ -1525,8 +1596,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 8,
   },
-
-  // Modal styles
   modalOverlay: {
     flex: 1,
     justifyContent: "center",
@@ -1719,9 +1788,8 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 15,
     alignItems: "center",
-    borderWidth: 1, // Add solid border
-    borderColor: '#e0e0e0', // Replace colors.borderCars
-    // borderWidth and borderColor removed
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
   },
   infoIconCircle: {
     width: 48,
@@ -1741,8 +1809,6 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     textAlign: "center",
   },
-
-  // Enhanced Modal styles
   modalContainer: {
     flex: 1,
   },
@@ -1766,73 +1832,6 @@ const styles = StyleSheet.create({
   modalScrollContent: {
     flex: 1,
   },
-  divider: {
-    height: 1,
-    width: "100%",
-    backgroundColor: "rgba(0,0,0,0.1)",
-    marginVertical: 15,
-  },
-  infoGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-    width: "100%",
-  },
-  infoCard: {
-    width: "100%",
-    borderRadius: 10,
-    padding: 16,
-    marginBottom: 15,
-    alignItems: "center",
-    borderWidth: 1, // Add solid border
-    borderColor: '#e0e0e0', // Replace colors.borderCars
-    // borderWidth and borderColor removed
-  },
-  infoIconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 10,
-  },
-  infoLabel: {
-    fontSize: 14,
-    marginBottom: 6,
-    textAlign: "center",
-  },
-  infoValue: {
-    fontSize: 16,
-    fontWeight: "500",
-    textAlign: "center",
-  },
-
-  // Enhanced Modal styles
-  modalContainer: {
-    flex: 1,
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(0,0,0,0.1)",
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-  },
-  closeButton: {
-    padding: 8,
-    borderRadius: 20,
-  },
-  modalScrollContent: {
-    flex: 1,
-  },
-
-  // Renter Profile Section
   renterProfileSection: {
     alignItems: "center",
     paddingVertical: 24,
@@ -1840,9 +1839,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginHorizontal: 16,
     marginTop: 16,
-    borderWidth: 1, // Add solid border
-    borderColor: '#e0e0e0', // Replace colors.borderCars
-    // borderWidth and borderColor removed
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
   },
   renterProfileImage: {
     width: 100,
@@ -1869,8 +1867,6 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     textAlign: "center",
   },
-
-  // Action Buttons
   actionButtonsContainer: {
     flexDirection: "row",
     justifyContent: "space-evenly",
@@ -1879,9 +1875,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginHorizontal: 16,
     marginTop: 16,
-    borderWidth: 1, // Add solid border
-    borderColor: '#e0e0e0', // Replace colors.borderCars
-    // borderWidth and borderColor removed
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
   },
   actionBtn: {
     flexDirection: "row",
@@ -1891,9 +1886,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     minWidth: 100,
     justifyContent: "center",
-    borderWidth: 1, // Add solid border
-    borderColor: '#e0e0e0', // Replace colors.borderCars
-    // borderWidth and borderColor removed
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
   },
   actionBtnText: {
     color: "white",
@@ -1901,16 +1895,13 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontSize: 15,
   },
-
-  // Contact Info Section
   contactInfoSection: {
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderRadius: 12,
     marginHorizontal: 16,
-    borderWidth: 1, // Add solid border
-    borderColor: '#e0e0e0', // Replace colors.borderCars
-    // borderWidth and borderColor removed
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
   },
   sectionLabel: {
     fontSize: 18,
@@ -1925,10 +1916,8 @@ const styles = StyleSheet.create({
     padding: 16,
     flexDirection: "row",
     alignItems: "center",
-    borderWidth: 1, // Add solid border
-    borderColor: '#e0e0e0', // Replace colors.borderCars
-    borderWidth: 1, // Add solid borderCars
-    // borderColor: colors.borderCars, // Black borderCars color
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
   },
   infoIconCircle: {
     width: 40,
@@ -1949,17 +1938,14 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "500",
   },
-
-  // Tips Section
   tipsSection: {
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderRadius: 12,
     marginHorizontal: 16,
     marginBottom: 16,
-    borderWidth: 1, // Add solid border
-    borderColor: '#e0e0e0', // Replace colors.borderCars
-    // borderWidth and borderColor removed
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
   },
   tipCard: {
     borderRadius: 10,
@@ -1976,7 +1962,6 @@ const styles = StyleSheet.create({
     flex: 1,
     lineHeight: 20,
   },
-
   editButton: {
     marginTop: 12,
     paddingVertical: 8,
@@ -1988,6 +1973,47 @@ const styles = StyleSheet.create({
     color: "white",
     fontWeight: "600",
     fontSize: 14,
+  },
+  carInfoSection: {
+    marginBottom: 8,
+  },
+  viewRentalButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginTop: 10,
+    borderWidth: 1,
+    borderStyle: "dashed",
+  },
+  viewRentalButtonText: {
+    fontWeight: "600",
+    fontSize: 14,
+    marginRight: 8,
+  },
+  sortContainer: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+  },
+  sortButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  sortButtonText: {
+    fontSize: 13,
+    fontWeight: "500",
+    marginRight: 4,
+  },
+  sortIcon: {
+    marginLeft: 2,
   },
 });
 

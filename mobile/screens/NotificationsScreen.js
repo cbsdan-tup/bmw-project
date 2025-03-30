@@ -206,7 +206,10 @@ const NotificationsScreen = () => {
   };
 
   const FilterTabs = () => (
-    <View style={styles.filterTabsContainer}>
+    <View style={[styles.filterTabsContainer, { 
+      borderBottomColor: colors.border,
+      backgroundColor: colors.surface
+    }]}>
       <ScrollView 
         horizontal 
         showsHorizontalScrollIndicator={false}
@@ -215,14 +218,14 @@ const NotificationsScreen = () => {
         <TouchableOpacity
           style={[
             styles.filterTab,
-            activeFilter === 'all' && { backgroundColor: colors.primary }
+            { backgroundColor: activeFilter === 'all' ? colors.primary : colors.buttonBackground },
           ]}
           onPress={() => setActiveFilter('all')}
         >
           <Text
             style={[
               styles.filterText,
-              activeFilter === 'all' && { color: '#fff' }
+              { color: activeFilter === 'all' ? colors.buttonText : colors.text }
             ]}
           >
             All
@@ -232,20 +235,20 @@ const NotificationsScreen = () => {
         <TouchableOpacity
           style={[
             styles.filterTab,
-            activeFilter === 'my_car_inquiries' && { backgroundColor: colors.primary }
+            { backgroundColor: activeFilter === 'my_car_inquiries' ? colors.primary : colors.buttonBackground }
           ]}
           onPress={() => setActiveFilter('my_car_inquiries')}
         >
           <Icon 
             name="comment-o" 
             size={14} 
-            color={activeFilter === 'my_car_inquiries' ? '#fff' : colors.text} 
+            color={activeFilter === 'my_car_inquiries' ? colors.buttonText : colors.text} 
             style={styles.filterIcon}
           />
           <Text
             style={[
               styles.filterText,
-              activeFilter === 'my_car_inquiries' && { color: '#fff' }
+              { color: activeFilter === 'my_car_inquiries' ? colors.buttonText : colors.text }
             ]}
           >
             My Car Inquiries
@@ -255,20 +258,20 @@ const NotificationsScreen = () => {
         <TouchableOpacity
           style={[
             styles.filterTab,
-            activeFilter === 'my_inquiries' && { backgroundColor: colors.primary }
+            { backgroundColor: activeFilter === 'my_inquiries' ? colors.primary : colors.buttonBackground }
           ]}
           onPress={() => setActiveFilter('my_inquiries')}
         >
           <Icon 
             name="question-circle-o" 
             size={14} 
-            color={activeFilter === 'my_inquiries' ? '#fff' : colors.text} 
+            color={activeFilter === 'my_inquiries' ? colors.buttonText : colors.text} 
             style={styles.filterIcon}
           />
           <Text
             style={[
               styles.filterText,
-              activeFilter === 'my_inquiries' && { color: '#fff' }
+              { color: activeFilter === 'my_inquiries' ? colors.buttonText : colors.text }
             ]}
           >
             My Inquiries
@@ -462,7 +465,14 @@ const NotificationsScreen = () => {
   if (!user) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={[styles.header, { backgroundColor: colors.headerBackground }]}>
+        <StatusBar
+          backgroundColor={colors.headerBackground}
+          barStyle={colors.statusBar === 'light' ? 'light-content' : 'dark-content'}
+        />
+        <View style={[styles.header, { 
+          backgroundColor: colors.headerBackground,
+          paddingTop: Platform.OS === 'ios' ? 16 : 16 + (StatusBar.currentHeight || 0)
+        }]}>
           <Text style={[styles.headerTitle, { color: colors.headerText }]}>Notifications</Text>
         </View>
         
@@ -478,7 +488,7 @@ const NotificationsScreen = () => {
             style={[styles.loginButton, { backgroundColor: colors.primary }]}
             onPress={() => navigation.navigate('Login')}
           >
-            <Text style={styles.loginButtonText}>Log In</Text>
+            <Text style={[styles.loginButtonText, { color: '#fff' }]}>Log In</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -487,6 +497,10 @@ const NotificationsScreen = () => {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar
+        backgroundColor={colors.headerBackground}
+        barStyle={colors.statusBar === 'light' ? 'light-content' : 'dark-content'}
+      />
       <View style={[styles.header, { 
         backgroundColor: colors.headerBackground,
         paddingTop: Platform.OS === 'ios' ? 16 : 16 + (StatusBar.currentHeight || 0)
@@ -629,8 +643,6 @@ const styles = StyleSheet.create({
   },
   filterTabsContainer: {
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e5e5',
-    backgroundColor: '#f8f8f8',
   },
   filterContainer: {
     flexDirection: 'row',
@@ -642,7 +654,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 20,
     marginRight: 12,
-    backgroundColor: '#e0e0e0',
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -796,7 +807,6 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   loginButtonText: {
-    color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,
   }

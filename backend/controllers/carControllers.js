@@ -1009,7 +1009,7 @@ exports.getUserCarsWithActiveRentals = async (req, res) => {
         status: { $in: ["Pending", "Confirmed", "Active"] },
       }).populate(
         "renter",
-        "firstName lastName email phone profileImage location"
+        "firstName lastName email phone avatar location"
       ); // Updated fields for better renter details
 
       console.log(

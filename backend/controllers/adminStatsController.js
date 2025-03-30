@@ -4,6 +4,18 @@ const Rental = require('../models/Rental');
 const Review = require('../models/Review');
 const mongoose = require('mongoose');
 
+// Add the missing calculateRentalDays function
+const calculateRentalDays = (pickUpDate, returnDate) => {
+  if (!pickUpDate || !returnDate) {
+    return 0;
+  }
+  const pickUp = new Date(pickUpDate);
+  const returnD = new Date(returnDate);
+  const timeDiff = Math.abs(returnD - pickUp);
+  const diffDays = Math.ceil(timeDiff / (1000 * 3600 * 24));
+  return diffDays;
+};
+
 // Get User Statistics
 exports.getUserStats = async (req, res) => {
   try {
@@ -282,180 +294,94 @@ exports.getReviewStats = async (req, res) => {
 // Get Sales Statistics
 exports.getSalesStats = async (req, res) => {
   try {
-    // Assuming a rental cost field exists or can be calculated
-    const salesStats = await Rental.aggregate([
-      {
-        $match: {
-          status: { $in: ['Completed', 'Returned'] },
-          paymentStatus: 'Paid'
-        }
-      },
-      {
-        $lookup: {
-          from: 'cars',
-          localField: 'car',
-          foreignField: '_id',
-          as: 'carDetails'
-        }
-      },
-      {
-        $unwind: '$carDetails'
-      },
-      {
-        $project: {
-          rentalDuration: {
-            $divide: [
-              { $subtract: ['$returnDate', '$pickUpDate'] },
-              1000 * 60 * 60 * 24 // Convert ms to days
-            ]
-          },
-          pricePerDay: '$carDetails.pricePerDay',
-          createdAt: 1
-        }
-      },
-      {
-        $project: {
-          rentalCost: { $multiply: ['$rentalDuration', '$pricePerDay'] },
-          createdAt: 1
-        }
-      },
-      {
-        $group: {
-          _id: null,
-          totalRevenue: { $sum: '$rentalCost' },
-          averageOrderValue: { $avg: '$rentalCost' },
-          rentalCount: { $sum: 1 }
-        }
-      }
-    ]);
-
-    // Calculate monthly revenue (current month)
-    const startOfMonth = new Date();
-    startOfMonth.setDate(1);
-    startOfMonth.setHours(0, 0, 0, 0);
+    const { year, month } = req.query;
     
-    const monthlySalesStats = await Rental.aggregate([
-      {
-        $match: {
-          status: { $in: ['Completed', 'Returned'] },
-          paymentStatus: 'Paid',
-          createdAt: { $gte: startOfMonth }
-        }
-      },
-      {
-        $lookup: {
-          from: 'cars',
-          localField: 'car',
-          foreignField: '_id',
-          as: 'carDetails'
-        }
-      },
-      {
-        $unwind: '$carDetails'
-      },
-      {
-        $project: {
-          rentalDuration: {
-            $divide: [
-              { $subtract: ['$returnDate', '$pickUpDate'] },
-              1000 * 60 * 60 * 24 // Convert ms to days
-            ]
-          },
-          pricePerDay: '$carDetails.pricePerDay'
-        }
-      },
-      {
-        $project: {
-          rentalCost: { $multiply: ['$rentalDuration', '$pricePerDay'] }
-        }
-      },
-      {
-        $group: {
-          _id: null,
-          monthlyRevenue: { $sum: '$rentalCost' }
-        }
-      }
-    ]);
-
-    // Calculate yearly revenue
-    const startOfYear = new Date();
-    startOfYear.setMonth(0, 1);
-    startOfYear.setHours(0, 0, 0, 0);
+    // Build date filter
+    const dateFilter = {};
+    if (year && month) {
+      const startDate = new Date(parseInt(year), parseInt(month) - 1, 1);
+      const endDate = new Date(parseInt(year), parseInt(month), 0);
+      dateFilter.createdAt = { $gte: startDate, $lte: endDate };
+    } else if (year) {
+      const startDate = new Date(parseInt(year), 0, 1);
+      const endDate = new Date(parseInt(year), 11, 31);
+      dateFilter.createdAt = { $gte: startDate, $lte: endDate };
+    }
     
-    const yearlySalesStats = await Rental.aggregate([
-      {
-        $match: {
-          status: { $in: ['Completed', 'Returned'] },
-          paymentStatus: 'Paid',
-          createdAt: { $gte: startOfYear }
-        }
-      },
-      {
-        $lookup: {
-          from: 'cars',
-          localField: 'car',
-          foreignField: '_id',
-          as: 'carDetails'
-        }
-      },
-      {
-        $unwind: '$carDetails'
-      },
-      {
-        $project: {
-          rentalDuration: {
-            $divide: [
-              { $subtract: ['$returnDate', '$pickUpDate'] },
-              1000 * 60 * 60 * 24 // Convert ms to days
-            ]
-          },
-          pricePerDay: '$carDetails.pricePerDay'
-        }
-      },
-      {
-        $project: {
-          rentalCost: { $multiply: ['$rentalDuration', '$pricePerDay'] }
-        }
-      },
-      {
-        $group: {
-          _id: null,
-          yearlyRevenue: { $sum: '$rentalCost' }
-        }
+    // Get completed rentals
+    const rentals = await Rental.find({ 
+      status: "Returned", 
+      ...dateFilter 
+    }).populate('car');
+    
+    // Calculate total revenue considering discounts
+    const totalRevenue = rentals.reduce((sum, rental) => {
+      return sum + (rental.finalAmount || (calculateRentalDays(rental.pickUpDate, rental.returnDate) * rental.car.pricePerDay));
+    }, 0);
+    
+    // Calculate total discount amount
+    const totalDiscountAmount = rentals.reduce((sum, rental) => {
+      return sum + (rental.discount?.discountAmount || 0);
+    }, 0);
+    
+    // Calculate revenue before discounts
+    const revenueBeforeDiscounts = totalRevenue + totalDiscountAmount;
+    
+    // Monthly revenue data
+    const monthlyData = {};
+    rentals.forEach(rental => {
+      const date = new Date(rental.createdAt);
+      const month = date.getMonth() + 1;
+      
+      if (!monthlyData[month]) {
+        monthlyData[month] = {
+          month,
+          revenue: 0,
+          discountAmount: 0,
+          rentalCount: 0
+        };
       }
-    ]);
-
-    // Prepare response
-    const totalRevenue = salesStats.length > 0 ? salesStats[0].totalRevenue : 0;
-    const monthlyRevenue = monthlySalesStats.length > 0 ? monthlySalesStats[0].monthlyRevenue : 0;
-    const yearlyRevenue = yearlySalesStats.length > 0 ? yearlySalesStats[0].yearlyRevenue : 0;
-    const averageOrderValue = salesStats.length > 0 ? salesStats[0].averageOrderValue : 0;
-
+      
+      monthlyData[month].rentalCount++;
+      monthlyData[month].revenue += (rental.finalAmount || (calculateRentalDays(rental.pickUpDate, rental.returnDate) * rental.car.pricePerDay));
+      monthlyData[month].discountAmount += (rental.discount?.discountAmount || 0);
+    });
+    
+    // Convert to array and sort by month
+    const monthlySales = Object.values(monthlyData).sort((a, b) => a.month - b.month);
+    
     res.status(200).json({
       success: true,
-      statistics: {
-        totalRevenue,
-        monthlyRevenue,
-        yearlyRevenue,
-        averageOrderValue,
-        totalRentals: salesStats.length > 0 ? salesStats[0].rentalCount : 0
-      }
+      totalRevenue,
+      totalDiscountAmount,
+      revenueBeforeDiscounts,
+      discountPercentage: revenueBeforeDiscounts > 0 
+        ? (totalDiscountAmount / revenueBeforeDiscounts * 100).toFixed(2) 
+        : 0,
+      rentalsCount: rentals.length,
+      averageOrderValue: rentals.length > 0 ? (totalRevenue / rentals.length).toFixed(2) : 0,
+      monthlySales
     });
   } catch (error) {
     console.error('Error fetching sales statistics:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error',
+      message: 'Error fetching sales statistics',
       error: error.message
     });
   }
 };
 
-// Get top rented cars
+// Get top rented cars - Update to only include "Returned" rentals
 exports.getTopRentedCars = async (req, res) => {
   try {
-    // Find the cars with most rentals
+    // Find the cars with most rentals - filter by status "Returned" only
     const topRentedCars = await Rental.aggregate([
+      {
+        $match: {
+          status: "Returned" // Add this status filter
+        }
+      },
       {
         $group: {
           _id: '$car',
@@ -707,3 +633,94 @@ exports.getUserActivity = async (req, res) => {
     });
   }
 };
+
+// Get Discount Statistics
+exports.getDiscountStats = async (req, res) => {
+  try {
+    // Get rentals with completed status and discount applied
+    const discountedRentals = await Rental.find({
+      status: "Returned",
+      "discount.code": { $exists: true, $ne: null }
+    }).populate('renter', 'firstName lastName');
+
+    // Count total successful rentals
+    const totalSuccessfulRentals = await Rental.countDocuments({ status: "Returned" });
+    
+    // Calculate discount usage metrics with proper fallbacks for null/undefined values
+    const totalDiscountAmount = discountedRentals.reduce((sum, rental) => {
+      const discountAmount = rental.discount && rental.discount.discountAmount 
+        ? Number(rental.discount.discountAmount) 
+        : 0;
+      return sum + discountAmount;
+    }, 0);
+    
+    const discountUsage = {
+      totalDiscountedRentals: discountedRentals.length,
+      totalSuccessfulRentals,
+      percentageWithDiscount: totalSuccessfulRentals > 0 
+        ? (discountedRentals.length / totalSuccessfulRentals * 100).toFixed(2) 
+        : 0,
+      totalDiscountAmount
+    };
+
+    // Group by discount code with proper null/undefined handling
+    const discountsByCode = {};
+    discountedRentals.forEach(rental => {
+      if (!rental.discount || !rental.discount.code) return;
+      
+      const code = rental.discount.code;
+      if (!discountsByCode[code]) {
+        discountsByCode[code] = {
+          code,
+          count: 0,
+          totalAmount: 0,
+          percentage: rental.discount.discountPercentage || 0
+        };
+      }
+      discountsByCode[code].count++;
+      discountsByCode[code].totalAmount += (rental.discount.discountAmount || 0);
+    });
+
+    // Convert to array and sort by usage count
+    const topDiscounts = Object.values(discountsByCode)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+
+    // Monthly discount usage trends
+    const monthlyDiscountUsage = {};
+    discountedRentals.forEach(rental => {
+      const date = new Date(rental.createdAt);
+      const monthYear = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      
+      if (!monthlyDiscountUsage[monthYear]) {
+        monthlyDiscountUsage[monthYear] = {
+          month: monthYear,
+          count: 0,
+          amount: 0
+        };
+      }
+      
+      monthlyDiscountUsage[monthYear].count++;
+      monthlyDiscountUsage[monthYear].amount += (rental.discount.discountAmount || 0);
+    });
+
+    // Convert to array and sort by month
+    const monthlyTrends = Object.values(monthlyDiscountUsage).sort((a, b) => a.month.localeCompare(b.month));
+
+    res.status(200).json({
+      success: true,
+      discountUsage,
+      topDiscounts,
+      monthlyTrends
+    });
+  } catch (error) {
+    console.error('Error fetching discount statistics:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching discount statistics',
+      error: error.message
+    });
+  }
+};
+
+

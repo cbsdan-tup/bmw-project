@@ -141,16 +141,58 @@ exports.getDiscountById = async (req, res) => {
 exports.getDiscountByCode = async (req, res) => {
     try {
         const { code } = req.params;
+        const { userId } = req.query; 
+        
         const discount = await Discount.findOne({ code });
 
         if (!discount) {
-            return res.status(404).json({ success: false, message: 'Discount code not found' });
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Discount code not found' 
+            });
+        }
+        
+        // Check if the discount is currently valid (date range)
+        const now = new Date();
+        if (now < new Date(discount.startDate)) {
+            return res.status(400).json({
+                success: false,
+                message: `This discount code is not valid until ${new Date(discount.startDate).toLocaleDateString()}`
+            });
+        }
+        
+        if (discount.endDate && now > new Date(discount.endDate)) {
+            return res.status(400).json({
+                success: false,
+                message: `This discount code expired on ${new Date(discount.endDate).toLocaleDateString()}`
+            });
+        }
+        
+        // If userId is provided, check one-time use restriction
+        if (userId && discount.isOneTime) {
+            const Rental = require('../models/Rental');
+            
+            const previousUse = await Rental.findOne({
+                renter: userId,
+                'discount.code': code  
+            });
+            
+            if (previousUse) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'This discount code can only be used once per customer'
+                });
+            }
         }
 
         res.status(200).json({ success: true, discount });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ success: false, message: 'Server Error', error: error.message });
+        res.status(500).json({ 
+            success: false, 
+            message: 'Server Error', 
+            error: error.message 
+        });
     }
 };
 

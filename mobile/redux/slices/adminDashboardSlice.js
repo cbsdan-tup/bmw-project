@@ -63,6 +63,19 @@ export const fetchUserActivity = createAsyncThunk(
   }
 );
 
+// Add a new thunk for fetching discount statistics
+export const fetchDiscountStats = createAsyncThunk(
+  'adminDashboard/fetchDiscountStats',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/admin/stats/discounts');
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || 'Failed to fetch discount statistics');
+    }
+  }
+);
+
 // Initial state for admin dashboard
 const initialState = {
   loading: false,
@@ -105,7 +118,17 @@ const initialState = {
   topRentedCars: [],
   monthlySales: [],
   userActivity: [],
-  selectedYear: new Date().getFullYear()
+  selectedYear: new Date().getFullYear(),
+  discountStats: {
+    discountUsage: {
+      totalDiscountedRentals: 0,
+      totalSuccessfulRentals: 0,
+      percentageWithDiscount: 0,
+      totalDiscountAmount: 0
+    },
+    topDiscounts: [],
+    monthlyTrends: []
+  }
 };
 
 const adminDashboardSlice = createSlice({
@@ -149,9 +172,24 @@ const adminDashboardSlice = createSlice({
           state.reviewStats = action.payload.reviews.statistics;
         }
         
-        // Update sales statistics
+        // Update sales statistics - Fix handling of sales data
         if (action.payload.sales) {
-          state.salesStats = action.payload.sales.statistics;
+          // Ensure we handle it properly by using the right property path
+          // The API might be returning sales data in different structures
+          if (action.payload.sales.statistics) {
+            state.salesStats = action.payload.sales.statistics;
+          } else {
+            // Fallback to using direct properties if statistics is not present
+            state.salesStats = {
+              totalRevenue: action.payload.sales.totalRevenue || 0,
+              totalDiscountAmount: action.payload.sales.totalDiscountAmount || 0,
+              revenueBeforeDiscounts: action.payload.sales.revenueBeforeDiscounts || 0,
+              discountPercentage: action.payload.sales.discountPercentage || 0,
+              rentalsCount: action.payload.sales.rentalsCount || 0,
+              averageOrderValue: action.payload.sales.averageOrderValue || 0,
+              monthlySales: action.payload.sales.monthlySales || []
+            };
+          }
         }
       })
       .addCase(fetchDashboardStats.rejected, (state, action) => {
@@ -199,6 +237,20 @@ const adminDashboardSlice = createSlice({
       .addCase(fetchUserActivity.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload || 'Failed to fetch user activity';
+      })
+      
+      // Handle fetchDiscountStats
+      .addCase(fetchDiscountStats.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchDiscountStats.fulfilled, (state, action) => {
+        state.loading = false;
+        state.discountStats = action.payload;
+      })
+      .addCase(fetchDiscountStats.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Failed to fetch discount statistics';
       });
   }
 });

@@ -10,9 +10,11 @@ import TermsConditionsScreen from "../screens/TermsConditionsScreen";
 import MyReviewsScreen from "../screens/MyReviewsScreen";
 import MyCar from "../screens/MyCar";
 import PutCarOnRent from "../screens/PutCarOnRent";
+import CarFormScreen from "../screens/CarFormScreen";
 import ChatScreen from "../screens/ChatScreen";
 import RentalHistoryScreen from "../screens/RentalHistory";
 import BookingDetailsScreen from "../screens/BookingDetailsScreen";
+import MyCarRentalDetails from "../screens/MyCarRentalDetails";
 
 const Stack = createStackNavigator();
 
@@ -42,9 +44,25 @@ const ProfileNavigator = () => {
         }}
       />
       <Stack.Screen
+        name="MyCarRentalDetails"
+        component={MyCarRentalDetails}
+        options={{
+          headerShown: true,
+          title: "Rental Details",
+        }}
+      />
+      <Stack.Screen
         name="PutCarOnRent"
         component={PutCarOnRent}
         options={{ headerShown: true, title: "List Your Car" }}
+      />
+      <Stack.Screen
+        name="CarForm"
+        component={CarFormScreen}
+        options={({ route }) => ({
+          headerShown: true,
+          title: route.params?.editingCar ? "Edit Car" : "Add New Car",
+        })}
       />
       <Stack.Screen
         name="EditProfile"

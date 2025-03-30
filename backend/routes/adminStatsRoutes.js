@@ -8,7 +8,8 @@ const {
   getSalesStats,
   getTopRentedCars,
   getMonthlySales,
-  getUserActivity
+  getUserActivity,
+  getDiscountStats
 } = require('../controllers/adminStatsController');
 
 const router = express.Router();
@@ -24,5 +25,6 @@ router.get('/admin/stats/sales', isAdmin, getSalesStats);
 router.get('/admin/stats/top-rented-cars', isAdmin, getTopRentedCars);
 router.get('/admin/stats/monthly-sales', isAdmin, getMonthlySales);
 router.get('/admin/stats/user-activity', isAdmin, getUserActivity);
+router.get("/admin/stats/discounts", isAdmin, getDiscountStats);
 
 module.exports = router;

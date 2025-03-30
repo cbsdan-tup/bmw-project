@@ -41,10 +41,25 @@ const rentalSchema = new mongoose.Schema({
     required: true,
     default: "Pending"
   },
-  discountCode: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "DiscountCode",
+  discount: {
+    code: {
+      type: String,
+      trim: true
+    },
+    discountPercentage: {
+      type: Number
+    },
+    discountAmount: {
+      type: Number
+    }
   },
+  
+  originalAmount: {
+    type: Number
+  },
+  finalAmount: {
+    type: Number
+  }
 
 }, { timestamps: true });
 

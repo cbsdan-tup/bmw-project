@@ -49,13 +49,12 @@ const getAllAdminRentals = async (req, res) => {
     const totalItems = await Rental.countDocuments(query);
     const totalPages = Math.ceil(totalItems / limitNum);
 
-    // Fetch paginated rentals with dynamic sort
     const rentals = await Rental.find(query)
       .populate({
         path: "car",
         populate: { path: "owner" },
       })
-      .populate("renter discountCode")
+      .populate("renter")
       .sort(sortOptions)
       .skip(skip)
       .limit(limitNum);
@@ -83,7 +82,7 @@ const getAdminRentalById = async (req, res) => {
         path: "car",
         populate: { path: "owner" },
       })
-      .populate("renter discountCode");
+      .populate("renter");
     
     if (!rental) {
       return res.status(404).json({ message: "Rental not found" });

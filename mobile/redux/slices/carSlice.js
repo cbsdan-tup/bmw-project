@@ -208,6 +208,28 @@ export const updateCarStatus = createAsyncThunk(
   }
 );
 
+// Update the validateDiscountCode thunk to pass only necessary parameters
+export const validateDiscountCode = createAsyncThunk(
+  'cars/validateDiscountCode',
+  async ({code, userId}, { rejectWithValue }) => {
+    try {
+      // Build query params for additional validation checks
+      const queryParams = new URLSearchParams();
+      if (userId) queryParams.append('userId', userId);
+      
+      const queryString = queryParams.toString();
+      const endpoint = `/discounts/code/${code}${queryString ? `?${queryString}` : ''}`;
+      
+      const response = await api.get(endpoint);
+      return response.data.discount;
+    } catch (error) {
+      // Extract the specific error message from the API response
+      const errorMessage = error.response?.data?.message || 'Invalid discount code';
+      return rejectWithValue(errorMessage);
+    }
+  }
+);
+
 const initialState = {
   featuredCars: [],
   filteredCars: [],
@@ -225,7 +247,11 @@ const initialState = {
     maxPricePerDay: "",
     year: "",
     rating: ""
-  }
+  },
+  // Add discount related state
+  discount: null,
+  discountLoading: false,
+  discountError: null
 };
 
 const carSlice = createSlice({
@@ -240,6 +266,10 @@ const carSlice = createSlice({
     },
     clearError: (state) => {
       state.error = null;
+    },
+    clearDiscount: (state) => {
+      state.discount = null;
+      state.discountError = null;
     }
   },
   extraReducers: (builder) => {
@@ -413,6 +443,20 @@ const carSlice = createSlice({
       .addCase(updateCarStatus.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload || 'Failed to update car status';
+      })
+
+      // Validate discount code
+      .addCase(validateDiscountCode.pending, (state) => {
+        state.discountLoading = true;
+        state.discountError = null;
+      })
+      .addCase(validateDiscountCode.fulfilled, (state, action) => {
+        state.discountLoading = false;
+        state.discount = action.payload;
+      })
+      .addCase(validateDiscountCode.rejected, (state, action) => {
+        state.discountLoading = false;
+        state.discountError = action.payload || 'Failed to validate discount code';
       });
   }
 });
@@ -420,7 +464,8 @@ const carSlice = createSlice({
 export const { 
   setFilterParams,
   resetFilters,
-  clearError
+  clearError,
+  clearDiscount  // Export the new action
 } = carSlice.actions;
 
 export default carSlice.reducer;
