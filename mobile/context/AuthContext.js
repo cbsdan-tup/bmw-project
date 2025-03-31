@@ -454,21 +454,41 @@ export const AuthProvider = ({ children }) => {
     
     setIsLoading(true);
     try {
-      const response = await api.get(`/users/${user._id}`, {
-        headers: { Authorization: `Bearer ${token}` }
+      // Try to get user info using the user ID from auth
+      const response = await api.post(`/getUserInfo`, { 
+        uid: user.uid 
+      }, {
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        }
       });
       
-      const freshUserData = response.data.user;
-      
-      // Update state
-      setUser(freshUserData);
-      
-      // Update AsyncStorage
-      await AsyncStorage.setItem('user', JSON.stringify(freshUserData));
-      
-      return freshUserData;
+      if (response.data.success) {
+        const freshUserData = response.data.user;
+        
+        // Update state
+        setUser(freshUserData);
+        
+        // Update AsyncStorage
+        await AsyncStorage.setItem('user', JSON.stringify(freshUserData));
+        
+        return freshUserData;
+      } else {
+        console.log('User info refresh returned unsuccessful response:', response.data);
+        return user; // Return current user data as fallback
+      }
     } catch (err) {
       console.error('Error refreshing user data:', err);
+      
+      // Log more detailed error information
+      if (err.response) {
+        console.log('Error status:', err.response.status);
+        console.log('Error data:', err.response.data);
+      }
+      
+      // Even if refresh fails, we should continue with current user data
+      return user;
     } finally {
       setIsLoading(false);
     }

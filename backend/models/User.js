@@ -62,10 +62,17 @@ const userSchema = new mongoose.Schema({
     pushTokens: [{
         type: String,
     }],
+    enablePushNotifications: {
+        type: Boolean,
+        default: true 
+    },
     permissionToken: {
         type: String,
     },
-    // Replace individual disable fields with an array of disable records
+    multiFactorEnabled: {
+        type: Boolean,
+        default: false
+    },
     disableHistory: [disableRecordSchema],
     // Virtual property to be calculated
     isDisabled: {

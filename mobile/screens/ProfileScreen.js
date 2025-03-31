@@ -326,23 +326,25 @@ const ProfileScreen = () => {
         <Icon name="angle-right" size={20} color={colors.secondary} />
       </TouchableOpacity>
 
-      <TouchableOpacity
-        style={styles.settingItem}
-        onPress={() => navigation.navigate("PrivacySettings")}
-      >
-        <View style={styles.settingInfo}>
-          <Icon
-            name="lock"
-            size={20}
-            color={colors.primary}
-            style={styles.settingIcon}
-          />
-          <Text style={[styles.settingText, { color: colors.text }]}>
-            Privacy & Security
-          </Text>
-        </View>
-        <Icon name="angle-right" size={20} color={colors.secondary} />
-      </TouchableOpacity>
+      {isAuthenticated && (
+        <TouchableOpacity
+          style={styles.settingItem}
+          onPress={() => navigation.navigate("PrivacySettings")}
+        >
+          <View style={styles.settingInfo}>
+            <Icon
+              name="lock"
+              size={20}
+              color={colors.primary}
+              style={styles.settingIcon}
+            />
+            <Text style={[styles.settingText, { color: colors.text }]}>
+              Privacy & Security
+            </Text>
+          </View>
+          <Icon name="angle-right" size={20} color={colors.secondary} />
+        </TouchableOpacity>
+      )}
     </View>
   );
 

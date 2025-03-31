@@ -4,6 +4,8 @@ const crypto = require("crypto");
 const cloudinary = require("cloudinary").v2;
 
 const otpStore = {};
+const mfaCodesStore = {};
+const loginMfaCodesStore = {};
 
 exports.generateAndSendOTP = async (req, res, next) => {
   try {
@@ -510,6 +512,334 @@ exports.updateUserPassword = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Server error",
+    });
+  }
+};
+
+// Send MFA setup verification code
+exports.sendMfaSetupCode = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required",
+      });
+    }
+
+    // Generate 5-digit MFA setup code
+    const code = Math.floor(10000 + Math.random() * 90000).toString();
+    
+    // Store code with 10-minute expiration
+    mfaCodesStore[email] = {
+      code,
+      expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutes
+    };
+
+    // Create email template for MFA setup
+    const emailTemplate = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
+        <div style="text-align: center; margin-bottom: 20px;">
+          <h1 style="color: #0066b1;">BMW Rental Service</h1>
+          <div style="height: 4px; background: linear-gradient(to right, #0066b1, #76b1e6); margin: 10px 0;"></div>
+        </div>
+        
+        <h2 style="color: #333;">Set Up Two-Factor Authentication</h2>
+        <p style="color: #555; font-size: 16px; line-height: 1.5;">Please use the following verification code to complete your two-factor authentication setup:</p>
+        
+        <div style="text-align: center; margin: 30px 0;">
+          <div style="font-size: 32px; font-weight: bold; letter-spacing: 5px; padding: 15px; background-color: #f5f5f5; border-radius: 5px;">${code}</div>
+          <p style="color: #888; font-size: 14px; margin-top: 10px;">This code will expire in 10 minutes.</p>
+        </div>
+        
+        <p style="color: #555; font-size: 16px;">Two-factor authentication adds an extra layer of security to your account. Once enabled, you'll need to verify your identity each time you sign in.</p>
+        
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0; color: #888; font-size: 14px;">
+          <p>If you didn't request this code, please ignore this email.</p>
+          <p>&copy; ${new Date().getFullYear()} BMW Rental Service. All rights reserved.</p>
+        </div>
+      </div>
+    `;
+
+    // Send verification code via email
+    await sendEmail({
+      email,
+      subject: "BMW Rental - Two-Factor Authentication Setup",
+      message: emailTemplate,
+      html: true
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Verification code sent successfully",
+    });
+  } catch (error) {
+    console.error("Error sending MFA setup code:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error sending verification code",
+      error: error.message,
+    });
+  }
+};
+
+// Verify MFA setup code and enable MFA
+exports.verifyMfaSetup = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    const userId = req.user.id;
+
+    if (!email || !otp) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and verification code are required",
+      });
+    }
+
+    // Check if code exists and is valid
+    const storedCodeData = mfaCodesStore[email];
+    
+    if (!storedCodeData) {
+      return res.status(400).json({
+        success: false,
+        message: "Verification code has expired. Please request a new one.",
+      });
+    }
+
+    if (Date.now() > storedCodeData.expiresAt) {
+      // Clean up expired code
+      delete mfaCodesStore[email];
+      
+      return res.status(400).json({
+        success: false,
+        message: "Verification code has expired. Please request a new one.",
+      });
+    }
+
+    if (storedCodeData.code !== otp) {
+      return res.status(400).json({
+        success: false,
+        message: "Incorrect verification code. Please try again.",
+      });
+    }
+
+    // Code verified - enable MFA for the user
+    const user = await User.findById(userId);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Initialize multiFactorEnabled field if it doesn't exist
+    if (user.multiFactorEnabled === undefined) {
+      user.multiFactorEnabled = false;
+    }
+
+    // Enable multifactor authentication
+    user.multiFactorEnabled = true;
+    await user.save();
+
+    // Clean up the verified code
+    delete mfaCodesStore[email];
+
+    return res.status(200).json({
+      success: true,
+      message: "Two-factor authentication enabled successfully",
+    });
+  } catch (error) {
+    console.error("MFA verification error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "An error occurred. Please try again later.",
+      error: error.message,
+    });
+  }
+};
+
+// Update MFA settings (enable/disable)
+exports.updateMfaSettings = async (req, res) => {
+  try {
+    const { enabled, initializeIfMissing } = req.body;
+    const userId = req.user.id;
+
+    if (typeof enabled !== 'boolean') {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid request. 'enabled' must be a boolean value.",
+      });
+    }
+
+    const user = await User.findById(userId);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Check if field exists, initialize if requested or missing
+    if (user.multiFactorEnabled === undefined || initializeIfMissing) {
+      // Add the field with default value false
+      if (!user.schema.paths.multiFactorEnabled) {
+        // If the field is not in the schema, use normal assignment
+        user.multiFactorEnabled = false;
+      } else {
+        // Otherwise set through the setter
+        user.set('multiFactorEnabled', false);
+      }
+      console.log('Initialized missing multiFactorEnabled field');
+    }
+
+    // Now safely update the setting
+    user.multiFactorEnabled = enabled;
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: `Two-factor authentication ${enabled ? 'enabled' : 'disabled'} successfully`,
+    });
+  } catch (error) {
+    console.error("Error updating MFA settings:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update two-factor authentication settings",
+      error: error.message,
+    });
+  }
+};
+
+// Send MFA code for login verification
+exports.sendLoginMfaCode = async (req, res) => {
+  try {
+    const { email } = req.body;
+    console.log('Received request to send MFA login code for:', email);
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required",
+      });
+    }
+
+    // Generate 5-digit MFA login code
+    const code = Math.floor(10000 + Math.random() * 90000).toString();
+    console.log('Generated MFA code:', code); // Only log in dev environment
+    
+    // Store code with 10-minute expiration
+    loginMfaCodesStore[email] = {
+      code,
+      expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutes
+    };
+
+    // Create email template for login verification
+    const emailTemplate = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
+        <div style="text-align: center; margin-bottom: 20px;">
+          <h1 style="color: #0066b1;">BMW Rental Service</h1>
+          <div style="height: 4px; background: linear-gradient(to right, #0066b1, #76b1e6); margin: 10px 0;"></div>
+        </div>
+        
+        <h2 style="color: #333;">Login Verification</h2>
+        <p style="color: #555; font-size: 16px; line-height: 1.5;">Please use the following verification code to complete your login:</p>
+        
+        <div style="text-align: center; margin: 30px 0;">
+          <div style="font-size: 32px; font-weight: bold; letter-spacing: 5px; padding: 15px; background-color: #f5f5f5; border-radius: 5px;">${code}</div>
+          <p style="color: #888; font-size: 14px; margin-top: 10px;">This code will expire in 10 minutes.</p>
+        </div>
+        
+        <p style="color: #555; font-size: 16px;">If you didn't attempt to log in, please consider changing your password immediately.</p>
+        
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0; color: #888; font-size: 14px;">
+          <p>&copy; ${new Date().getFullYear()} BMW Rental Service. All rights reserved.</p>
+        </div>
+      </div>
+    `;
+
+    console.log('Sending MFA login code to:', email);
+    await sendEmail({
+      email,
+      subject: "BMW Rental - Login Verification Code",
+      message: emailTemplate,
+      html: true
+    });
+    console.log('Email sent successfully');
+
+    return res.status(200).json({
+      success: true,
+      message: "Login verification code sent successfully",
+    });
+  } catch (error) {
+    console.error("Error sending login MFA code:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error sending verification code",
+      error: error.message,
+    });
+  }
+};
+
+// Verify MFA code for login
+exports.verifyLoginMfa = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    console.log('Verifying MFA login code for:', email);
+
+    if (!email || !otp) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and verification code are required",
+      });
+    }
+
+    // Check if code exists and is valid
+    const storedCodeData = loginMfaCodesStore[email];
+    console.log('Found stored code data:', storedCodeData ? 'Yes' : 'No');
+    
+    if (!storedCodeData) {
+      return res.status(400).json({
+        success: false,
+        message: "Verification code has expired. Please request a new one.",
+      });
+    }
+
+    if (Date.now() > storedCodeData.expiresAt) {
+      // Clean up expired code
+      delete loginMfaCodesStore[email];
+      console.log('Code expired');
+      
+      return res.status(400).json({
+        success: false,
+        message: "Verification code has expired. Please request a new one.",
+      });
+    }
+
+    console.log('Comparing OTP:', otp, 'with stored code:', storedCodeData.code);
+    if (storedCodeData.code !== otp) {
+      return res.status(400).json({
+        success: false,
+        message: "Incorrect verification code. Please try again.",
+      });
+    }
+
+    // Clean up the verified code
+    delete loginMfaCodesStore[email];
+    console.log('MFA verification successful');
+
+    return res.status(200).json({
+      success: true,
+      message: "Login verification successful",
+    });
+  } catch (error) {
+    console.error("Login MFA verification error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "An error occurred. Please try again later.",
+      error: error.message,
     });
   }
 };

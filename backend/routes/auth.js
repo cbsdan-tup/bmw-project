@@ -14,7 +14,12 @@ const {
     updateUserPassword,
     deletePermissionToken,
     generateAndSendOTP,
-    verifyOTP
+    verifyOTP,
+    sendMfaSetupCode,
+    verifyMfaSetup,
+    updateMfaSettings,
+    sendLoginMfaCode,
+    verifyLoginMfa
 } = require('../controllers/auth');
 
 
@@ -29,6 +34,15 @@ const {
 // New OTP routes
 router.post('/generate-otp', generateAndSendOTP);
 router.post('/verify-otp', verifyOTP);
+
+// New MFA routes
+router.post('/users/send-mfa-setup-code', isAuthenticatedUser, sendMfaSetupCode);
+router.post('/users/verify-mfa-setup', isAuthenticatedUser, verifyMfaSetup);
+router.post('/users/update-mfa-settings', isAuthenticatedUser, updateMfaSettings);
+
+// MFA login verification routes
+router.post('/send-login-mfa-code', sendLoginMfaCode);
+router.post('/verify-login-mfa', verifyLoginMfa);
 
 router.post('/register', upload.single('avatar'), registerUser);
 router.post('/getUserInfo', getUser);

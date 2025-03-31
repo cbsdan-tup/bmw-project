@@ -32,9 +32,21 @@ export const NotificationProvider = ({ children }) => {
   const [notificationNavigation, setNotificationNavigation] = useState(null);
 
   const { user } = useAuth();
+
+  // Check if notifications are enabled for the user
+  const areNotificationsEnabled = () => {
+    return user && user.enablePushNotifications !== false; // Default to true if not set
+  };
+
   // Register push notifications whenever auth state changes
   useEffect(() => {
     if (user && !tokenSaved) {
+      // Check if notifications are enabled for this user
+      if (user.enablePushNotifications === false) {
+        console.log('Push notifications are disabled for this user');
+        return;
+      }
+
       // If user is logged in and we haven't saved the token yet,
       // try to register notifications
       (async () => {
@@ -65,6 +77,12 @@ export const NotificationProvider = ({ children }) => {
       // Ensure we have the required data
       if (!token || !userId) {
         console.error('Missing token or userId for push notification registration');
+        return false;
+      }
+
+      // Don't save token if notifications are disabled
+      if (user && user.enablePushNotifications === false) {
+        console.log('Push notifications are disabled for this user');
         return false;
       }
 
@@ -218,6 +236,50 @@ export const NotificationProvider = ({ children }) => {
     } catch (error) {
       console.error('Error in registerForPushNotifications:', error);
       return null;
+    }
+  };
+  
+  // Add the unregister function
+  const unregisterPushNotifications = async () => {
+    try {
+      const token = expoPushToken;
+      
+      // No token to unregister
+      if (!token) {
+        console.log('No push token to unregister');
+        return true;
+      }
+      
+      // Remove token from AsyncStorage
+      await AsyncStorage.removeItem('expoPushToken');
+      
+      // Only try to remove from backend if user is logged in
+      if (user && user.uid) {
+        try {
+          const response = await api.post('/unregister-token', {
+            userId: user.uid,
+            token
+          });
+          
+          if (response.data.success) {
+            console.log('Push token unregistered from backend');
+          } else {
+            console.warn('Failed to unregister token from backend:', response.data);
+          }
+        } catch (error) {
+          console.error('Error unregistering token from backend:', error);
+          // We still want to continue with client-side unregistration even if backend fails
+        }
+      }
+      
+      // Reset state
+      setExpoPushToken('');
+      setTokenSaved(false);
+      
+      return true;
+    } catch (error) {
+      console.error('Error in unregisterPushNotifications:', error);
+      return false;
     }
   };
   
@@ -437,7 +499,9 @@ export const NotificationProvider = ({ children }) => {
         runNotificationDiagnostics,
         tokenSaved,
         notificationNavigation,
-        clearNotificationNavigation: () => setNotificationNavigation(null)
+        clearNotificationNavigation: () => setNotificationNavigation(null),
+        unregisterPushNotifications, // Add this line to expose the function
+        areNotificationsEnabled,
       }}
     > 
       {children}
