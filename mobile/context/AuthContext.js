@@ -474,6 +474,30 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Verify OTP function
+  const verifyOTP = async (email, otp) => {
+    try {
+      const response = await api.post('/verify-otp', { email, otp });
+      return response.data;
+    } catch (error) {
+      // Don't log the full error object which causes the noisy console output
+      console.log("OTP verification failed:", error.response?.status || 'Network error');
+      
+      // Create a user-friendly error object
+      const userFriendlyError = {
+        success: false,
+        message: 'Invalid verification code. Please try again.'
+      };
+      
+      // Use the server's error message if available
+      if (error.response?.data?.message) {
+        userFriendlyError.message = error.response.data.message;
+      }
+      
+      return userFriendlyError;
+    }
+  };
+
   // Auth context value
   const authContextValue = {
     user,
@@ -488,6 +512,7 @@ export const AuthProvider = ({ children }) => {
     refreshUserData,
     googleSignIn,
     refreshToken: verifyAndRefreshToken,
+    verifyOTP,
   };
 
   return (

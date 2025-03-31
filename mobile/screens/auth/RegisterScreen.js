@@ -23,6 +23,7 @@ import { GOOGLE_SIGNIN_CONFIG } from '../../config/google-auth-config';
 import { auth, app } from '../../config/firebase-config';
 import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import api from '../../services/api';
 
 GoogleSignin.configure(GOOGLE_SIGNIN_CONFIG);
 
@@ -122,26 +123,38 @@ const RegisterScreen = ({ navigation }) => {
       return;
     }
     
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      toast.warning('Please enter a valid email address');
+      return;
+    }
+    
     try {
       setRegistrationInProgress(true);
       
-      const result = await register({
-        firstName,
-        lastName,
-        email,
-        password,
-        avatar
+      // Send OTP first
+      const response = await api.post(`/generate-otp`, {
+        email
       });
       
-      if (result.success) {
-        toast.success('Your account has been created successfully');
-        navigation.navigate('Login');
+      if (response.data.success) {
+        // Navigate to OTP verification with all registration data
+        navigation.navigate('OTPVerification', {
+          email,
+          registrationData: {
+            firstName,
+            lastName,
+            password,
+            avatar
+          }
+        });
       } else {
-        toast.error(result.error || 'Registration failed');
+        toast.error(response.data.message || 'Failed to send verification code');
       }
     } catch (error) {
       console.log("Registration error:", error);
-      toast.error(error.message || 'Please check your information and try again');
+      toast.error(error.response?.data?.message || 'Please check your information and try again');
     } finally {
       setRegistrationInProgress(false);
     }
@@ -158,42 +171,26 @@ const RegisterScreen = ({ navigation }) => {
       const signInResult = await GoogleSignin.signIn();
       console.log('Google sign-in successful, full result:', JSON.stringify(signInResult));
       
-      const idToken = signInResult.idToken || signInResult.data?.idToken;
+      const userEmail = signInResult.user?.email;
       
-      if (!idToken) {
-        throw new Error('Failed to get ID token from Google Sign-in');
+      if (!userEmail) {
+        throw new Error('Failed to get email from Google Sign-in');
       }
       
-      console.log('Successfully retrieved idToken');
+      const response = await api.post(`/generate-otp`, {
+        email: userEmail
+      });
       
-      const googleCredential = GoogleAuthProvider.credential(idToken);
-      
-      console.log('Signing in to Firebase');
-      const userCredential = await signInWithCredential(auth, googleCredential);
-      const firebaseUser = userCredential.user;
-      
-      console.log('Firebase User UID:', firebaseUser.uid);
-      console.log('Firebase User Email:', firebaseUser.email);
-      console.log('Firebase User DisplayName:', firebaseUser.displayName);
-      
-      console.log('Calling auth context googleSignIn method');
-      const result = await googleSignIn(idToken);
-      console.log('Auth context googleSignIn completed:', result);
-      
-      if (result && result.success) {
-        const displayName = result.user?.firstName || firebaseUser.displayName || 'User';
-        toast.success(`Welcome ${displayName}!`);
+      if (response.data.success) {
+        toast.success('Verification code sent to your email');
         
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'MainTabs' }]
+        navigation.navigate('OTPVerification', { 
+          email: userEmail,
+          googleSignInData: signInResult
         });
       } else {
-        const errorMsg = result?.error || 'Authentication failed';
-        console.error('Authentication failed in auth context:', errorMsg);
-        toast.error(errorMsg);
+        throw new Error(response.data.message || 'Failed to send verification code');
       }
-      
     } catch (error) {
       console.error('Google sign in error details:', error);
       console.error('Error type:', typeof error);
@@ -500,7 +497,7 @@ const styles = StyleSheet.create({
     marginVertical: 20,
   },
   divider: {
-    flex: 1,
+    flex:1,
     height: 1,
   },
   orText: {

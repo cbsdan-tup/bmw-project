@@ -92,23 +92,20 @@ const ProfileScreen = () => {
     return (
       <View style={styles.profileHeader}>
         <View style={styles.avatarContainer}>
-          {user?.avatar?.url ? (
+          {user.avatar?.url ? (
             // Display the user's avatar image
-            <Image source={{ uri: user.avatar?.url }} style={styles.avatar} />
+            <Image source={{ uri: user.avatar.url }} style={styles.avatar} />
           ) : (
             // Fallback: Display an icon or placeholder with the user's initial
-            <View style={styles.avatarPlaceholder}>
+            <View style={[styles.avatarPlaceholder, { backgroundColor: colors.primary }]}>
               <Text style={styles.avatarInitial}>
                 {user.firstName ? user.firstName[0].toUpperCase() : "U"}
               </Text>
             </View>
           )}
-
+    
           <TouchableOpacity
-            style={[
-              styles.editAvatarButton,
-              { backgroundColor: colors.primary },
-            ]}
+            style={[styles.editAvatarButton, { backgroundColor: colors.primary }]}
             onPress={() =>
               navigation.navigate("EditProfile", {
                 screen: "Profile",
@@ -119,14 +116,14 @@ const ProfileScreen = () => {
             <Icon name="camera" size={14} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
-
+    
         <Text style={[styles.userName, { color: colors.text }]}>
           {user.firstName} {user.lastName}
         </Text>
         <Text style={[styles.userEmail, { color: colors.secondary }]}>
           {user.email}
         </Text>
-
+    
         <TouchableOpacity
           style={[styles.editProfileButton, { borderColor: colors.border }]}
           onPress={() =>
@@ -142,6 +139,7 @@ const ProfileScreen = () => {
         </TouchableOpacity>
       </View>
     );
+    
   };
 
   const QuickStats = () => {
@@ -194,7 +192,7 @@ const ProfileScreen = () => {
 
         <TouchableOpacity
           style={[styles.menuItem, { borderBottomColor: colors.border }]}
-          onPress={() => navigation.navigate("EditProfile")}
+          onPress={() => navigation.navigate("PersonalInfo")}
         >
           <View style={styles.menuItemLeft}>
             <Icon

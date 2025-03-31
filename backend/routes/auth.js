@@ -12,7 +12,9 @@ const {
     updateUser,
     updateUserAvatar,
     updateUserPassword,
-    deletePermissionToken
+    deletePermissionToken,
+    generateAndSendOTP,
+    verifyOTP
 } = require('../controllers/auth');
 
 
@@ -24,6 +26,9 @@ const {
     deleteUserInfo,
 } = require('../controllers/userInfoController');
 
+// New OTP routes
+router.post('/generate-otp', generateAndSendOTP);
+router.post('/verify-otp', verifyOTP);
 
 router.post('/register', upload.single('avatar'), registerUser);
 router.post('/getUserInfo', getUser);

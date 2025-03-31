@@ -72,7 +72,7 @@ const NotificationsScreen = () => {
     if (token) {
       fetchNotifications();
     }
-  }, [token, activeFilter]);
+  }, [token, activeFilter, user]);
 
   const fetchNotifications = async () => {
     if (!token) return;
@@ -225,7 +225,7 @@ const NotificationsScreen = () => {
           <Text
             style={[
               styles.filterText,
-              { color: activeFilter === 'all' ? colors.buttonText : colors.text }
+              { color: activeFilter === 'all' ? '#FFF' : colors.text }
             ]}
           >
             All

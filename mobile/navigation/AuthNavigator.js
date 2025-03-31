@@ -4,7 +4,7 @@ import { TouchableOpacity } from "react-native";
 import Icon from "react-native-vector-icons/FontAwesome";
 import LoginScreen from "../screens/auth/LoginScreen";
 import RegisterScreen from "../screens/auth/RegisterScreen";
-import ForgotPasswordScreen from "../screens/ForgotPasswordScreen";
+import OTPVerificationScreen from "../screens/auth/OTPVerificationScreen";
 import { useTheme } from "../context/ThemeContext";
 import BottomTabNavigator from "./BottomTabNavigator";
 import EditProfileScreen from "../screens/EditProfileScreen";
@@ -53,9 +53,9 @@ const AuthNavigator = () => {
         options={{ title: "Sign Up" }}
       />
       <Stack.Screen
-        name="ForgotPassword"
-        component={ForgotPasswordScreen}
-        options={{ title: "Reset Password" }}
+        name="OTPVerification"
+        component={OTPVerificationScreen}
+        options={{ title: "Verify Email" }}
       />
       <Stack.Screen
         name="EditProfile"

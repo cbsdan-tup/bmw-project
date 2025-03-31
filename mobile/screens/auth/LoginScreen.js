@@ -311,10 +311,6 @@ const LoginScreen = ({ navigation }) => {
             </TouchableOpacity>
           </View>
           
-          <TouchableOpacity style={styles.forgotPassword}>
-            <Text style={{ color: colors.primary }}>Forgot Password?</Text>
-          </TouchableOpacity>
-          
           <TouchableOpacity
             style={[buttonStyles.primary, { backgroundColor: colors.primary, marginTop: 24 }]}
             onPress={handleLogin}
@@ -405,10 +401,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     fontSize: 14,
     fontWeight: '500',
-  },
-  forgotPassword: {
-    alignSelf: 'flex-end',
-    marginTop: 12,
   },
   orContainer: {
     flexDirection: 'row',

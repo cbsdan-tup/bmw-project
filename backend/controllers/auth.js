@@ -1,7 +1,129 @@
 const User = require("../models/User");
-
+const sendEmail = require("../utils/sendEmail");
 const crypto = require("crypto");
 const cloudinary = require("cloudinary").v2;
+
+const otpStore = {};
+
+exports.generateAndSendOTP = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required",
+      });
+    }
+
+    // Generate 5-digit OTP
+    const otp = Math.floor(10000 + Math.random() * 90000).toString();
+    
+    otpStore[email] = {
+      otp,
+      expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutes
+    };
+
+    // Create email template with BMW branding
+    const emailTemplate = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
+        <div style="text-align: center; margin-bottom: 20px;">
+          <h1 style="color: #0066b1;">BMW Rental Service</h1>
+          <div style="height: 4px; background: linear-gradient(to right, #0066b1, #76b1e6); margin: 10px 0;"></div>
+        </div>
+        
+        <h2 style="color: #333;">Verify Your Email</h2>
+        <p style="color: #555; font-size: 16px; line-height: 1.5;">Thank you for choosing BMW Rental Service. Please use the following One-Time Password (OTP) to complete your registration:</p>
+        
+        <div style="text-align: center; margin: 30px 0;">
+          <div style="font-size: 32px; font-weight: bold; letter-spacing: 5px; padding: 15px; background-color: #f5f5f5; border-radius: 5px;">${otp}</div>
+          <p style="color: #888; font-size: 14px; margin-top: 10px;">This OTP will expire in 10 minutes.</p>
+        </div>
+        
+        <p style="color: #555; font-size: 16px;">Experience the ultimate driving pleasure with our premium BMW rental fleet. From luxurious sedans to powerful SUVs, we offer the finest vehicles for your journey.</p>
+        
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0; color: #888; font-size: 14px;">
+          <p>If you didn't request this OTP, please ignore this email.</p>
+          <p>&copy; ${new Date().getFullYear()} BMW Rental Service. All rights reserved.</p>
+        </div>
+      </div>
+    `;
+
+    // Send OTP via email
+    await sendEmail({
+      email,
+      subject: "Your BMW Rental Registration OTP",
+      message: emailTemplate,
+      html: true
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "OTP sent to your email successfully",
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: "Error sending OTP",
+      error: error.message,
+    });
+  }
+};
+
+exports.verifyOTP = async (req, res, next) => {
+  try {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and verification code are required",
+      });
+    }
+
+    // Check if OTP exists and is valid
+    const storedOTPData = otpStore[email];
+    
+    if (!storedOTPData) {
+      return res.status(400).json({
+        success: false,
+        message: "Your verification code has expired. Please request a new one.",
+      });
+    }
+
+    if (Date.now() > storedOTPData.expiresAt) {
+      // Clean up expired OTP
+      delete otpStore[email];
+      
+      return res.status(400).json({
+        success: false,
+        message: "Your verification code has expired. Please request a new one.",
+      });
+    }
+
+    if (storedOTPData.otp !== otp) {
+      return res.status(400).json({
+        success: false,
+        message: "Incorrect verification code. Please try again.",
+      });
+    }
+
+    // Mark email as verified in the store
+    otpStore[email].verified = true;
+
+    return res.status(200).json({
+      success: true,
+      message: "Verification successful",
+    });
+  } catch (error) {
+    console.error("OTP verification server error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "An error occurred. Please try again later.",
+    });
+  }
+};
 
 exports.registerUser = async (req, res, next) => {
   try {
