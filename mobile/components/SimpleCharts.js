@@ -4,223 +4,308 @@ import { View, Text, StyleSheet, ScrollView } from 'react-native';
 /**
  * Simple Bar Chart using native Views
  */
-export const SimpleBarChart = ({ data, labels, height = 200, colors }) => {
-  // Find the maximum value for scaling
-  const maxValue = Math.max(...data);
-  
-  return (
-    <View style={[styles.chartContainer, { height }]}>
-      {data.map((value, index) => {
-        // Calculate percentage height based on the max value
-        const percentage = maxValue > 0 ? (value / maxValue) * 100 : 0;
-        
-        return (
-          <View key={index} style={styles.barWrapper}>
-            <Text style={[styles.barValue, { color: colors.text }]}>
-              {value}
-            </Text>
-            <View style={styles.barContainer}>
-              <View 
-                style={[
-                  styles.bar, 
-                  { 
-                    height: `${percentage}%`,
-                    backgroundColor: colors.primary 
-                  }
-                ]}
-              />
+export const SimpleBarChart = ({ data, labels, height = 200, colors = {} }) => {
+  try {
+    // Ensure data is properly defined
+    const safeData = Array.isArray(data) ? data : [];
+    const safeLabels = Array.isArray(labels) ? labels : [];
+    
+    // Find the maximum value for scaling (with safety check)
+    const maxValue = safeData.length > 0 ? Math.max(...safeData.filter(val => !isNaN(val))) : 0;
+    
+    return (
+      <View style={[styles.chartContainer, { height }]}>
+        {safeData.map((value, index) => {
+          // Calculate percentage height based on the max value
+          const percentage = maxValue > 0 ? (value / maxValue) * 100 : 0;
+          
+          return (
+            <View key={index} style={styles.barWrapper}>
+              <Text style={[styles.barValue, { color: colors.text || '#000' }]}>
+                {value}
+              </Text>
+              <View style={styles.barContainer}>
+                <View 
+                  style={[
+                    styles.bar, 
+                    { 
+                      height: `${percentage}%`,
+                      backgroundColor: colors.primary || '#36a2eb' 
+                    }
+                  ]}
+                />
+              </View>
+              <Text style={[styles.barLabel, { color: colors.text || '#000' }]}>
+                {safeLabels[index] || ''}
+              </Text>
             </View>
-            <Text style={[styles.barLabel, { color: colors.text }]}>
-              {labels[index] || ''}
-            </Text>
-          </View>
-        );
-      })}
-    </View>
-  );
+          );
+        })}
+      </View>
+    );
+  } catch (error) {
+    console.error('Bar chart error:', error);
+    // Return a safe fallback
+    return (
+      <View style={[styles.chartContainer, { height }]}>
+        <Text style={{ color: colors?.text || '#000' }}>Chart could not be displayed</Text>
+      </View>
+    );
+  }
 };
 
 /**
  * Simple Pie Chart using native Views
  */
 export const SimplePieChart = ({ data, height = 200 }) => {
-  // Calculate total
-  const total = data.reduce((sum, item) => sum + item.count, 0);
-  
-  // If no data or total is 0, show empty chart
-  if (!data || data.length === 0 || total === 0) {
+  try {
+    // Ensure data is properly defined
+    const safeData = Array.isArray(data) ? data : [];
+    
+    // Calculate total
+    const total = safeData.reduce((sum, item) => sum + (item?.count || 0), 0);
+    
+    // If no data or total is 0, show empty chart
+    if (safeData.length === 0 || total === 0) {
+      return (
+        <View style={[styles.pieContainer, { height }]}>
+          <View style={styles.emptyPie}>
+            <Text style={styles.emptyPieText}>No data</Text>
+          </View>
+        </View>
+      );
+    }
+    
+    // Process data for pie rendering
+    let cumulativeAngle = 0;
+    const pieData = safeData.map((item, index) => {
+      const count = item?.count || 0;
+      const percentage = (count / total) * 100;
+      const angle = (count / total) * 360;
+      const startAngle = cumulativeAngle;
+      cumulativeAngle += angle;
+      
+      return {
+        ...item,
+        percentage,
+        angle,
+        startAngle,
+        endAngle: startAngle + angle,
+        color: item?.color || '#cccccc',
+      };
+    });
+
+    // Calculate chart dimensions
+    const size = 120;
+    const radius = size / 2;
+    const center = { x: radius, y: radius };
+
+    return (
+      <View style={[styles.pieContainer, { height }]}>
+        <View style={styles.pieChartWrapper}>
+          <View style={styles.pieOuter}>
+            {/* The real improvement is here - proper mathematical construction of segments */}
+            {pieData.map((item, index) => {
+              // Skip tiny slices in visualization (but keep them in the legend)
+              if (item.angle < 1) return null;
+              
+              // Breaking down slices for more accurate rendering
+              const segmentCount = Math.ceil(item.angle / 30); // Split into 30° segments for smoothness
+              const segments = [];
+              
+              for (let i = 0; i < segmentCount; i++) {
+                const segStart = item.startAngle + (i * (item.angle / segmentCount));
+                const segEnd = segStart + (item.angle / segmentCount);
+                const segAngle = segEnd - segStart;
+                
+                segments.push(
+                  <View 
+                    key={`${index}-${i}`}
+                    style={[
+                      styles.pieSegment,
+                      {
+                        backgroundColor: item.color,
+                        transform: [
+                          { rotate: `${segStart}deg` }
+                        ]
+                      }
+                    ]}
+                  >
+                    <View 
+                      style={[
+                        styles.segmentInner,
+                        {
+                          backgroundColor: item.color,
+                          transform: [
+                            { rotate: `${segAngle}deg` }
+                          ]
+                        }
+                      ]}
+                    />
+                  </View>
+                );
+              }
+              
+              return segments;
+            })}
+            
+            {/* Add percentage labels at proper positions */}
+            {pieData.map((item, index) => {
+              if (item.percentage < 5) return null; // Skip labels for small slices
+              
+              // Calculate label position using proper trigonometry
+              const midAngle = item.startAngle + (item.angle / 2);
+              const midAngleRad = (midAngle - 90) * (Math.PI / 180); // Convert to radians, adjust for 0° at top
+              const labelDistance = radius * 0.7; // Position labels at 70% of the radius
+              
+              const x = center.x + labelDistance * Math.cos(midAngleRad);
+              const y = center.y + labelDistance * Math.sin(midAngleRad);
+              
+              return (
+                <Text
+                  key={`label-${index}`}
+                  style={[
+                    styles.sliceText,
+                    {
+                      position: 'absolute',
+                      left: x - 12, // Adjust for text width
+                      top: y - 8,   // Adjust for text height
+                    }
+                  ]}
+                >
+                  {Math.round(item.percentage)}%
+                </Text>
+              );
+            })}
+          </View>
+        </View>
+        
+        {/* Legend with total count */}
+        <View style={styles.pieLegend}>
+          <View style={styles.totalCountContainer}>
+            <Text style={styles.totalCountLabel}>Total:</Text>
+            <Text style={styles.totalCountValue}>{total}</Text>
+          </View>
+          <ScrollView>
+            {pieData.map((item, index) => (
+              <View key={index} style={styles.legendItem}>
+                <View style={[styles.legendColor, { backgroundColor: item.color }]} />
+                <Text style={styles.legendText}>{item.name || 'Unknown'}</Text>
+                <Text style={styles.legendValue}>{item.count || 0}</Text>
+                <Text style={styles.legendPercentage}>
+                  {item.percentage.toFixed(1)}%
+                </Text>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      </View>
+    );
+  } catch (error) {
+    console.error('Pie chart error:', error);
+    // Return a safe fallback
     return (
       <View style={[styles.pieContainer, { height }]}>
         <View style={styles.emptyPie}>
-          <Text style={styles.emptyPieText}>No data</Text>
+          <Text style={styles.emptyPieText}>Chart could not be displayed</Text>
         </View>
       </View>
     );
   }
-  
-  // Calculate percentages and angles for each segment
-  const pieData = data.map((item, index) => {
-    const percentage = (item.count / total) * 100;
-    return {
-      ...item,
-      percentage,
-    };
-  });
-
-  return (
-    <View style={[styles.pieContainer, { height }]}>
-      <View style={styles.pieChartWrapper}>
-        <View style={styles.pieOuter}>
-          {/* Generate slices with varying widths based on percentage */}
-          {pieData.map((item, index) => {
-            // Calculate slice width - each slice is a fraction of the full width
-            const sliceWidth = (item.percentage / 100) * 360;
-            
-            // Calculate start position for this slice (sum of all previous slices)
-            const startAngle = pieData
-              .slice(0, index)
-              .reduce((sum, prev) => sum + (prev.percentage / 100) * 360, 0);
-            
-            return (
-              <View 
-                key={index} 
-                style={[
-                  styles.pieSlice,
-                  {
-                    backgroundColor: item.color,
-                    width: '50%',
-                    height: '100%',
-                    transform: [
-                      { rotate: `${startAngle}deg` }
-                    ]
-                  }
-                ]}
-              >
-                <View
-                  style={[
-                    styles.sliceContent,
-                    { 
-                      backgroundColor: item.color,
-                      transform: [
-                        { rotate: `${sliceWidth/2}deg` }
-                      ]
-                    }
-                  ]}
-                >
-                  {item.percentage > 20 && (
-                    <Text style={styles.sliceText}>
-                      {Math.round(item.percentage)}%
-                    </Text>
-                  )}
-                </View>
-              </View>
-            );
-          })}
-          
-          {/* Inner circle removed */}
-        </View>
-      </View>
-      
-      {/* Legend with total count */}
-      <View style={styles.pieLegend}>
-        <View style={styles.totalCountContainer}>
-          <Text style={styles.totalCountLabel}>Total:</Text>
-          <Text style={styles.totalCountValue}>{total}</Text>
-        </View>
-        <ScrollView>
-          {pieData.map((item, index) => (
-            <View key={index} style={styles.legendItem}>
-              <View style={[styles.legendColor, { backgroundColor: item.color }]} />
-              <Text style={styles.legendText}>{item.name || 'Unknown'}</Text>
-              <Text style={styles.legendValue}>{item.count}</Text>
-              <Text style={styles.legendPercentage}>
-                {item.percentage.toFixed(1)}%
-              </Text>
-            </View>
-          ))}
-        </ScrollView>
-      </View>
-    </View>
-  );
 };
 
 /**
  * Simple Line Chart using native Views
  */
-export const SimpleLineChart = ({ data, labels, height = 200, colors }) => {
-  // Ensure data exists and has content
-  if (!data || !data.length) {
+export const SimpleLineChart = ({ data, labels, height = 200, colors = {} }) => {
+  try {
+    // Ensure data is properly defined
+    const safeData = Array.isArray(data) ? data : [];
+    const safeLabels = Array.isArray(labels) ? labels : [];
+    
+    // Ensure data exists and has content
+    if (safeData.length === 0) {
+      return (
+        <View style={[styles.lineChartContainer, { height }]}>
+          <Text style={{ color: colors.text || '#000' }}>No data available</Text>
+        </View>
+      );
+    }
+
+    // Find min and max values (with safety checks)
+    const filteredData = safeData.filter(val => !isNaN(val));
+    const maxValue = filteredData.length > 0 ? Math.max(...filteredData) : 0;
+    const minValue = filteredData.length > 0 ? Math.min(...filteredData) : 0;
+    const range = maxValue - minValue || 1; // Prevent division by zero
+    
+    // Create horizontal guide lines
+    const guideLinesCount = 5;
+    const guideLines = Array(guideLinesCount).fill(0).map((_, i) => {
+      const value = minValue + (range * (i / (guideLinesCount - 1)));
+      return { value: Math.round(value * 100) / 100 };
+    });
+
     return (
       <View style={[styles.lineChartContainer, { height }]}>
-        <Text style={{ color: colors.text }}>No data available</Text>
+        <View style={styles.lineChartBody}>
+          {/* Guide lines */}
+          {guideLines.map((line, i) => (
+            <View 
+              key={i} 
+              style={[
+                styles.guideLine, 
+                { 
+                  bottom: `${i * (100 / (guideLinesCount - 1))}%`,
+                  borderColor: colors.border || '#ccc'
+                }
+              ]}
+            >
+              <Text style={[styles.guideLineText, { color: colors.text || '#000' }]}>
+              ₱{line.value}
+              </Text>
+            </View>
+          ))}
+          
+          {/* Data bars - simplified representation of a line chart */}
+          <View style={styles.dataContainer}>
+            {safeData.map((value, index) => {
+              const percentage = range > 0 
+                ? ((value - minValue) / range) * 100 
+                : 0;
+              
+              return (
+                <View key={index} style={styles.dataPointContainer}>
+                  <View 
+                    style={[
+                      styles.dataBar, 
+                      { 
+                        height: `${percentage}%`,
+                        backgroundColor: colors.primary || '#36a2eb' 
+                      }
+                    ]}
+                  />
+                  <Text 
+                    style={[styles.dataLabel, { color: colors.text || '#000' }]} 
+                    numberOfLines={1}
+                  >
+                    {safeLabels[index] || ''}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+      </View>
+    );
+  } catch (error) {
+    console.error('Line chart error:', error);
+    // Return a safe fallback
+    return (
+      <View style={[styles.lineChartContainer, { height }]}>
+        <Text style={{ color: colors?.text || '#000' }}>Chart could not be displayed</Text>
       </View>
     );
   }
-
-  // Find min and max values
-  const maxValue = Math.max(...data);
-  const minValue = Math.min(...data);
-  const range = maxValue - minValue;
-  
-  // Create horizontal guide lines
-  const guideLinesCount = 5;
-  const guideLines = Array(guideLinesCount).fill(0).map((_, i) => {
-    const value = minValue + (range * (i / (guideLinesCount - 1)));
-    return { value: Math.round(value * 100) / 100 };
-  });
-
-  return (
-    <View style={[styles.lineChartContainer, { height }]}>
-      <View style={styles.lineChartBody}>
-        {/* Guide lines */}
-        {guideLines.map((line, i) => (
-          <View 
-            key={i} 
-            style={[
-              styles.guideLine, 
-              { 
-                bottom: `${i * (100 / (guideLinesCount - 1))}%`,
-                borderColor: colors.border
-              }
-            ]}
-          >
-            <Text style={[styles.guideLineText, { color: colors.text }]}>
-            ₱{line.value}
-            </Text>
-          </View>
-        ))}
-        
-        {/* Data bars - simplified representation of a line chart */}
-        <View style={styles.dataContainer}>
-          {data.map((value, index) => {
-            const percentage = range > 0 
-              ? ((value - minValue) / range) * 100 
-              : 0;
-            
-            return (
-              <View key={index} style={styles.dataPointContainer}>
-                <View 
-                  style={[
-                    styles.dataBar, 
-                    { 
-                      height: `${percentage}%`,
-                      backgroundColor: colors.primary 
-                    }
-                  ]}
-                />
-                <Text 
-                  style={[styles.dataLabel, { color: colors.text }]} 
-                  numberOfLines={1}
-                >
-                  {labels[index] || ''}
-                </Text>
-              </View>
-            );
-          })}
-        </View>
-      </View>
-    </View>
-  );
 };
 
 const styles = StyleSheet.create({
@@ -284,33 +369,34 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  pieSlice: {
+  
+  // New improved pie segment styles
+  pieSegment: {
     position: 'absolute',
-    left: '50%',
-    top: 0,
-    height: '100%',
-    transformOrigin: 'left center',
-  },
-  sliceContent: {
-    width: '200%',
+    width: '100%',
     height: '100%',
     left: 0,
+    top: 0,
+  },
+  segmentInner: {
     position: 'absolute',
+    width: '50%',  // One half of the circle
+    height: '100%',
+    left: '50%',   // Start from center
+    top: 0,
     transformOrigin: 'left center',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   sliceText: {
     color: 'white',
     fontWeight: 'bold',
     fontSize: 10,
-    position: 'absolute',
-    right: '25%',
+    textAlign: 'center',
     textShadowColor: 'rgba(0,0,0,0.5)',
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 2,
   },
-  // pieInner styles removed
+  
+  // Keep existing pie chart styles that are still needed
   pieLegend: {
     flex: 1,
     marginLeft: 5,

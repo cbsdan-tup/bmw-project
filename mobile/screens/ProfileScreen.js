@@ -354,24 +354,6 @@ const ProfileScreen = () => {
 
       <TouchableOpacity
         style={[styles.settingItem, { borderBottomColor: colors.border }]}
-        onPress={() => navigation.navigate("HelpCenter")}
-      >
-        <View style={styles.settingInfo}>
-          <Icon
-            name="question-circle"
-            size={20}
-            color={colors.primary}
-            style={styles.settingIcon}
-          />
-          <Text style={[styles.settingText, { color: colors.text }]}>
-            Help Center
-          </Text>
-        </View>
-        <Icon name="angle-right" size={20} color={colors.secondary} />
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={[styles.settingItem, { borderBottomColor: colors.border }]}
         onPress={() => navigation.navigate("TermsConditions")}
       >
         <View style={styles.settingInfo}>
