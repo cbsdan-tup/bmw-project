@@ -3,9 +3,9 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createStackNavigator } from "@react-navigation/stack";
 import Icon from "react-native-vector-icons/FontAwesome";
 import { Platform, Text, View } from "react-native";
-import { useDispatch, useSelector } from 'react-redux';
-import { fetchNotificationCount } from '../redux/slices/notificationSlice';
-import { useAuth } from '../context/AuthContext';
+import { useDispatch, useSelector } from "react-redux";
+import { fetchNotificationCount } from "../redux/slices/notificationSlice";
+import { useAuth } from "../context/AuthContext";
 import HomeScreen from "../screens/HomeScreen";
 import CarDetailsScreen from "../screens/CarDetailsScreen";
 import ProfileScreen from "../screens/ProfileScreen";
@@ -14,11 +14,12 @@ import NotificationsScreen from "../screens/NotificationsScreen";
 import ReviewsScreen from "../screens/ReviewsScreen";
 import ChatScreen from "../screens/ChatScreen";
 import DiscountScreen from "../screens/DiscountScreen";
-import CheckoutScreen from "../screens/CheckoutScreen"; 
+import CheckoutScreen from "../screens/CheckoutScreen";
 import { useTheme } from "../context/ThemeContext";
 import ProfileNavigator from "./ProfileNavigator";
 import AdminNavigator from "./AdminNavigator";
 import AboutUsScreen from "../screens/AboutUsScreen";
+import RentalsNavigator from "./RentalsNavigator";
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -43,6 +44,17 @@ const HomeStack = () => {
         name="HomeScreen"
         component={HomeScreen}
         options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="Rentals"
+        component={RentalsNavigator}
+        options={{
+          headerShown: false,
+
+          tabBarIcon: ({ color, size }) => (
+            <Icon name="car" size={size} color={color} />
+          ),
+        }}
       />
       <Stack.Screen
         name="AboutUsScreen"
@@ -73,13 +85,13 @@ const HomeStack = () => {
         component={ChatScreen}
         options={({ route }) => ({ title: route.params?.chatName || "Chat" })}
       />
-      <Stack.Screen 
-        name="AdminNavigator" 
+      <Stack.Screen
+        name="AdminNavigator"
         component={AdminNavigator}
-        options={{ 
-          presentation: 'modal',
+        options={{
+          presentation: "modal",
           headerShown: true,
-          title: 'Admin Dashboard'
+          title: "Admin Dashboard",
         }}
       />
       <Stack.Screen
@@ -198,19 +210,19 @@ const BottomTabNavigator = ({ userRole }) => {
   const { colors } = useTheme();
   const dispatch = useDispatch();
   const { user, token } = useAuth();
-  const { unreadCount } = useSelector(state => state.notifications);
-  
+  const { unreadCount } = useSelector((state) => state.notifications);
+
   // Fetch notification count on mount and set up interval
   useEffect(() => {
     if (user && token) {
       // Initial fetch
       dispatch(fetchNotificationCount());
-      
+
       // Set up interval to refresh count (every 30 seconds)
       const interval = setInterval(() => {
         dispatch(fetchNotificationCount());
       }, 2000);
-      
+
       // Clean up interval on unmount
       return () => clearInterval(interval);
     }
@@ -220,70 +232,74 @@ const BottomTabNavigator = ({ userRole }) => {
     <Tab.Navigator
       screenOptions={{
         tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.text + '80',
+        tabBarInactiveTintColor: colors.text + "80",
         tabBarStyle: {
           backgroundColor: colors.card,
           borderTopColor: colors.border,
-          paddingBottom: Platform.OS === 'ios' ? 10 : 5,
+          paddingBottom: Platform.OS === "ios" ? 10 : 5,
           paddingTop: 5,
-          height: Platform.OS === 'ios' ? 80 : 60,
+          height: Platform.OS === "ios" ? 80 : 60,
         },
         tabBarLabelStyle: {
           fontSize: 12,
-          marginBottom: Platform.OS === 'ios' ? 0 : 5,
+          marginBottom: Platform.OS === "ios" ? 0 : 5,
         },
-        headerShown: false
+        headerShown: false,
       }}
     >
       <Tab.Screen
         name="HomeTab"
         component={HomeStack}
         options={{
-          title: 'Home',
+          title: "Home",
           tabBarIcon: ({ color, size }) => (
             <Icon name="home" size={size} color={color} />
-          )
+          ),
         }}
       />
-      
+
       <Tab.Screen
         name="SearchTab"
         component={SearchStack}
         options={{
-          title: 'Search',
+          title: "Search",
           tabBarIcon: ({ color, size }) => (
             <Icon name="search" size={size} color={color} />
-          )
+          ),
         }}
       />
-      
+
       {/* Notification tab with badge */}
       <Tab.Screen
         name="NotificationsTab"
         component={NotificationsStack}
         options={{
-          title: 'Notifications',
+          title: "Notifications",
           tabBarIcon: ({ color, size }) => (
             <View>
               <Icon name="bell" size={size} color={color} />
               {user && unreadCount > 0 && (
-                <View style={{
-                  position: 'absolute',
-                  right: -6,
-                  top: -3,
-                  backgroundColor: colors.notification || '#FF3B30',
-                  borderRadius: 10,
-                  width: unreadCount > 99 ? 22 : (unreadCount > 9 ? 18 : 16),
-                  height: 16,
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                }}>
-                  <Text style={{
-                    color: '#FFFFFF',
-                    fontSize: 10,
-                    fontWeight: 'bold',
-                  }}>
-                    {unreadCount > 99 ? '99+' : unreadCount}
+                <View
+                  style={{
+                    position: "absolute",
+                    right: -6,
+                    top: -3,
+                    backgroundColor: colors.notification || "#FF3B30",
+                    borderRadius: 10,
+                    width: unreadCount > 99 ? 22 : unreadCount > 9 ? 18 : 16,
+                    height: 16,
+                    justifyContent: "center",
+                    alignItems: "center",
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: "#FFFFFF",
+                      fontSize: 10,
+                      fontWeight: "bold",
+                    }}
+                  >
+                    {unreadCount > 99 ? "99+" : unreadCount}
                   </Text>
                 </View>
               )}
@@ -291,35 +307,35 @@ const BottomTabNavigator = ({ userRole }) => {
           ),
         }}
       />
-      
+
       <Tab.Screen
         name="ProfileTab"
         component={ProfileNavigator}
         options={{
-          title: 'Profile',
+          title: "Profile",
           tabBarIcon: ({ color, size }) => (
             <Icon name="user" size={size} color={color} />
-          )
+          ),
         }}
       />
 
-      {userRole === 'admin' && (
+      {userRole === "admin" && (
         <Tab.Screen
           name="AdminTab"
           component={AdminNavigator}
           options={{
-            title: 'Admin',
+            title: "Admin",
             tabBarIcon: ({ color, size }) => (
               <Icon name="cog" size={size} color={color} />
             ),
             // Add these options to override the default behavior
-            listeners: ({navigation}) => ({
+            listeners: ({ navigation }) => ({
               tabPress: (e) => {
                 // Prevent default behavior
                 e.preventDefault();
                 // Navigate to the Dashboard screen directly
-                navigation.navigate('AdminTab', {
-                  screen: 'Dashboard'
+                navigation.navigate("AdminTab", {
+                  screen: "Dashboard",
                 });
               },
             }),

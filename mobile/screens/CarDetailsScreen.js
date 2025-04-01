@@ -495,7 +495,10 @@ const CarDetailsScreen = () => {
       >
         <View style={styles.modalOverlay}>
           <View
-            style={[styles.rentalHistoryModal, { backgroundColor: colors.card }]}
+            style={[
+              styles.rentalHistoryModal,
+              { backgroundColor: colors.card },
+            ]}
           >
             <View style={styles.bookingFormHandle} />
             <View style={styles.modalHeaderContainer}>
@@ -503,7 +506,7 @@ const CarDetailsScreen = () => {
                 Rental History
               </Text>
               <Text style={[styles.modalSubtitle, { color: colors.secondary }]}>
-                {carRentals.length > 0 ? 'Latest rentals' : 'No rental history'}
+                {carRentals.length > 0 ? "Latest rentals" : "No rental history"}
               </Text>
             </View>
 
@@ -561,11 +564,16 @@ const CarDetailsScreen = () => {
                               ? item.renter.lastName[0] + "."
                               : ""}
                           </Text>
-                          <Text 
-                            style={[styles.rentalDate, { color: colors.secondary }]}
+                          <Text
+                            style={[
+                              styles.rentalDate,
+                              { color: colors.secondary },
+                            ]}
                             numberOfLines={1}
                           >
-                            {new Date(item.createdAt || item.pickUpDate).toLocaleDateString()}
+                            {new Date(
+                              item.createdAt || item.pickUpDate
+                            ).toLocaleDateString()}
                           </Text>
                         </View>
                       </View>
@@ -588,11 +596,18 @@ const CarDetailsScreen = () => {
                     <View style={styles.rentalDates}>
                       <View style={styles.dateContainer}>
                         <View style={styles.dateIconContainer}>
-                          <Icon name="calendar-check-o" size={18} color={colors.primary} />
+                          <Icon
+                            name="calendar-check-o"
+                            size={18}
+                            color={colors.primary}
+                          />
                         </View>
                         <View style={styles.dateColumn}>
                           <Text
-                            style={[styles.dateLabel, { color: colors.secondary }]}
+                            style={[
+                              styles.dateLabel,
+                              { color: colors.secondary },
+                            ]}
                           >
                             Pick-up
                           </Text>
@@ -602,7 +617,10 @@ const CarDetailsScreen = () => {
                             {new Date(item.pickUpDate).toLocaleDateString()}
                           </Text>
                           <Text
-                            style={[styles.timeValue, { color: colors.secondary }]}
+                            style={[
+                              styles.timeValue,
+                              { color: colors.secondary },
+                            ]}
                           >
                             {new Date(item.pickUpDate).toLocaleTimeString([], {
                               hour: "2-digit",
@@ -613,22 +631,39 @@ const CarDetailsScreen = () => {
                       </View>
 
                       <View style={styles.dateConnector}>
-                        <View style={[styles.connector, { backgroundColor: colors.border }]} />
+                        <View
+                          style={[
+                            styles.connector,
+                            { backgroundColor: colors.border },
+                          ]}
+                        />
                         <Icon
                           name="arrow-right"
                           size={14}
                           color={colors.secondary}
                         />
-                        <View style={[styles.connector, { backgroundColor: colors.border }]} />
+                        <View
+                          style={[
+                            styles.connector,
+                            { backgroundColor: colors.border },
+                          ]}
+                        />
                       </View>
 
                       <View style={styles.dateContainer}>
                         <View style={styles.dateIconContainer}>
-                          <Icon name="calendar-times-o" size={18} color={colors.primary} />
+                          <Icon
+                            name="calendar-times-o"
+                            size={18}
+                            color={colors.primary}
+                          />
                         </View>
                         <View style={styles.dateColumn}>
                           <Text
-                            style={[styles.dateLabel, { color: colors.secondary }]}
+                            style={[
+                              styles.dateLabel,
+                              { color: colors.secondary },
+                            ]}
                           >
                             Return
                           </Text>
@@ -638,7 +673,10 @@ const CarDetailsScreen = () => {
                             {new Date(item.returnDate).toLocaleDateString()}
                           </Text>
                           <Text
-                            style={[styles.timeValue, { color: colors.secondary }]}
+                            style={[
+                              styles.timeValue,
+                              { color: colors.secondary },
+                            ]}
                           >
                             {new Date(item.returnDate).toLocaleTimeString([], {
                               hour: "2-digit",
@@ -649,11 +687,16 @@ const CarDetailsScreen = () => {
                       </View>
                     </View>
 
-                    <View style={[styles.rentalFooter, { borderTopColor: colors.border }]}>
+                    <View
+                      style={[
+                        styles.rentalFooter,
+                        { borderTopColor: colors.border },
+                      ]}
+                    >
                       <View style={styles.paymentMethodContainer}>
                         <Icon
                           name={getPaymentIcon(item.paymentMethod)}
-                          size={14} 
+                          size={14}
                           color={colors.secondary}
                           style={styles.paymentIcon}
                         />
@@ -693,7 +736,10 @@ const CarDetailsScreen = () => {
                   No rental history found
                 </Text>
                 <Text
-                  style={[styles.emptyRentalsSubtext, { color: colors.secondary }]}
+                  style={[
+                    styles.emptyRentalsSubtext,
+                    { color: colors.secondary },
+                  ]}
                 >
                   Previous rentals of this car will appear here
                 </Text>
@@ -701,10 +747,15 @@ const CarDetailsScreen = () => {
             )}
 
             <TouchableOpacity
-              style={[styles.closeModalButton, { borderTopColor: colors.border }]}
+              style={[
+                styles.closeModalButton,
+                { borderTopColor: colors.border },
+              ]}
               onPress={() => setShowRentalHistoryModal(false)}
             >
-              <Text style={{ color: colors.secondary, fontWeight: '500' }}>Close</Text>
+              <Text style={{ color: colors.secondary, fontWeight: "500" }}>
+                Close
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -714,15 +765,15 @@ const CarDetailsScreen = () => {
 
   // Helper function to get payment method icon
   const getPaymentIcon = (method) => {
-    switch (method?.toLowerCase() || '') {
-      case 'credit card':
-        return 'credit-card';
-      case 'gcash':
-        return 'mobile';
-      case 'cash':
-        return 'money';
+    switch (method?.toLowerCase() || "") {
+      case "credit card":
+        return "credit-card";
+      case "gcash":
+        return "mobile";
+      case "cash":
+        return "money";
       default:
-        return 'credit-card-alt';
+        return "credit-card-alt";
     }
   };
 
@@ -1403,15 +1454,18 @@ const CarDetailsScreen = () => {
               <Text style={[styles.sectionTitle, { color: colors.text }]}>
                 Car Owner
               </Text>
-              <View style={[styles.ownerBox, { backgroundColor: colors.card, borderBottomWidth: 1  }]}>
+              <View
+                style={[
+                  styles.ownerBox,
+                  { backgroundColor: colors.card, borderBottomWidth: 1 },
+                ]}
+              >
                 <View style={styles.ownerAvatarContainer}>
                   {currentCar.owner?.avatar?.url ? (
                     <Image
                       source={{ uri: currentCar.owner.avatar.url }}
                       style={styles.ownerAvatar}
-                      onError={() =>
-                        console.log("Error loading owner avatar")
-                      }
+                      onError={() => console.log("Error loading owner avatar")}
                     />
                   ) : (
                     <View
@@ -1477,7 +1531,11 @@ const CarDetailsScreen = () => {
                   color={colors.primary}
                   style={styles.historyIcon}
                 />
-                <Text style={[styles.historyButtonText, {color: colors.primary}]}>View Rental History</Text>
+                <Text
+                  style={[styles.historyButtonText, { color: colors.primary }]}
+                >
+                  View Rental History
+                </Text>
               </TouchableOpacity>
             </View>
           )}
@@ -1488,6 +1546,13 @@ const CarDetailsScreen = () => {
       <DatePickerModals />
       <InquiriesModal />
       <RentalHistoryModal />
+      {/* Floating Rentals Button */}
+      <TouchableOpacity
+        style={[styles.floatingCartButton, { backgroundColor: colors.primary }]}
+        onPress={() => navigation.navigate("Rentals", { screen: "CartScreen" })}
+      >
+        <Icon name="car" size={24} color="#FFFFFF" />
+      </TouchableOpacity>
     </SafeAreaView>
   );
 };
@@ -1523,7 +1588,7 @@ const rentalHistoryStyles = StyleSheet.create({
   },
   modalHeaderContainer: {
     marginBottom: 20,
-    alignItems: 'center',
+    alignItems: "center",
   },
   modalTitle: {
     fontSize: 22,
@@ -2125,6 +2190,22 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginTop: 8,
     width: "100%",
+  },
+  floatingCartButton: {
+    position: "absolute",
+    right: 20,
+    bottom: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    zIndex: 999,
   },
   viewInquiriesButtonText: {
     color: "#FFFFFF",

@@ -46,7 +46,8 @@
           "photosPermission": "The app needs access to your photos to set your profile picture."
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-sqlite"
     ],
     "scheme": "bmwrental",
     "extra": {

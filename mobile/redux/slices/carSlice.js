@@ -1,32 +1,33 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import api from '../../services/api';
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import api from "../../services/api";
 
-// Async thunks for API calls
 export const fetchFeaturedCars = createAsyncThunk(
-  'cars/fetchFeatured',
+  "cars/fetchFeatured",
   async (_, { rejectWithValue }) => {
     try {
       const response = await api.get(`/Cars/featured`);
-      
+
       // Process each car's images
-      const cars = response.data.cars.map(car => {
+      const cars = response.data.cars.map((car) => {
         if (car.images && Array.isArray(car.images)) {
-          car.images = car.images.map(image => 
-            typeof image === 'string' ? image : image.url
+          car.images = car.images.map((image) =>
+            typeof image === "string" ? image : image.url
           );
         }
         return car;
       });
-      
+
       return cars;
     } catch (error) {
-      return rejectWithValue(error.response?.data || 'Failed to fetch featured cars');
+      return rejectWithValue(
+        error.response?.data || "Failed to fetch featured cars"
+      );
     }
   }
 );
 
 export const fetchFilteredCars = createAsyncThunk(
-  'cars/fetchFiltered',
+  "cars/fetchFiltered",
   async (filterParams, { rejectWithValue }) => {
     try {
       const query = new URLSearchParams(
@@ -35,196 +36,209 @@ export const fetchFilteredCars = createAsyncThunk(
       const response = await api.get(`/Cars/search-filter?${query}`);
       return response.data.cars;
     } catch (error) {
-      return rejectWithValue(error.response?.data || 'Failed to fetch filtered cars');
+      return rejectWithValue(
+        error.response?.data || "Failed to fetch filtered cars"
+      );
     }
   }
 );
 
 export const fetchCarByID = createAsyncThunk(
-  'cars/fetchById',
+  "cars/fetchById",
   async (carId, { rejectWithValue }) => {
     try {
       const response = await api.get(`/Cars/${carId}`);
-      
+
       const car = response.data.car;
-      
+
       if (car && car.images && Array.isArray(car.images)) {
-        car.images = car.images.map(image => 
-          typeof image === 'string' ? image : image.url
+        car.images = car.images.map((image) =>
+          typeof image === "string" ? image : image.url
         );
       }
-      
+
       return car;
     } catch (error) {
-      return rejectWithValue(error.response?.data || 'Failed to fetch car details');
+      return rejectWithValue(
+        error.response?.data || "Failed to fetch car details"
+      );
     }
   }
 );
 
 export const toggleFavorite = createAsyncThunk(
-  'cars/toggleFavorite',
+  "cars/toggleFavorite",
   async ({ carId, userId, carDetails }, { rejectWithValue }) => {
     try {
-      const response = await api.post('/favorite-car', {
+      const response = await api.post("/favorite-car", {
         user: userId,
-        car: carId
+        car: carId,
       });
-            
-      return { 
-        carId, 
-        isAdded: response.data.message.includes('added'),
-        carDetails
+
+      return {
+        carId,
+        isAdded: response.data.message.includes("added"),
+        carDetails,
       };
     } catch (error) {
-      console.error('Error toggling favorite:', error);
+      console.error("Error toggling favorite:", error);
       return rejectWithValue(
-        error?.message || 'Failed to update favorites. Please try again.'
+        error?.message || "Failed to update favorites. Please try again."
       );
     }
   }
 );
 
 export const fetchUserFavorites = createAsyncThunk(
-  'cars/fetchUserFavorites',
+  "cars/fetchUserFavorites",
   async (userId, { rejectWithValue }) => {
     try {
       if (!userId) {
-        throw new Error('User ID is required');
+        throw new Error("User ID is required");
       }
-      
+
       const response = await api.get(`/favorite-cars/${userId}`);
-      
+
       // Extract favorite car IDs for the favorites array
-      const favoriteIds = response.data.favoriteCars.map(fav => fav.car._id);
-      
+      const favoriteIds = response.data.favoriteCars.map((fav) => fav.car._id);
+
       return {
         favoriteCarsData: response.data.favoriteCars,
-        favoriteIds
+        favoriteIds,
       };
     } catch (error) {
-      console.error('Error fetching favorite cars:', error);
-      return rejectWithValue(error.response?.data || 'Failed to fetch favorite cars');
+      console.error("Error fetching favorite cars:", error);
+      return rejectWithValue(
+        error.response?.data || "Failed to fetch favorite cars"
+      );
     }
   }
 );
 
 export const deleteFavoriteCar = createAsyncThunk(
-  'cars/deleteFavoriteCar',
+  "cars/deleteFavoriteCar",
   async ({ favoriteId, carDetails }, { rejectWithValue }) => {
     try {
       await api.delete(`/favorite-car/${favoriteId}`);
-      
-      return { 
+
+      return {
         favoriteId,
-        carDetails
+        carDetails,
       };
     } catch (error) {
-      console.error('Error deleting favorite car:', error);
+      console.error("Error deleting favorite car:", error);
       return rejectWithValue(
-        error?.message || 'Failed to delete favorite car. Please try again.'
+        error?.message || "Failed to delete favorite car. Please try again."
       );
     }
   }
 );
 
 export const fetchUserCars = createAsyncThunk(
-  'cars/fetchUserCars',
+  "cars/fetchUserCars",
   async (userId, { rejectWithValue }) => {
     try {
       if (!userId) {
-        throw new Error('User ID is required');
+        throw new Error("User ID is required");
       }
-      
+
       const response = await api.get(`/my-cars/${userId}`);
       return response.data.cars || [];
     } catch (error) {
-      console.error('Error fetching user cars:', error);
-      return rejectWithValue(error.response?.data || 'Failed to fetch your cars');
+      console.error("Error fetching user cars:", error);
+      return rejectWithValue(
+        error.response?.data || "Failed to fetch your cars"
+      );
     }
   }
 );
 
 export const createCar = createAsyncThunk(
-  'cars/createCar',
+  "cars/createCar",
   async (formData, { rejectWithValue }) => {
     try {
-      const response = await api.post('/CreateCar', formData, {
+      const response = await api.post("/CreateCar", formData, {
         headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'multipart/form-data',
+          Accept: "application/json",
+          "Content-Type": "multipart/form-data",
         },
       });
-      
+
       return response.data.car;
     } catch (error) {
-      console.error('Error creating car:', error);
-      return rejectWithValue(error.response?.data || 'Failed to create car');
+      console.error("Error creating car:", error);
+      return rejectWithValue(error.response?.data || "Failed to create car");
     }
   }
 );
 
 export const updateCar = createAsyncThunk(
-  'cars/updateCar',
+  "cars/updateCar",
   async ({ carId, formData }, { rejectWithValue }) => {
     try {
       const response = await api.put(`/Cars/${carId}`, formData, {
         headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'multipart/form-data',
+          Accept: "application/json",
+          "Content-Type": "multipart/form-data",
         },
       });
-      
+
       return response.data.car;
     } catch (error) {
-      console.error('Error updating car:', error);
-      return rejectWithValue(error.response?.data || 'Failed to update car');
+      console.error("Error updating car:", error);
+      return rejectWithValue(error.response?.data || "Failed to update car");
     }
   }
 );
 
 export const deleteCar = createAsyncThunk(
-  'cars/deleteCar',
+  "cars/deleteCar",
   async (carId, { rejectWithValue }) => {
     try {
       const response = await api.delete(`/Cars/${carId}`);
       return { carId, success: response.data.success };
     } catch (error) {
-      console.error('Error deleting car:', error);
-      return rejectWithValue(error.response?.data || 'Failed to delete car');
+      console.error("Error deleting car:", error);
+      return rejectWithValue(error.response?.data || "Failed to delete car");
     }
   }
 );
 
 export const updateCarStatus = createAsyncThunk(
-  'cars/updateCarStatus',
+  "cars/updateCarStatus",
   async ({ carId, isActive }, { rejectWithValue }) => {
     try {
       const response = await api.patch(`/cars/${carId}/status`, { isActive });
       return response.data.car;
     } catch (error) {
-      console.error('Error updating car status:', error);
-      return rejectWithValue(error.response?.data || 'Failed to update car status');
+      console.error("Error updating car status:", error);
+      return rejectWithValue(
+        error.response?.data || "Failed to update car status"
+      );
     }
   }
 );
 
 // Update the validateDiscountCode thunk to pass only necessary parameters
 export const validateDiscountCode = createAsyncThunk(
-  'cars/validateDiscountCode',
-  async ({code, userId}, { rejectWithValue }) => {
+  "cars/validateDiscountCode",
+  async ({ code, userId }, { rejectWithValue }) => {
     try {
       // Build query params for additional validation checks
       const queryParams = new URLSearchParams();
-      if (userId) queryParams.append('userId', userId);
-      
+      if (userId) queryParams.append("userId", userId);
+
       const queryString = queryParams.toString();
-      const endpoint = `/discounts/code/${code}${queryString ? `?${queryString}` : ''}`;
-      
+      const endpoint = `/discounts/code/${code}${
+        queryString ? `?${queryString}` : ""
+      }`;
+
       const response = await api.get(endpoint);
       return response.data.discount;
     } catch (error) {
       // Extract the specific error message from the API response
-      const errorMessage = error.response?.data?.message || 'Invalid discount code';
+      const errorMessage =
+        error.response?.data?.message || "Invalid discount code";
       return rejectWithValue(errorMessage);
     }
   }
@@ -235,10 +249,14 @@ const initialState = {
   filteredCars: [],
   currentCar: null,
   favorites: [],
-  favoriteCarsData: [], 
-  userCars: [], // Add this for storing user's own cars
+  favoriteCarsData: [],
+  userCars: [],
   loading: false,
   error: null,
+  // Add cart-related state
+  cartItems: [],
+  cartLoading: false,
+  cartError: null,
   filterParams: {
     transmission: "",
     pickUpLocation: "",
@@ -246,16 +264,17 @@ const initialState = {
     minPricePerDay: "",
     maxPricePerDay: "",
     year: "",
-    rating: ""
+    rating: "",
   },
-  // Add discount related state
   discount: null,
   discountLoading: false,
-  discountError: null
+  discountError: null,
+  dbInitialized: false,
+  dbError: null,
 };
 
 const carSlice = createSlice({
-  name: 'cars',
+  name: "cars",
   initialState,
   reducers: {
     setFilterParams: (state, action) => {
@@ -270,7 +289,7 @@ const carSlice = createSlice({
     clearDiscount: (state) => {
       state.discount = null;
       state.discountError = null;
-    }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -284,7 +303,7 @@ const carSlice = createSlice({
       })
       .addCase(fetchFeaturedCars.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload || 'Failed to fetch featured cars';
+        state.error = action.payload || "Failed to fetch featured cars";
       })
 
       // Fetch Filtered Cars
@@ -298,7 +317,7 @@ const carSlice = createSlice({
       })
       .addCase(fetchFilteredCars.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload || 'Failed to fetch filtered cars';
+        state.error = action.payload || "Failed to fetch filtered cars";
       })
 
       //Fetch Car by ID
@@ -312,7 +331,7 @@ const carSlice = createSlice({
       })
       .addCase(fetchCarByID.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload || 'Failed to fetch car details';
+        state.error = action.payload || "Failed to fetch car details";
       })
 
       //Toggle Favorite
@@ -330,7 +349,7 @@ const carSlice = createSlice({
         state.error = null;
       })
       .addCase(toggleFavorite.rejected, (state, action) => {
-        state.error = action.payload || 'Failed to toggle favorite';
+        state.error = action.payload || "Failed to toggle favorite";
       })
 
       // Fetch User Favorites
@@ -345,7 +364,7 @@ const carSlice = createSlice({
       })
       .addCase(fetchUserFavorites.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload || 'Failed to fetch favorite cars';
+        state.error = action.payload || "Failed to fetch favorite cars";
       })
 
       //Deletion of Favorite Car
@@ -354,11 +373,11 @@ const carSlice = createSlice({
       })
       .addCase(deleteFavoriteCar.fulfilled, (state, action) => {
         const { favoriteId, carDetails } = action.payload;
-        
+
         state.favoriteCarsData = state.favoriteCarsData.filter(
-          fav => fav._id !== favoriteId
+          (fav) => fav._id !== favoriteId
         );
-        
+
         if (carDetails && carDetails.car) {
           const carId = carDetails.car._id;
           const index = state.favorites.indexOf(carId);
@@ -368,7 +387,7 @@ const carSlice = createSlice({
         }
       })
       .addCase(deleteFavoriteCar.rejected, (state, action) => {
-        state.error = action.payload || 'Failed to delete favorite car';
+        state.error = action.payload || "Failed to delete favorite car";
       })
 
       // Fetch User Cars
@@ -382,7 +401,7 @@ const carSlice = createSlice({
       })
       .addCase(fetchUserCars.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload || 'Failed to fetch user cars';
+        state.error = action.payload || "Failed to fetch user cars";
       })
 
       // Create Car
@@ -396,7 +415,7 @@ const carSlice = createSlice({
       })
       .addCase(createCar.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload || 'Failed to create car';
+        state.error = action.payload || "Failed to create car";
       })
 
       // Update Car
@@ -406,13 +425,13 @@ const carSlice = createSlice({
       })
       .addCase(updateCar.fulfilled, (state, action) => {
         state.loading = false;
-        state.userCars = state.userCars.map(car => 
+        state.userCars = state.userCars.map((car) =>
           car._id === action.payload._id ? action.payload : car
         );
       })
       .addCase(updateCar.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload || 'Failed to update car';
+        state.error = action.payload || "Failed to update car";
       })
 
       // Delete Car
@@ -422,11 +441,13 @@ const carSlice = createSlice({
       })
       .addCase(deleteCar.fulfilled, (state, action) => {
         state.loading = false;
-        state.userCars = state.userCars.filter(car => car._id !== action.payload.carId);
+        state.userCars = state.userCars.filter(
+          (car) => car._id !== action.payload.carId
+        );
       })
       .addCase(deleteCar.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload || 'Failed to delete car';
+        state.error = action.payload || "Failed to delete car";
       })
 
       // Update Car Status
@@ -436,13 +457,13 @@ const carSlice = createSlice({
       })
       .addCase(updateCarStatus.fulfilled, (state, action) => {
         state.loading = false;
-        state.userCars = state.userCars.map(car => 
+        state.userCars = state.userCars.map((car) =>
           car._id === action.payload._id ? action.payload : car
         );
       })
       .addCase(updateCarStatus.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload || 'Failed to update car status';
+        state.error = action.payload || "Failed to update car status";
       })
 
       // Validate discount code
@@ -456,16 +477,13 @@ const carSlice = createSlice({
       })
       .addCase(validateDiscountCode.rejected, (state, action) => {
         state.discountLoading = false;
-        state.discountError = action.payload || 'Failed to validate discount code';
+        state.discountError =
+          action.payload || "Failed to validate discount code";
       });
-  }
+  },
 });
 
-export const { 
-  setFilterParams,
-  resetFilters,
-  clearError,
-  clearDiscount  // Export the new action
-} = carSlice.actions;
+export const { setFilterParams, resetFilters, clearError, clearDiscount } =
+  carSlice.actions;
 
 export default carSlice.reducer;
