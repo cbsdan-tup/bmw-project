@@ -7,7 +7,7 @@ import {
   GoogleAuthProvider,
   signInWithCredential 
 } from "firebase/auth";
-import { auth, refreshFirebaseToken } from '../config/firebase-config';
+import { auth, refreshFirebaseToken, isTokenExpired } from '../config/firebase-config';
 import { API_URL } from '../config/constants';
 
 const api = axios.create({
@@ -20,10 +20,20 @@ const api = axios.create({
 api.interceptors.request.use(
   async (config) => {
     try {
-      const token = await SecureStore.getItemAsync('auth_token');
+      let token = await SecureStore.getItemAsync('auth_token');
       
-      if (token) {
+      // Check if token exists and is not expired
+      if (token && !isTokenExpired(token)) {
         config.headers['Authorization'] = `Bearer ${token}`;
+      } else if (token && isTokenExpired(token) && auth?.currentUser) {
+        // If token is expired but user is logged in, refresh it
+        try {
+          const newToken = await auth.currentUser.getIdToken(true);
+          await SecureStore.setItemAsync('auth_token', newToken);
+          config.headers['Authorization'] = `Bearer ${newToken}`;
+        } catch (refreshError) {
+          console.error("Failed to refresh token on request:", refreshError);
+        }
       }
     } catch (error) {
       console.error("Error setting auth token in request:", error);
@@ -45,18 +55,24 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       
-      try {
-        const newToken = await refreshFirebaseToken();
-        
-        if (newToken) {
-          originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
+      // Clear any potentially invalid tokens
+      if (error.response?.data?.message?.includes('expired')) {
+        await SecureStore.deleteItemAsync('auth_token');
+      }
+      
+      // Only try to refresh if the user is actually logged in
+      if (auth?.currentUser) {
+        try {
+          const newToken = await auth.currentUser.getIdToken(true);
           
-          await SecureStore.setItemAsync('auth_token', newToken);
-          
-          return api(originalRequest);
+          if (newToken) {
+            await SecureStore.setItemAsync('auth_token', newToken);
+            originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
+            return api(originalRequest);
+          }
+        } catch (refreshError) {
+          console.error("Error refreshing token on 401:", refreshError);
         }
-      } catch (refreshError) {
-        console.error("Error refreshing token:", refreshError);
       }
     }
     
@@ -233,7 +249,6 @@ export const authService = {
     }
   },
   
-  // Logout
   logout: async () => {
     try {
       await auth.signOut();

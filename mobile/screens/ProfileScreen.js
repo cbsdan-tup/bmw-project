@@ -326,47 +326,31 @@ const ProfileScreen = () => {
         <Icon name="angle-right" size={20} color={colors.secondary} />
       </TouchableOpacity>
 
-      <TouchableOpacity
-        style={styles.settingItem}
-        onPress={() => navigation.navigate("PrivacySettings")}
-      >
-        <View style={styles.settingInfo}>
-          <Icon
-            name="lock"
-            size={20}
-            color={colors.primary}
-            style={styles.settingIcon}
-          />
-          <Text style={[styles.settingText, { color: colors.text }]}>
-            Privacy & Security
-          </Text>
-        </View>
-        <Icon name="angle-right" size={20} color={colors.secondary} />
-      </TouchableOpacity>
+      {isAuthenticated && (
+        <TouchableOpacity
+          style={styles.settingItem}
+          onPress={() => navigation.navigate("PrivacySettings")}
+        >
+          <View style={styles.settingInfo}>
+            <Icon
+              name="lock"
+              size={20}
+              color={colors.primary}
+              style={styles.settingIcon}
+            />
+            <Text style={[styles.settingText, { color: colors.text }]}>
+              Privacy & Security
+            </Text>
+          </View>
+          <Icon name="angle-right" size={20} color={colors.secondary} />
+        </TouchableOpacity>
+      )}
     </View>
   );
 
   const SupportSection = () => (
     <View style={[styles.section, { backgroundColor: colors.card }]}>
       <Text style={[styles.sectionTitle, { color: colors.text }]}>Support</Text>
-
-      <TouchableOpacity
-        style={[styles.settingItem, { borderBottomColor: colors.border }]}
-        onPress={() => navigation.navigate("HelpCenter")}
-      >
-        <View style={styles.settingInfo}>
-          <Icon
-            name="question-circle"
-            size={20}
-            color={colors.primary}
-            style={styles.settingIcon}
-          />
-          <Text style={[styles.settingText, { color: colors.text }]}>
-            Help Center
-          </Text>
-        </View>
-        <Icon name="angle-right" size={20} color={colors.secondary} />
-      </TouchableOpacity>
 
       <TouchableOpacity
         style={[styles.settingItem, { borderBottomColor: colors.border }]}

@@ -164,6 +164,7 @@ router.post('/register-token', async (req, res) => {
         
         if (!user.pushTokens.includes(token)) {
             user.pushTokens.push(token);
+            user.enablePushNotifications = true; // Set to true when adding a token
             await user.save();
             console.log(`Push token registered for user ${userId}`);
         }
@@ -174,6 +175,88 @@ router.post('/register-token', async (req, res) => {
         });
     } catch (error) {
         console.error("Error registering push token:", error);
+        return res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+// Unregister a user's push notification token
+router.post('/unregister-token', async (req, res) => {
+    try {
+        const { userId, token } = req.body;
+        
+        if (!userId || !token) {
+            return res.status(400).json({
+                success: false,
+                error: "User ID and token are required"
+            });
+        }
+        
+        // Find the user and update their tokens array
+        const user = await User.findOne({ uid: userId });
+        
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                error: "User not found"
+            });
+        }
+        
+        // Remove the token if it exists
+        if (user.pushTokens && user.pushTokens.includes(token)) {
+            user.pushTokens = user.pushTokens.filter(t => t !== token);
+            user.enablePushNotifications = false; // Set to false when removing token
+            await user.save();
+            console.log(`Push token unregistered for user ${userId}`);
+        }
+        
+        return res.status(200).json({
+            success: true,
+            message: "Push token unregistered successfully"
+        });
+    } catch (error) {
+        console.error("Error unregistering push token:", error);
+        return res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+// Add new route to toggle push notification preference without affecting tokens
+router.post('/toggle-notifications', async (req, res) => {
+    try {
+        const { userId, enabled } = req.body;
+        
+        if (!userId || enabled === undefined) {
+            return res.status(400).json({
+                success: false,
+                error: "User ID and enabled status are required"
+            });
+        }
+        
+        // Find the user
+        const user = await User.findOne({ uid: userId });
+        
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                error: "User not found"
+            });
+        }
+        
+        // Update the preference
+        user.enablePushNotifications = enabled;
+        await user.save();
+        
+        return res.status(200).json({
+            success: true,
+            message: `Push notifications ${enabled ? 'enabled' : 'disabled'} successfully`
+        });
+    } catch (error) {
+        console.error("Error toggling notification settings:", error);
         return res.status(500).json({
             success: false,
             error: error.message

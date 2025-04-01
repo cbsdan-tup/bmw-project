@@ -15,6 +15,8 @@ import ChatScreen from "../screens/ChatScreen";
 import RentalHistoryScreen from "../screens/RentalHistory";
 import BookingDetailsScreen from "../screens/BookingDetailsScreen";
 import MyCarRentalDetails from "../screens/MyCarRentalDetails";
+import PrivacySecurityScreen from "../screens/PrivacySecurityScreen";
+import MultifactorSetupScreen from "../screens/MultifactorSetupScreen";
 
 const Stack = createStackNavigator();
 
@@ -118,6 +120,22 @@ const ProfileNavigator = () => {
         options={{
           headerShown: true,
           title: "Rental History",
+        }}
+      />
+      <Stack.Screen
+        name="PrivacySettings"
+        component={PrivacySecurityScreen}
+        options={{
+          headerShown: true,
+          title: "Privacy & Security",
+        }}
+      />
+      <Stack.Screen
+        name="MultifactorSetup"
+        component={MultifactorSetupScreen}
+        options={{
+          headerShown: true,
+          title: "Set Up 2FA",
         }}
       />
       <Stack.Screen

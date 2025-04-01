@@ -55,7 +55,15 @@ const AuthNavigator = () => {
       <Stack.Screen
         name="OTPVerification"
         component={OTPVerificationScreen}
-        options={{ title: "Verify Email" }}
+        options={{ 
+          title: "Verify Email",
+          presentation: 'modal',
+          headerLeft: ({ onPress }) => (
+            <TouchableOpacity onPress={onPress} style={{ marginLeft: 16 }}>
+              <Icon name="arrow-left" size={20} color={colors.headerText} />
+            </TouchableOpacity>
+          )
+        }}
       />
       <Stack.Screen
         name="EditProfile"
