@@ -16,7 +16,7 @@ import {
   Clipboard,
 } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import * as SQLite from "expo-sqlite";
 import { globalStyles } from "../styles/globalStyles";
@@ -66,43 +66,31 @@ const HomeScreen = () => {
     const initDatabase = async () => {
       try {
         console.log("Opening database...");
-        const database = SQLite.openDatabase("bmwRentCart.db");
-
-        // Verify database object
-        if (!database || !database.transaction) {
-          throw new Error("Database connection failed");
-        }
+        const database = await SQLite.openDatabaseAsync("bmwCartNew.db");
 
         console.log("Database opened successfully");
-        setDb(database); // Store the database object
+        setDb(database);
 
-        // Create tables (if they don't exist)
-        database.transaction(
-          (tx) => {
-            tx.executeSql(
-              `CREATE TABLE IF NOT EXISTS rent_cart (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                car_id TEXT NOT NULL,
-                user_id TEXT NOT NULL,
-                price REAL NOT NULL,
-                brand TEXT NOT NULL,
-                model TEXT NOT NULL,
-                year INTEGER,
-                vehicleType TEXT,
-                transmission TEXT,
-                pickUpLocation TEXT,
-                imageUrl TEXT,
-                UNIQUE(car_id, user_id)
-              );`,
-              [],
-              () => console.log("Table created successfully"),
-              (_, error) => console.error("Error creating table:", error)
-            );
-          },
-          (error) => console.error("Transaction error:", error)
+        await database.execAsync(
+          `CREATE TABLE IF NOT EXISTS rent_cart (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            car_id TEXT NOT NULL,
+            user_id TEXT NOT NULL,
+            price REAL NOT NULL,
+            brand TEXT NOT NULL,
+            model TEXT NOT NULL,
+            year INTEGER,
+            vehicleType TEXT,
+            transmission TEXT,
+            pickUpLocation TEXT,
+            imageUrl TEXT
+          );`
         );
+        onRefresh();
+        console.log("Table created successfully");
       } catch (error) {
         console.error("Database setup error:", error);
+        setDbError(error.message || String(error));
       }
     };
 
@@ -133,40 +121,44 @@ const HomeScreen = () => {
     dispatch(fetchAllDiscounts());
   };
 
-  const loadCartItems = () => {
+  const loadCartItems = async () => {
     if (!db || !user) {
       setCartCount(0);
       return;
     }
 
     try {
-      db.transaction(
-        (tx) => {
-          tx.executeSql(
-            "SELECT * FROM rent_cart WHERE user_id = ?",
-            [user._id || ""],
-            (_, { rows }) => {
-              const items = rows._array || [];
-              setCartsInDb(items.map((item) => item.car_id));
-              setCartCount(items.length);
-              console.log("Cart items loaded, count:", items.length);
-            },
-            (_, error) => {
-              console.error("Error fetching cart items:", error);
-              setCartCount(0);
-            }
-          );
-        },
-        (error) => {
-          console.error("Transaction error when loading cart:", error);
-          setCartCount(0);
-        }
+      // Use getAllAsync instead of execAsync for consistent results
+      const items = await db.getAllAsync(
+        "SELECT * FROM rent_cart WHERE user_id = ?",
+        [user._id || ""]
       );
+
+      // Log both the query and the result count
+      console.log(
+        `Querying cart for user: ${user._id}, found ${items.length} items`
+      );
+
+      setCartsInDb(items.map((item) => item.car_id));
+      setCartCount(items.length);
     } catch (error) {
-      console.error("Exception during loadCartItems:", error);
+      console.error("Error fetching cart items:", error);
       setCartCount(0);
     }
   };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      if (db && user) {
+        console.log("HomeScreen focused - reloading cart items");
+        loadCartItems();
+
+        // Also refresh the entire screen content when returning to the home screen
+        onRefresh();
+      }
+      return () => {}; // cleanup function
+    }, [db, user])
+  );
 
   useEffect(() => {
     if (db && user) {
@@ -237,7 +229,7 @@ const HomeScreen = () => {
     setFilterVisible(false);
   };
 
-  const handleAddToRent = (car) => {
+  const handleAddToRent = async (car) => {
     if (!user) {
       navigation.navigate("Login");
       return;
@@ -249,99 +241,69 @@ const HomeScreen = () => {
         return;
       }
 
-      console.log("Adding car to rent cart:", car.brand, car.model);
+      // Validate required fields
+      if (!car?._id || !user?._id) {
+        toast.error("Invalid car or user data.");
+        return;
+      }
 
-      db.transaction(
-        (tx) => {
-          // First, make sure the table exists
-          tx.executeSql(
-            `CREATE TABLE IF NOT EXISTS rent_cart (
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
-              car_id TEXT NOT NULL,
-              user_id TEXT NOT NULL,
-              price REAL NOT NULL,
-              brand TEXT NOT NULL,
-              model TEXT NOT NULL,
-              year INTEGER,
-              vehicleType TEXT,
-              transmission TEXT,
-              pickUpLocation TEXT,
-              imageUrl TEXT,
-              UNIQUE(car_id, user_id)
-            );`,
-            [],
-            () => {
-              // Table exists, now check if item exists in cart
-              tx.executeSql(
-                "SELECT * FROM rent_cart WHERE car_id = ? AND user_id = ?",
-                [car._id || "", user._id || ""],
-                (_, { rows }) => {
-                  if (rows.length > 0) {
-                    toast.info(
-                      `${car.brand} ${car.model} is already in your cart`
-                    );
-                    return;
-                  }
-
-                  const imageUrl =
-                    car.images && car.images.length > 0
-                      ? typeof car.images[0] === "string"
-                        ? car.images[0]
-                        : car.images[0]?.url || ""
-                      : "";
-
-                  tx.executeSql(
-                    `INSERT INTO rent_cart (
-                      car_id, user_id, price, brand, model, 
-                      year, vehicleType, transmission, pickUpLocation, imageUrl
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                    [
-                      car._id || "",
-                      user._id || "",
-                      car.pricePerDay || 0,
-                      car.brand || "",
-                      car.model || "",
-                      car.year || null,
-                      car.vehicleType || "Sedan",
-                      car.transmission || "Automatic",
-                      car.pickUpLocation || "",
-                      imageUrl,
-                    ],
-                    (_, result) => {
-                      console.log("Car added to cart successfully");
-                      toast.success(
-                        `${car.brand} ${car.model} added to your rent cart`
-                      );
-                      loadCartItems();
-                    },
-                    (_, error) => {
-                      console.error("Error inserting into cart:", error);
-                      toast.error(
-                        `Error adding to cart: ${error.message || error}`
-                      );
-                    }
-                  );
-                },
-                (_, error) => {
-                  console.error("Error checking cart:", error);
-                  toast.error(`Error checking cart: ${error.message || error}`);
-                }
-              );
-            },
-            (_, error) => {
-              console.error("Error ensuring table exists:", error);
-              toast.error(`Database error: ${error.message || error}`);
-            }
-          );
-        },
-        (error) => {
-          console.error("Transaction error:", error);
-          toast.error(`Transaction error: ${error.message || error}`);
-        }
+      // First check if it's already in cart using getAllAsync
+      const existingItems = await db.getAllAsync(
+        "SELECT * FROM rent_cart WHERE car_id = ? AND user_id = ?",
+        [car._id, user._id]
       );
+
+      if (existingItems && existingItems.length > 0) {
+        toast.info(`${car.brand} ${car.model} is already in your rent cart`);
+        return;
+      }
+
+      // Prepare data with proper validation
+      const insertData = {
+        car_id: car._id,
+        user_id: user._id,
+        price: parseFloat(car.pricePerDay) || 0,
+        brand: car.brand?.toString() || "",
+        model: car.model?.toString() || "",
+        year: car.year ? parseInt(car.year) : null,
+        vehicleType: car.vehicleType?.toString() || "Sedan",
+        transmission: car.transmission?.toString() || "Automatic",
+        pickUpLocation: car.pickUpLocation?.toString() || "",
+        imageUrl: (car.images?.[0]?.url || car.images?.[0] || "").toString(),
+      };
+
+      // Use parameterized query to prevent SQL injection
+      const result = await db.runAsync(
+        `INSERT INTO rent_cart (
+          car_id, user_id, price, brand, model, 
+          year, vehicleType, transmission, pickUpLocation, imageUrl
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          insertData.car_id,
+          insertData.user_id,
+          insertData.price,
+          insertData.brand,
+          insertData.model,
+          insertData.year,
+          insertData.vehicleType,
+          insertData.transmission,
+          insertData.pickUpLocation,
+          insertData.imageUrl,
+        ]
+      );
+
+      if (result.changes > 0) {
+        toast.success(`${car.brand} ${car.model} added to your rent cart`);
+        // Refresh cart items after adding to keep the count accurate
+        await loadCartItems();
+      } else {
+        throw new Error("Failed to add car to cart");
+      }
     } catch (error) {
       console.error("Database operation error:", error);
-      toast.error(`Error: ${error.message || "Unknown database error"}`);
+      toast.error(
+        error.message || "Failed to add car to cart. Please try again."
+      );
     }
   };
 
@@ -670,279 +632,295 @@ const HomeScreen = () => {
           )}
         </View>
 
-        <View style={{ marginVertical: 16 }}>
+        <View style={{ padding: 16 }}>
+          <View style={{ marginVertical: 16 }}>
+            <Text
+              style={[
+                globalStyles.subtitle,
+                { color: colors.text, marginBottom: 8 },
+              ]}
+            >
+              Featured Cars
+            </Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingRight: 16 }}
+            >
+              {loading ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color={colors.primary} />
+                </View>
+              ) : error ? (
+                handleError(error)
+              ) : featuredCars.length > 0 ? (
+                featuredCars.map((car, index) => renderCarCard(car, index))
+              ) : (
+                <View style={styles.noDataContainer}>
+                  <Text style={[globalStyles.text, { color: colors.text }]}>
+                    No cars available at the moment
+                  </Text>
+                </View>
+              )}
+            </ScrollView>
+          </View>
+
           <Text
             style={[
               globalStyles.subtitle,
               { color: colors.text, marginBottom: 8 },
             ]}
           >
-            Featured Cars
+            Discounts & Offers
           </Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
+            style={{ marginVertical: 16 }}
             contentContainerStyle={{ paddingRight: 16 }}
           >
-            {loading ? (
-              <View style={styles.loadingContainer}>
+            {discountsLoading ? (
+              <View
+                style={[
+                  styles.offerCard,
+                  {
+                    backgroundColor: colors.card,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    ...colors.shadow,
+                  },
+                ]}
+              >
                 <ActivityIndicator size="large" color={colors.primary} />
               </View>
-            ) : error ? (
-              handleError(error)
-            ) : featuredCars.length > 0 ? (
-              featuredCars.map((car, index) => renderCarCard(car, index))
+            ) : activeDiscounts.length > 0 ? (
+              activeDiscounts.map((discount, index) => (
+                <TouchableOpacity
+                  key={discount._id || index}
+                  onPress={() => handleDiscountPress(discount)}
+                  activeOpacity={0.75}
+                >
+                  <LinearGradient
+                    colors={
+                      index % 2 === 0
+                        ? [colors.primary, "#004080"]
+                        : [colors.accent, "#6b3d00"]
+                    }
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.offerCard}
+                  >
+                    <ImageBackground
+                      source={getPatternImage()}
+                      style={styles.patternBackground}
+                      imageStyle={{ opacity: 0.05 }}
+                    >
+                      <View style={styles.offerBadge}>
+                        <Text style={styles.offerBadgeText}>
+                          {discount.discountPercentage}% OFF
+                        </Text>
+                      </View>
+
+                      <View style={styles.offerTextContainer}>
+                        <Text style={[styles.offerTitle, { color: "white" }]}>
+                          {generatePromoTitle(discount, index)}
+                        </Text>
+
+                        <View style={styles.codeContainer}>
+                          <Text style={styles.codeLabel}>Use code:</Text>
+                          <View style={styles.codeBox}>
+                            <Text style={styles.codeText}>{discount.code}</Text>
+                            <TouchableOpacity
+                              style={styles.copyButton}
+                              onPress={() => copyDiscountCode(discount.code)}
+                            >
+                              <Icon name="copy" size={14} color="#FFFFFF" />
+                            </TouchableOpacity>
+                          </View>
+
+                          <View style={[styles.validityContainer, { gap: 7 }]}>
+                            <Icon
+                              name="calendar"
+                              size={12}
+                              color="rgba(255,255,255,0.9)"
+                            />
+                            <Text
+                              style={[
+                                styles.validityText,
+                                { color: "#fff", marginTop: 0 },
+                              ]}
+                            >
+                              Valid until{" "}
+                              {new Date(discount.endDate).toLocaleDateString()}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+
+                      <View style={styles.imageContainer}>
+                        {discount.discountLogo &&
+                        discount.discountLogo.imageUrl ? (
+                          <Image
+                            source={{ uri: discount.discountLogo.imageUrl }}
+                            style={styles.offerImage}
+                            resizeMode="contain"
+                          />
+                        ) : (
+                          <View style={styles.discountCircle}>
+                            <Text style={styles.discountPercentText}>
+                              {discount.discountPercentage}%
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    </ImageBackground>
+                  </LinearGradient>
+                </TouchableOpacity>
+              ))
             ) : (
-              <View style={styles.noDataContainer}>
-                <Text style={[globalStyles.text, { color: colors.text }]}>
-                  No cars available at the moment
+              <View
+                style={[
+                  styles.offerCard,
+                  {
+                    backgroundColor: colors.card,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    ...colors.shadow,
+                  },
+                ]}
+              >
+                <Icon
+                  name="tag"
+                  size={40}
+                  color={colors.secondary}
+                  style={{ marginBottom: 10 }}
+                />
+                <Text
+                  style={[
+                    globalStyles.text,
+                    { color: colors.text, textAlign: "center" },
+                  ]}
+                >
+                  No active discounts available at the moment
                 </Text>
               </View>
             )}
           </ScrollView>
-        </View>
 
-        <Text
-          style={[
-            globalStyles.subtitle,
-            { color: colors.text, marginBottom: 8 },
-          ]}
-        >
-          Discounts & Offers
-        </Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={{ marginVertical: 16 }}
-          contentContainerStyle={{ paddingRight: 16 }}
-        >
-          {discountsLoading ? (
-            <View
-              style={[
-                styles.offerCard,
-                {
-                  backgroundColor: colors.card,
-                  justifyContent: "center",
-                  alignItems: "center",
-                  ...colors.shadow,
-                },
-              ]}
-            >
-              <ActivityIndicator size="large" color={colors.primary} />
-            </View>
-          ) : activeDiscounts.length > 0 ? (
-            activeDiscounts.map((discount, index) => (
-              <TouchableOpacity
-                key={discount._id || index}
-                onPress={() => handleDiscountPress(discount)}
-                activeOpacity={0.75}
-              >
-                <LinearGradient
-                  colors={
-                    index % 2 === 0
-                      ? [colors.primary, "#004080"]
-                      : [colors.accent, "#6b3d00"]
-                  }
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.offerCard}
-                >
-                  <ImageBackground
-                    source={getPatternImage()}
-                    style={styles.patternBackground}
-                    imageStyle={{ opacity: 0.05 }}
-                  >
-                    <View style={styles.offerBadge}>
-                      <Text style={styles.offerBadgeText}>
-                        {discount.discountPercentage}% OFF
-                      </Text>
-                    </View>
+          <Text
+            style={[
+              globalStyles.subtitle,
+              { color: colors.text, marginTop: 8 },
+            ]}
+          >
+            How It Works
+          </Text>
 
-                    <View style={styles.offerTextContainer} numberOfLines={0}>
-                      <Text style={styles.offerTitle}>
-                        {generatePromoTitle(discount, index)}
-                      </Text>
-
-                      <View style={[styles.codeContainer, { marginRight: 10 }]}>
-                        <Text style={styles.codeLabel}>Use code:</Text>
-                        <View style={styles.codeBox}>
-                          <Text style={styles.codeText}>{discount.code}</Text>
-                          <TouchableOpacity
-                            style={styles.copyButton}
-                            onPress={() => copyDiscountCode(discount.code)}
-                          >
-                            <Icon name="copy" size={14} color="#FFFFFF" />
-                          </TouchableOpacity>
-                        </View>
-
-                        <View style={[styles.validityContainer, { gap: 7 }]}>
-                          <Icon
-                            name="calendar"
-                            size={12}
-                            color="rgba(255,255,255,0.9)"
-                          />
-                          <Text
-                            style={[
-                              styles.validityText,
-                              { color: "#fff", marginTop: 0 },
-                            ]}
-                          >
-                            Valid until{" "}
-                            {new Date(discount.endDate).toLocaleDateString()}
-                          </Text>
-                        </View>
-                      </View>
-
-                      {discount.discountLogo &&
-                      discount.discountLogo.imageUrl ? (
-                        <Image
-                          source={{ uri: discount.discountLogo.imageUrl }}
-                          style={[styles.offerImage]}
-                          resizeMode="contain"
-                        />
-                      ) : (
-                        <View style={styles.discountCircle}>
-                          <Text style={styles.discountPercentText}>
-                            {discount.discountPercentage}%
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                  </ImageBackground>
-                </LinearGradient>
-              </TouchableOpacity>
-            ))
-          ) : (
-            <View
-              style={[
-                styles.offerCard,
-                {
-                  backgroundColor: colors.card,
-                  justifyContent: "center",
-                  alignItems: "center",
-                  ...colors.shadow,
-                },
-              ]}
-            >
-              <Icon
-                name="tag"
-                size={40}
-                color={colors.secondary}
-                style={{ marginBottom: 10 }}
-              />
-              <Text
+          <View style={styles.stepsContainer}>
+            {[
+              {
+                icon: "user",
+                title: "Create a profile",
+                description: "Sign up and set up your account",
+              },
+              {
+                icon: "car",
+                title: "Choose a car",
+                description:
+                  "Browse our collection of quality and assured vehicles from our verified car owners",
+              },
+              {
+                icon: "handshake-o",
+                title: "Meet the seller",
+                description: "Coomunicate and coordinate pickup details",
+              },
+              {
+                icon: "check-circle",
+                title: "Enjoy your ride",
+                description: "Experience the ultimate driving machine",
+              },
+            ].map((step, index) => (
+              <View
+                key={index}
                 style={[
-                  globalStyles.text,
-                  { color: colors.text, textAlign: "center" },
+                  styles.stepCard,
+                  {
+                    backgroundColor: colors.card,
+                    ...colors.shadow,
+                  },
                 ]}
               >
-                No active discounts available at the moment
-              </Text>
-            </View>
-          )}
-        </ScrollView>
-
-        <Text
-          style={[globalStyles.subtitle, { color: colors.text, marginTop: 8 }]}
-        >
-          How It Works
-        </Text>
-
-        <View style={styles.stepsContainer}>
-          {[
-            {
-              icon: "user",
-              title: "Create a profile",
-              description: "Sign up and set up your account",
-            },
-            {
-              icon: "car",
-              title: "Choose a car",
-              description:
-                "Browse our collection of quality and assured vehicles from our verified car owners",
-            },
-            {
-              icon: "handshake-o",
-              title: "Meet the seller",
-              description: "Coomunicate and coordinate pickup details",
-            },
-            {
-              icon: "check-circle",
-              title: "Enjoy your ride",
-              description: "Experience the ultimate driving machine",
-            },
-          ].map((step, index) => (
-            <View
-              key={index}
-              style={[
-                styles.stepCard,
-                {
-                  backgroundColor: colors.card,
-                  ...colors.shadow,
-                },
-              ]}
-            >
-              <View
-                style={[styles.iconCircle, { backgroundColor: colors.primary }]}
-              >
-                <Icon name={step.icon} size={24} color="#FFFFFF" />
-              </View>
-              <View style={styles.stepTextContainer}>
-                <Text style={[styles.stepTitle, { color: colors.text }]}>
-                  {step.title}
-                </Text>
-                <Text
-                  style={[styles.stepDescription, { color: colors.secondary }]}
+                <View
+                  style={[
+                    styles.iconCircle,
+                    { backgroundColor: colors.primary },
+                  ]}
                 >
-                  {step.description}
-                </Text>
+                  <Icon name={step.icon} size={24} color="#FFFFFF" />
+                </View>
+                <View style={styles.stepTextContainer}>
+                  <Text style={[styles.stepTitle, { color: colors.text }]}>
+                    {step.title}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.stepDescription,
+                      { color: colors.secondary },
+                    ]}
+                  >
+                    {step.description}
+                  </Text>
+                </View>
               </View>
-            </View>
-          ))}
-        </View>
+            ))}
+          </View>
 
-        <Text
-          style={[globalStyles.subtitle, { color: colors.text, marginTop: 24 }]}
-        >
-          About BMW Rentals
-        </Text>
-
-        <View
-          style={[
-            globalStyles.card,
-            {
-              backgroundColor: colors.card,
-              marginBottom: 20,
-              ...colors.shadow,
-            },
-          ]}
-        >
-          <Text style={[globalStyles.text, { color: colors.text }]}>
-            Welcome to our Car Rental service! We offer a wide selection of BMW
-            vehicles to meet all your transportation needs. Whether you need a
-            quick city drive, a road trip, or a special occasion car, we've got
-            you covered.
-          </Text>
-          <TouchableOpacity
+          <Text
             style={[
-              styles.learnMoreButton,
+              globalStyles.subtitle,
+              { color: colors.text, marginTop: 24 },
+            ]}
+          >
+            About BMW Rentals
+          </Text>
+
+          <View
+            style={[
+              globalStyles.card,
               {
-                borderColor: colors.primary,
-                backgroundColor: isDarkMode
-                  ? "rgba(51, 153, 255, 0.1)"
-                  : "rgba(0, 102, 204, 0.05)",
+                backgroundColor: colors.card,
+                marginBottom: 20,
+                ...colors.shadow,
               },
             ]}
           >
-            <Text
-              style={{ color: colors.primary }}
-              onPress={() => {
-                navigation.navigate("AboutUsScreen");
-              }}
-            >
-              Learn More
+            <Text style={[globalStyles.text, { color: colors.text }]}>
+              Welcome to our Car Rental service! We offer a wide selection of
+              BMW vehicles to meet all your transportation needs. Whether you
+              need a quick city drive, a road trip, or a special occasion car,
+              we've got you covered.
             </Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.learnMoreButton,
+                {
+                  borderColor: colors.primary,
+                  backgroundColor: isDarkMode
+                    ? "rgba(51, 153, 255, 0.1)"
+                    : "rgba(0, 102, 204, 0.05)",
+                },
+              ]}
+            >
+              <Text
+                style={{ color: colors.primary }}
+                onPress={() => {
+                  navigation.navigate("AboutUsScreen");
+                }}
+              >
+                Learn More
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
 
@@ -1144,6 +1122,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
     flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
   },
   offerBadge: {
@@ -1163,18 +1142,7 @@ const styles = StyleSheet.create({
   offerTextContainer: {
     flex: 1,
     justifyContent: "center",
-  },
-  offerTitle: {
-    fontWeight: "700",
-    fontSize: 20,
-    color: "#FFFFFF",
-    marginBottom: 16,
-    textShadowColor: "rgba(0,0,0,0.15)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-    width: "100%",
-    textAlign: "left",
-    lineHeight: 24,
+    paddingRight: 10,
   },
   codeContainer: {
     marginBottom: 16,
@@ -1215,27 +1183,25 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.9)",
     marginLeft: 6,
   },
+  imageContainer: {
+    justifyContent: "center",
+    alignItems: "center",
+    paddingLeft: 5,
+  },
   offerImage: {
-    width: 90,
-    height: 90,
+    width: 80,
+    height: 80,
     alignSelf: "center",
-    marginRight: 8,
   },
   discountCircle: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     backgroundColor: "rgba(255,255,255,0.2)",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 10,
     borderWidth: 2,
     borderColor: "rgba(255,255,255,0.3)",
-  },
-  discountPercentText: {
-    color: "#FFFFFF",
-    fontSize: 26,
-    fontWeight: "800",
   },
   stepsContainer: {
     marginVertical: 16,

@@ -32,7 +32,7 @@ import { useToast } from "../context/ToastContext";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { Picker } from "@react-native-picker/picker";
 import api from "./../services/api";
-
+import * as SQLite from "expo-sqlite";
 const { width, height } = Dimensions.get("window");
 
 const CarDetailsScreen = () => {
@@ -42,6 +42,7 @@ const CarDetailsScreen = () => {
   const navigation = useNavigation();
   const dispatch = useDispatch();
   const toast = useToast();
+  const [db, setDb] = useState(null);
   const { currentCar, loading, error, favorites } = useSelector(
     (state) => state.cars
   );
@@ -73,6 +74,49 @@ const CarDetailsScreen = () => {
   const [showRentalHistoryModal, setShowRentalHistoryModal] = useState(false);
   const [carRentals, setCarRentals] = useState([]);
   const [loadingRentals, setLoadingRentals] = useState(false);
+  const [cartsInDb, setCartsInDb] = useState([]);
+  const [cartCount, setCartCount] = useState(0);
+
+  useEffect(() => {
+    const initDatabase = async () => {
+      try {
+        console.log("Opening database...");
+        const database = await SQLite.openDatabaseAsync("bmwCartNew.db");
+
+        console.log("Database opened successfully");
+        setDb(database);
+
+        await database.execAsync(
+          `CREATE TABLE IF NOT EXISTS rent_cart (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              car_id TEXT NOT NULL,
+              user_id TEXT NOT NULL,
+              price REAL NOT NULL,
+              brand TEXT NOT NULL,
+              model TEXT NOT NULL,
+              year INTEGER,
+              vehicleType TEXT,
+              transmission TEXT,
+              pickUpLocation TEXT,
+              imageUrl TEXT
+            );`
+        );
+        loadCartItems();
+        console.log("Table created successfully");
+      } catch (error) {
+        console.error("Database setup error:", error);
+        setDbError(error.message || String(error));
+      }
+    };
+
+    initDatabase();
+  }, []);
+
+  useEffect(() => {
+    if (db && user) {
+      loadCartItems();
+    }
+  }, [db, user]);
 
   const markMessagesAsRead = async (senderId) => {
     try {
@@ -88,7 +132,6 @@ const CarDetailsScreen = () => {
 
   const fetchCarInquiries = async () => {
     if (!carId) return;
-
     setLoadingInquiries(true);
     try {
       const response = await api.get(`/car-inquiries/${carId}`);
@@ -113,14 +156,39 @@ const CarDetailsScreen = () => {
       setLoadingInquiries(false);
     }
   };
+  const loadCartItems = async () => {
+    if (!db || !user) {
+      setCartCount(0);
+      setCartsInDb([]);
+      return;
+    }
 
+    try {
+      const items = await db.getAllAsync(
+        "SELECT * FROM rent_cart WHERE user_id = ?",
+        [user._id || ""]
+      );
+
+      console.log(
+        `Querying cart for user: ${user._id}, found ${items.length} items`
+      );
+
+      const carIds = items.map((item) => item.car_id);
+      setCartsInDb(carIds);
+      setCartCount(items.length);
+      console.log("Cart IDs in DB:", carIds);
+    } catch (error) {
+      console.error("Error fetching cart items:", error);
+      setCartCount(0);
+      setCartsInDb([]);
+    }
+  };
   const fetchCarRentals = async () => {
     if (!carId) return;
 
     setLoadingRentals(true);
     try {
       const response = await api.get(`/car-rentals/${carId}`);
-      // Sort by date (newest first) and limit to latest 10
       const sortedRentals = (response.data || [])
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
         .slice(0, 10);
@@ -333,6 +401,63 @@ const CarDetailsScreen = () => {
         return "#8e44ad";
       default:
         return colors.secondary;
+    }
+  };
+
+  const isCarInCart = currentCar && cartsInDb.includes(currentCar._id);
+
+  const handleAddToRent = async () => {
+    if (!user) {
+      toast.warning("Please login to add this car to your rent cart");
+      navigation.navigate("Login");
+      return;
+    }
+
+    if (!db) {
+      toast.error("Database not initialized");
+      return;
+    }
+
+    try {
+      const existingItems = await db.getAllAsync(
+        "SELECT * FROM rent_cart WHERE car_id = ? AND user_id = ?",
+        [currentCar._id, user._id]
+      );
+
+      if (existingItems.length > 0) {
+        toast.info("This car is already in your rent cart");
+        return;
+      }
+
+      await db.runAsync(
+        `INSERT INTO rent_cart 
+        (car_id, user_id, price, brand, model, year, vehicleType, transmission, pickUpLocation, imageUrl) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          currentCar._id,
+          user._id,
+          currentCar.pricePerDay,
+          currentCar.brand,
+          currentCar.model,
+          currentCar.year,
+          currentCar.vehicleType || "Sedan",
+          currentCar.transmission || "Automatic",
+          currentCar.pickUpLocation || "Not specified",
+          currentCar.images && currentCar.images.length > 0
+            ? typeof currentCar.images[0] === "string"
+              ? currentCar.images[0]
+              : currentCar.images[0]?.url || ""
+            : "",
+        ]
+      );
+
+      loadCartItems();
+      toast.success(
+        `${currentCar.brand} ${currentCar.model} added to your rent cart`
+      );
+    } catch (error) {
+      console.error("Error adding to cart:", error);
+      toast.error("Failed to add car to cart");
     }
   };
 
@@ -763,7 +888,6 @@ const CarDetailsScreen = () => {
     );
   };
 
-  // Helper function to get payment method icon
   const getPaymentIcon = (method) => {
     switch (method?.toLowerCase() || "") {
       case "credit card":
@@ -1243,21 +1367,50 @@ const CarDetailsScreen = () => {
           {user &&
           currentCar.isOnRental !== true &&
           currentCar?.owner?._id !== user?._id ? (
-            <TouchableOpacity
-              style={[
-                styles.bookButton,
-                { backgroundColor: colors.primary, marginBottom: 15 },
-              ]}
-              onPress={handleBookPress}
-            >
-              <Icon
-                name="calendar-check-o"
-                size={18}
-                color="#FFFFFF"
-                style={{ marginRight: 8 }}
-              />
-              <Text style={styles.bookButtonText}>Book Now</Text>
-            </TouchableOpacity>
+            <View style={styles.bookingActionContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.bookButton,
+                  { backgroundColor: colors.primary, flex: 1, marginRight: 8 },
+                ]}
+                onPress={handleBookPress}
+              >
+                <Icon
+                  name="calendar-check-o"
+                  size={18}
+                  color="#FFFFFF"
+                  style={{ marginRight: 8 }}
+                />
+                <Text style={styles.bookButtonText}>Book Now</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.addToRentButton,
+                  {
+                    backgroundColor: isCarInCart
+                      ? colors.secondary
+                      : colors.warning,
+                    flex: 1,
+                    height: 55,
+                    marginTop: 10,
+                    opacity: isCarInCart ? 0.6 : 1,
+                  },
+                ]}
+                onPress={isCarInCart ? null : handleAddToRent}
+                disabled={isCarInCart}
+              >
+                <Icon
+                  name={isCarInCart ? "check-circle" : "plus-circle"}
+                  size={18}
+                  color="#FFFFFF"
+                  style={{ marginRight: 8 }}
+                />
+                <Text style={styles.addToRentButtonText}>
+                  {isCarInCart ? "In Cart" : "Add to Rent"}
+                </Text>
+              </TouchableOpacity>
+            </View>
           ) : user && currentCar?.owner?._id === user?._id ? (
             <View
               style={[
@@ -1346,7 +1499,6 @@ const CarDetailsScreen = () => {
             </View>
           )}
 
-          {/* Car Features */}
           <View
             style={[
               styles.sectionContainer,
@@ -1390,7 +1542,6 @@ const CarDetailsScreen = () => {
             </View>
           </View>
 
-          {/* Description */}
           {currentCar.description && (
             <View
               style={[
@@ -1407,7 +1558,6 @@ const CarDetailsScreen = () => {
             </View>
           )}
 
-          {/* Owner Terms and Condition */}
           {currentCar.description && (
             <View
               style={[
@@ -1424,7 +1574,6 @@ const CarDetailsScreen = () => {
             </View>
           )}
 
-          {/* Location */}
           <View
             style={[
               styles.sectionContainer,
@@ -1546,12 +1695,16 @@ const CarDetailsScreen = () => {
       <DatePickerModals />
       <InquiriesModal />
       <RentalHistoryModal />
-      {/* Floating Rentals Button */}
       <TouchableOpacity
         style={[styles.floatingCartButton, { backgroundColor: colors.primary }]}
         onPress={() => navigation.navigate("Rentals", { screen: "CartScreen" })}
       >
         <Icon name="car" size={24} color="#FFFFFF" />
+        {cartCount > 0 && (
+          <View style={styles.badgeContainer}>
+            <Text style={styles.badgeText}>{cartCount}</Text>
+          </View>
+        )}
       </TouchableOpacity>
     </SafeAreaView>
   );
@@ -2207,6 +2360,26 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     zIndex: 999,
   },
+  badgeContainer: {
+    position: "absolute",
+    top: -5,
+    right: -5,
+    backgroundColor: "red",
+    borderRadius: 12,
+    minWidth: 24,
+    height: 24,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 6,
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+    zIndex: 1000,
+  },
+  badgeText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "bold",
+  },
   viewInquiriesButtonText: {
     color: "#FFFFFF",
     fontSize: 16,
@@ -2215,6 +2388,22 @@ const styles = StyleSheet.create({
   },
   inquiriesIcon: {
     marginRight: 4,
+  },
+  bookingActionContainer: {
+    flexDirection: "row",
+    marginBottom: 15,
+  },
+  addToRentButton: {
+    flexDirection: "row",
+    padding: 16,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  addToRentButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
   },
   ...newStyles,
   ...rentalHistoryStyles,

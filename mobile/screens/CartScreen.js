@@ -31,61 +31,33 @@ const CartScreen = () => {
   const [db, setDb] = useState(null);
 
   useEffect(() => {
-    // Initialize the database connection
     const initDatabase = async () => {
       try {
-        console.log("CartScreen: Opening database connection...");
-        const database = SQLite.openDatabase("bmwRentCart.db");
+        console.log("Opening database...");
+        const database = await SQLite.openDatabaseAsync("bmwCartNew.db");
 
-        // This is the critical line that was missing - set the database to state
+        console.log("Database opened successfully");
         setDb(database);
 
-        console.log("CartScreen: Database connection established");
-
-        // Create table in a separate transaction after setting the db state
-        setTimeout(() => {
-          if (database) {
-            database.transaction(
-              (tx) => {
-                tx.executeSql(
-                  `CREATE TABLE IF NOT EXISTS rent_cart (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    car_id TEXT NOT NULL,
-                    user_id TEXT NOT NULL,
-                    price REAL NOT NULL,
-                    brand TEXT NOT NULL,
-                    model TEXT NOT NULL,
-                    year INTEGER,
-                    vehicleType TEXT,
-                    transmission TEXT,
-                    pickUpLocation TEXT,
-                    imageUrl TEXT,
-                    UNIQUE(car_id, user_id)
-                  );`,
-                  [],
-                  () => {
-                    console.log(
-                      "CartScreen: rent_cart table created or already exists"
-                    );
-                  },
-                  (_, error) => {
-                    console.error("CartScreen: Error creating table:", error);
-                    return true; // Roll back transaction
-                  }
-                );
-              },
-              (error) => {
-                console.error("CartScreen: Transaction error:", error);
-              },
-              () => {
-                console.log("CartScreen: Table creation transaction completed");
-              }
-            );
-          }
-        }, 100); // Small delay to ensure database is ready
+        await database.execAsync(
+          `CREATE TABLE IF NOT EXISTS rent_cart (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              car_id TEXT NOT NULL,
+              user_id TEXT NOT NULL,
+              price REAL NOT NULL,
+              brand TEXT NOT NULL,
+              model TEXT NOT NULL,
+              year INTEGER,
+              vehicleType TEXT,
+              transmission TEXT,
+              pickUpLocation TEXT,
+              imageUrl TEXT
+            );`
+        );
+        console.log("Table created successfully");
       } catch (error) {
-        console.error("CartScreen: Database initialization error:", error);
-        toast.error("Failed to open database");
+        console.error("Database setup error:", error);
+        setDbError(error.message || String(error));
       }
     };
 
@@ -101,106 +73,40 @@ const CartScreen = () => {
 
       try {
         setIsLoading(true);
-        console.log("CartScreen: Loading cart items for user:", user._id);
 
-        // First check if the table exists
-        db.transaction((tx) => {
-          tx.executeSql(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='rent_cart';",
-            [],
-            (_, { rows }) => {
-              if (rows.length === 0) {
-                // Table doesn't exist, create it
-                console.log(
-                  "CartScreen: rent_cart table doesn't exist, creating it"
-                );
-                tx.executeSql(
-                  `CREATE TABLE IF NOT EXISTS rent_cart (
-                      id INTEGER PRIMARY KEY AUTOINCREMENT,
-                      car_id TEXT NOT NULL,
-                      user_id TEXT NOT NULL,
-                      price REAL NOT NULL,
-                      brand TEXT NOT NULL,
-                      model TEXT NOT NULL,
-                      year INTEGER,
-                      vehicleType TEXT,
-                      transmission TEXT,
-                      pickUpLocation TEXT,
-                      imageUrl TEXT,
-                      UNIQUE(car_id, user_id)
-                    );`,
-                  [],
-                  () => {
-                    console.log("CartScreen: rent_cart table created");
-                    setCartItems([]);
-                    setIsLoading(false);
-                  },
-                  (_, error) => {
-                    console.error("CartScreen: Error creating table:", error);
-                    setIsLoading(false);
-                    return true;
-                  }
-                );
-                return;
-              }
+        // Properly query the database with getAllAsync instead of execAsync
+        const items = await db.getAllAsync(
+          "SELECT * FROM rent_cart WHERE user_id = ?",
+          [user._id || ""]
+        );
 
-              // Table exists, load cart items
-              loadItemsFromTable(tx);
-            },
-            (_, error) => {
-              console.error(
-                "CartScreen: Error checking if table exists:",
-                error
-              );
-              setIsLoading(false);
-              toast.error("Failed to check database tables");
-            }
-          );
-        });
-      } catch (error) {
-        console.error("CartScreen: Error in loadCartItems:", error);
+        console.log("Items loaded from database:", items.length);
+
+        // Transform SQLite data to match the app's cart item format
+        const transformedItems = items.map((item) => ({
+          _id: item.car_id, // Add _id field to match what CheckoutScreen expects
+          productId: item.car_id,
+          brand: item.brand,
+          model: item.model,
+          year: item.year,
+          vehicleType: item.vehicleType,
+          transmission: item.transmission,
+          pickUpLocation: item.pickUpLocation,
+          pricePerDay: item.price,
+          images: item.imageUrl ? [item.imageUrl] : [],
+        }));
+
+        setCartItems(transformedItems);
         setIsLoading(false);
-        toast.error("An unexpected error occurred");
+      } catch (error) {
+        console.error("Error in loadCartItems:", error);
+        setIsLoading(false);
+        toast.error("Failed to load your rental cart");
       }
-    };
-
-    // Helper function to load items from table
-    const loadItemsFromTable = (tx) => {
-      tx.executeSql(
-        "SELECT * FROM rent_cart WHERE user_id = ?",
-        [user._id || ""],
-        (_, { rows }) => {
-          const items = rows._array || [];
-          console.log("CartScreen: Items loaded from database:", items.length);
-
-          // Transform SQLite data to match the app's cart item format
-          const transformedItems = items.map((item) => ({
-            productId: item.car_id,
-            brand: item.brand,
-            model: item.model,
-            year: item.year,
-            vehicleType: item.vehicleType,
-            transmission: item.transmission,
-            pickUpLocation: item.pickUpLocation,
-            pricePerDay: item.price,
-            images: item.imageUrl ? [item.imageUrl] : [],
-          }));
-
-          setCartItems(transformedItems);
-          setIsLoading(false);
-        },
-        (_, error) => {
-          console.error("CartScreen: Error fetching cart items:", error);
-          setIsLoading(false);
-          toast.error("Failed to load your rental cart");
-        }
-      );
     };
 
     if (db && user) {
       loadCartItems();
-    } else {
-      setIsLoading(false);
     }
   }, [user, db]);
 
@@ -274,49 +180,29 @@ const CartScreen = () => {
                 return;
               }
 
-              db.transaction(
-                (tx) => {
-                  tx.executeSql(
-                    "DELETE FROM rent_cart WHERE car_id = ? AND user_id = ?",
-                    [item.productId, user._id || ""],
-                    (_, result) => {
-                      if (result.rowsAffected > 0) {
-                        // Update the cart items state
-                        setCartItems((current) =>
-                          current.filter(
-                            (car) => car.productId !== item.productId
-                          )
-                        );
-
-                        // Update selected items
-                        if (selectedItems[item.productId]) {
-                          const newSelected = { ...selectedItems };
-                          delete newSelected[item.productId];
-                          setSelectedItems(newSelected);
-                        }
-
-                        toast.info("Item removed from your rentals");
-                      } else {
-                        toast.error("Failed to remove item");
-                      }
-                      setIsLoading(false);
-                    },
-                    (_, error) => {
-                      console.error("Error deleting from cart:", error);
-                      toast.error("Database error occurred");
-                      setIsLoading(false);
-                    }
-                  );
-                },
-                (error) => {
-                  console.error("Transaction error:", error);
-                  toast.error("Transaction error occurred");
-                  setIsLoading(false);
-                }
+              // Use runAsync instead of execAsync for DELETE operations
+              await db.runAsync(
+                "DELETE FROM rent_cart WHERE car_id = ? AND user_id = ?",
+                [item.productId, user._id || ""]
               );
+
+              // Update the cart items state
+              setCartItems((current) =>
+                current.filter((car) => car.productId !== item.productId)
+              );
+
+              // Update selected items
+              setSelectedItems((prev) => {
+                const newSelected = { ...prev };
+                delete newSelected[item.productId];
+                return newSelected;
+              });
+
+              toast.info("Item removed from your rentals");
             } catch (error) {
               console.error("Error removing item from cart", error);
               toast.error("An error occurred while removing the item");
+            } finally {
               setIsLoading(false);
             }
           },
@@ -360,41 +246,21 @@ const CartScreen = () => {
 
                 if (!db) {
                   toast.error("Database not initialized");
-                  setIsLoading(false);
                   return;
                 }
 
-                db.transaction(
-                  (tx) => {
-                    tx.executeSql(
-                      "DELETE FROM rent_cart WHERE user_id = ?",
-                      [user._id || ""],
-                      (_, result) => {
-                        if (result.rowsAffected > 0) {
-                          setCartItems([]);
-                          setSelectedItems({});
-                          toast.info("Rentals cleared successfully");
-                        } else {
-                          toast.error("Failed to clear rentals");
-                        }
-                        setIsLoading(false);
-                      },
-                      (_, error) => {
-                        console.error("Error clearing cart:", error);
-                        toast.error("Database error occurred");
-                        setIsLoading(false);
-                      }
-                    );
-                  },
-                  (error) => {
-                    console.error("Transaction error:", error);
-                    toast.error("Transaction error occurred");
-                    setIsLoading(false);
-                  }
-                );
+                // Use runAsync for the DELETE operation
+                await db.runAsync("DELETE FROM rent_cart WHERE user_id = ?", [
+                  user._id || "",
+                ]);
+
+                setCartItems([]);
+                setSelectedItems({});
+                toast.info("Rentals cleared successfully");
               } catch (error) {
                 console.error("Error clearing rentals", error);
                 toast.error("An error occurred while clearing your rentals");
+              } finally {
                 setIsLoading(false);
               }
             },
@@ -448,7 +314,7 @@ const CartScreen = () => {
         </Text>
         {cartItems && cartItems.length > 0 && (
           <TouchableOpacity onPress={handleClearAll}>
-            <Text style={{ color: colors.error }}>Clear All</Text>
+            <Icon name="trash" size={20} color={colors.error} />
           </TouchableOpacity>
         )}
       </View>

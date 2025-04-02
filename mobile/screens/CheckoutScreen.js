@@ -18,11 +18,12 @@ import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import Icon from "react-native-vector-icons/FontAwesome";
-import { 
-  createBooking, 
-  resetBookingSuccess, 
-  fetchUserBookings 
+import {
+  createBooking,
+  resetBookingSuccess,
+  fetchUserBookings,
 } from "../redux/slices/bookingSlice";
+import * as SQLite from "expo-sqlite";
 import { validateDiscountCode, clearDiscount } from "../redux/slices/carSlice";
 
 const CheckoutScreen = () => {
@@ -32,13 +33,71 @@ const CheckoutScreen = () => {
   const route = useRoute();
   const dispatch = useDispatch();
   const toast = useToast();
-  
-  const { car, pickupDate, returnDate, rentalDays, paymentMode } = route.params || {};
-  
+  const [db, setDb] = useState(null);
+  const [dbError, setDbError] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const initDatabase = async () => {
+      try {
+        console.log("Opening database...");
+        const database = await SQLite.openDatabaseAsync("bmwCartNew.db");
+
+        console.log("Database opened successfully");
+        setDb(database);
+
+        await database.execAsync(
+          `CREATE TABLE IF NOT EXISTS rent_cart (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              car_id TEXT NOT NULL,
+              user_id TEXT NOT NULL,
+              price REAL NOT NULL,
+              brand TEXT NOT NULL,
+              model TEXT NOT NULL,
+              year INTEGER,
+              vehicleType TEXT,
+              transmission TEXT,
+              pickUpLocation TEXT,
+              imageUrl TEXT
+            );`
+        );
+        console.log("Table created successfully");
+      } catch (error) {
+        console.error("Database setup error:", error);
+        setDbError(error.message || String(error));
+      }
+    };
+
+    initDatabase();
+  }, []);
+
+  // Extract and sanitize car data from route params
+  useEffect(() => {
+    if (route.params?.car) {
+      console.log(
+        "CheckoutScreen received car:",
+        JSON.stringify(route.params.car)
+      );
+
+      // If car is missing _id but has other IDs, set it
+      if (
+        !route.params.car._id &&
+        (route.params.car.id || route.params.car.productId)
+      ) {
+        const carId = route.params.car.id || route.params.car.productId;
+        console.log(`Setting missing _id to ${carId} in CheckoutScreen`);
+        route.params.car._id = carId;
+      }
+    }
+  }, [route.params]);
+
+  const { car, pickupDate, returnDate, rentalDays, paymentMode } =
+    route.params || {};
+
   const { loading, error, bookingSuccess } = useSelector(
     (state) => state.bookings
   );
-  
+
   const { discount, discountLoading, discountError } = useSelector(
     (state) => state.cars
   );
@@ -50,8 +109,8 @@ const CheckoutScreen = () => {
 
   // Calculate prices
   const subtotal = rentalDays * car?.pricePerDay || 0;
-  const discountAmount = appliedDiscount 
-    ? Math.round((subtotal * appliedDiscount.discountPercentage) / 100) 
+  const discountAmount = appliedDiscount
+    ? Math.round((subtotal * appliedDiscount.discountPercentage) / 100)
     : 0;
   const totalPayment = subtotal - discountAmount;
 
@@ -63,10 +122,64 @@ const CheckoutScreen = () => {
     };
   }, [dispatch]);
 
+  // Function to delete car from cart database - with enhanced error handling
+  const deleteCarFromDatabase = async () => {
+    if (!db) {
+      console.log("Database not initialized, skipping car deletion");
+      return;
+    }
+
+    if (!car) {
+      console.log("No car data available, skipping car deletion");
+      return;
+    }
+
+    if (!user) {
+      console.log("No user data available, skipping car deletion");
+      return;
+    }
+
+    const carId = car._id || car.id || car.productId;
+    if (!carId) {
+      console.error("Unable to delete car: no ID available");
+      return;
+    }
+
+    try {
+      console.log(
+        `Checking if car ${carId} exists in database for user ${user._id}`
+      );
+
+      // First check if the car exists in the database
+      const result = await db.getAllAsync(
+        `SELECT * FROM rent_cart WHERE car_id = ? AND user_id = ?`,
+        [carId, user._id]
+      );
+
+      if (result.length > 0) {
+        console.log(`Found car in database, deleting...`);
+        // Delete the car from the database
+        await db.runAsync(
+          `DELETE FROM rent_cart WHERE car_id = ? AND user_id = ?`,
+          [carId, user._id]
+        );
+        console.log(`Successfully deleted car from database`);
+      } else {
+        console.log(`Car not found in database, no deletion needed`);
+      }
+    } catch (err) {
+      console.error(`Error deleting car from database:`, err);
+    }
+  };
+
   // Handle booking success
   useEffect(() => {
     if (bookingSuccess) {
-      console.log('Booking success response:', JSON.stringify(bookingSuccess));
+      console.log("Booking success response:", JSON.stringify(bookingSuccess));
+
+      // Delete the car from the cart database if it exists
+      deleteCarFromDatabase();
+
       toast.success("Booking confirmed! Check your email for receipt.");
       dispatch(resetBookingSuccess());
       dispatch(fetchUserBookings(user?._id));
@@ -80,7 +193,7 @@ const CheckoutScreen = () => {
 
       // Handle different response structures to ensure we get the booking ID
       let bookingId = null;
-      
+
       // Check different possible locations of the booking ID
       if (bookingSuccess.booking && bookingSuccess.booking._id) {
         bookingId = bookingSuccess.booking._id.toString();
@@ -91,33 +204,33 @@ const CheckoutScreen = () => {
       }
 
       console.log("Booking Id: ", bookingId);
-      
+
       if (bookingId) {
         // First, navigate back to the home tab to clear the current stack
-        navigation.navigate('HomeTab');
-        
+        navigation.navigate("HomeTab");
+
         // Then, after a short delay, navigate to the booking details in ProfileTab
         setTimeout(() => {
-          navigation.navigate('ProfileTab', {
-            screen: 'ProfileMain'
+          navigation.navigate("ProfileTab", {
+            screen: "ProfileMain",
           });
-          
+
           // Add another small delay before navigating to the booking details
           setTimeout(() => {
-            navigation.navigate('ProfileTab', {
-              screen: 'BookingDetails',
+            navigation.navigate("ProfileTab", {
+              screen: "BookingDetails",
               params: {
                 booking: {
-                  _id: bookingId
-                }
-              }
+                  _id: bookingId,
+                },
+              },
             });
           }, 100);
         }, 100);
       } else {
         // Fallback if no booking ID is found
-        navigation.navigate('ProfileTab', {
-          screen: 'MyBookings'
+        navigation.navigate("ProfileTab", {
+          screen: "MyBookings",
         });
       }
     }
@@ -135,7 +248,7 @@ const CheckoutScreen = () => {
     if (discountError && !errorDisplayed) {
       toast.error(discountError);
       setErrorDisplayed(true);
-      
+
       // Clear the error after displaying it
       setTimeout(() => {
         dispatch(clearDiscount());
@@ -151,17 +264,21 @@ const CheckoutScreen = () => {
       const now = new Date();
       const startDate = new Date(discount.startDate);
       const endDate = discount.endDate ? new Date(discount.endDate) : null;
-      
+
       if (now < startDate) {
-        toast.error(`This discount code is not valid until ${startDate.toLocaleDateString()}`);
+        toast.error(
+          `This discount code is not valid until ${startDate.toLocaleDateString()}`
+        );
         return;
       }
-      
+
       if (endDate && now > endDate) {
-        toast.error(`This discount code expired on ${endDate.toLocaleDateString()}`);
+        toast.error(
+          `This discount code expired on ${endDate.toLocaleDateString()}`
+        );
         return;
       }
-      
+
       setAppliedDiscount(discount);
       setDiscountApplied(true);
       toast.success(`Discount applied: ${discount.discountPercentage}% off!`);
@@ -173,15 +290,17 @@ const CheckoutScreen = () => {
       toast.error("Please enter a discount code");
       return;
     }
-    
+
     setAppliedDiscount(null);
     setDiscountApplied(false);
     setErrorDisplayed(false);
-    
-    dispatch(validateDiscountCode({
-      code: discountCode.trim(),
-      userId: user?._id
-    }));
+
+    dispatch(
+      validateDiscountCode({
+        code: discountCode.trim(),
+        userId: user?._id,
+      })
+    );
   };
 
   const handleRemoveDiscount = () => {
@@ -193,40 +312,69 @@ const CheckoutScreen = () => {
   };
 
   const handleConfirmBooking = () => {
-    // Ensure all required data is included with proper structure
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+
+    // Get the correct payment method value
+    let validPaymentMethod = paymentMode;
+
+    // Ensure the payment method matches one of the valid enum values
+    if (!["GCash", "Cash", "Credit Card"].includes(validPaymentMethod)) {
+      // If somehow an invalid value is provided, default to GCash
+      validPaymentMethod = "GCash";
+      console.warn(
+        `Invalid payment method "${paymentMode}" corrected to "GCash"`
+      );
+    }
+
+    // Enhanced booking data structure to ensure all required fields are included
     const bookingData = {
-      car: car._id,
+      car: car._id, // Make sure car ID is included
+      carId: car._id, // Add alternative field name in case API expects this
       renter: user._id,
+      renterId: user._id, // Add alternative field name in case API expects this
       pickUpDate: pickupDate.toISOString(),
       returnDate: returnDate.toISOString(),
+      duration: rentalDays,
       status: "Pending",
-      paymentMethod: paymentMode,
+      paymentMethod: validPaymentMethod, // Use the validated payment method
       paymentStatus: "Paid",
-      // Make sure discount structure matches what the server expects
-      discount: appliedDiscount ? {
-        code: appliedDiscount.code,
-        discountPercentage: appliedDiscount.discountPercentage,
-        discountAmount: discountAmount
-      } : null,
+      pickUpLocation: car.pickUpLocation,
+      discount: appliedDiscount
+        ? {
+            code: appliedDiscount.code,
+            discountPercentage: appliedDiscount.discountPercentage,
+            discountAmount: discountAmount,
+          }
+        : null,
       originalAmount: subtotal,
-      finalAmount: totalPayment
+      finalAmount: totalPayment,
     };
 
-    console.log('Submitting booking data:', JSON.stringify(bookingData));
+    console.log("Submitting booking data:", JSON.stringify(bookingData));
 
     dispatch(createBooking(bookingData))
       .unwrap()
       .then((response) => {
-        console.log('Booking success response:', JSON.stringify(response));
+        console.log("Booking success response:", JSON.stringify(response));
+        setIsSubmitting(false);
       })
       .catch((err) => {
         console.log("Booking error:", err);
+        toast.error(
+          typeof err === "string"
+            ? err
+            : "Failed to create booking. Please check required fields."
+        );
+        setIsSubmitting(false);
       });
   };
 
   if (!car) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: colors.background }]}
+      >
         <StatusBar
           backgroundColor={colors.background}
           barStyle={colors.isDark ? "light-content" : "dark-content"}
@@ -248,19 +396,27 @@ const CheckoutScreen = () => {
   }
 
   return (
-    <SafeAreaView 
+    <SafeAreaView
       style={[styles.safeContainer, { backgroundColor: colors.background }]}
-      edges={['top']}
+      edges={["top"]}
     >
       <StatusBar
         backgroundColor={colors.background}
         barStyle={colors.isDark ? "light-content" : "dark-content"}
       />
-      
+
       <View style={styles.container}>
-        <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
-          <TouchableOpacity 
-            style={styles.backButton} 
+        <View
+          style={[
+            styles.header,
+            {
+              backgroundColor: colors.background,
+              borderBottomColor: colors.border,
+            },
+          ]}
+        >
+          <TouchableOpacity
+            style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
             <Icon name="arrow-left" size={20} color={colors.text} />
@@ -275,30 +431,39 @@ const CheckoutScreen = () => {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={styles.keyboardAvoidView}
         >
-          <ScrollView 
+          <ScrollView
             style={styles.content}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.contentContainer}
           >
-            <View style={[styles.confirmDialog, { backgroundColor: colors.card }]}>
+            <View
+              style={[styles.confirmDialog, { backgroundColor: colors.card }]}
+            >
               <View style={styles.dialogContent}>
                 {/* Car Section */}
                 <View style={styles.dialogSection}>
-                  <Text style={[styles.dialogSectionTitle, { color: colors.text }]}>
+                  <Text
+                    style={[styles.dialogSectionTitle, { color: colors.text }]}
+                  >
                     Car Details
                   </Text>
                   <View style={styles.carInfoContainer}>
-                    <Icon 
-                      name="car" 
-                      size={24} 
-                      color={colors.primary} 
+                    <Icon
+                      name="car"
+                      size={24}
+                      color={colors.primary}
                       style={styles.carIcon}
                     />
                     <View style={styles.carTextContainer}>
                       <Text style={[styles.carTitle, { color: colors.text }]}>
                         {car.brand} {car.model} ({car.year})
                       </Text>
-                      <Text style={[styles.carSubtitle, { color: colors.secondary }]}>
+                      <Text
+                        style={[
+                          styles.carSubtitle,
+                          { color: colors.secondary },
+                        ]}
+                      >
                         {car.vehicleType} - {car.seatCapacity} Seats
                       </Text>
                     </View>
@@ -307,67 +472,134 @@ const CheckoutScreen = () => {
 
                 {/* Booking Details Section */}
                 <View style={styles.dialogSection}>
-                  <Text style={[styles.dialogSectionTitle, { color: colors.text }]}>
+                  <Text
+                    style={[styles.dialogSectionTitle, { color: colors.text }]}
+                  >
                     Booking Details
                   </Text>
 
-                  <View style={[styles.detailsCard, { backgroundColor: colors.background }]}>
+                  <View
+                    style={[
+                      styles.detailsCard,
+                      { backgroundColor: colors.background },
+                    ]}
+                  >
                     <View style={styles.dialogRow}>
                       <View style={styles.labelIconContainer}>
-                        <Icon name="calendar" size={16} color={colors.primary} style={styles.labelIcon} />
-                        <Text style={[styles.dialogLabel, { color: colors.secondary }]}>
+                        <Icon
+                          name="calendar"
+                          size={16}
+                          color={colors.primary}
+                          style={styles.labelIcon}
+                        />
+                        <Text
+                          style={[
+                            styles.dialogLabel,
+                            { color: colors.secondary },
+                          ]}
+                        >
                           Pick-up:
                         </Text>
                       </View>
-                      <Text style={[styles.dialogValue, { color: colors.text }]}>
+                      <Text
+                        style={[styles.dialogValue, { color: colors.text }]}
+                      >
                         {pickupDate?.toLocaleString()}
                       </Text>
                     </View>
 
                     <View style={styles.dialogRow}>
                       <View style={styles.labelIconContainer}>
-                        <Icon name="calendar-check-o" size={16} color={colors.primary} style={styles.labelIcon} />
-                        <Text style={[styles.dialogLabel, { color: colors.secondary }]}>
+                        <Icon
+                          name="calendar-check-o"
+                          size={16}
+                          color={colors.primary}
+                          style={styles.labelIcon}
+                        />
+                        <Text
+                          style={[
+                            styles.dialogLabel,
+                            { color: colors.secondary },
+                          ]}
+                        >
                           Return:
                         </Text>
                       </View>
-                      <Text style={[styles.dialogValue, { color: colors.text }]}>
+                      <Text
+                        style={[styles.dialogValue, { color: colors.text }]}
+                      >
                         {returnDate?.toLocaleString()}
                       </Text>
                     </View>
 
                     <View style={styles.dialogRow}>
                       <View style={styles.labelIconContainer}>
-                        <Icon name="clock-o" size={16} color={colors.primary} style={styles.labelIcon} />
-                        <Text style={[styles.dialogLabel, { color: colors.secondary }]}>
+                        <Icon
+                          name="clock-o"
+                          size={16}
+                          color={colors.primary}
+                          style={styles.labelIcon}
+                        />
+                        <Text
+                          style={[
+                            styles.dialogLabel,
+                            { color: colors.secondary },
+                          ]}
+                        >
                           Duration:
                         </Text>
                       </View>
-                      <Text style={[styles.dialogValue, { color: colors.text }]}>
-                        {rentalDays} {rentalDays === 1 ? 'day' : 'days'}
+                      <Text
+                        style={[styles.dialogValue, { color: colors.text }]}
+                      >
+                        {rentalDays} {rentalDays === 1 ? "day" : "days"}
                       </Text>
                     </View>
 
                     <View style={styles.dialogRow}>
                       <View style={styles.labelIconContainer}>
-                        <Icon name="map-marker" size={16} color={colors.primary} style={styles.labelIcon} />
-                        <Text style={[styles.dialogLabel, { color: colors.secondary }]}>
+                        <Icon
+                          name="map-marker"
+                          size={16}
+                          color={colors.primary}
+                          style={styles.labelIcon}
+                        />
+                        <Text
+                          style={[
+                            styles.dialogLabel,
+                            { color: colors.secondary },
+                          ]}
+                        >
                           Location:
                         </Text>
                       </View>
-                      <Text style={[styles.dialogValue, { color: colors.text }]}>
+                      <Text
+                        style={[styles.dialogValue, { color: colors.text }]}
+                      >
                         {car?.pickUpLocation}
                       </Text>
                     </View>
 
                     <View style={styles.dialogRow}>
                       <View style={styles.labelIconContainer}>
-                        <Icon name="credit-card" size={16} color={colors.primary} style={styles.labelIcon} />
-                        <Text style={[styles.dialogLabel, { color: colors.secondary }]}>
+                        <Icon
+                          name="credit-card"
+                          size={16}
+                          color={colors.primary}
+                          style={styles.labelIcon}
+                        />
+                        <Text
+                          style={[
+                            styles.dialogLabel,
+                            { color: colors.secondary },
+                          ]}
+                        >
                           Payment:
                         </Text>
                       </View>
-                      <Text style={[styles.dialogValue, { color: colors.text }]}>
+                      <Text
+                        style={[styles.dialogValue, { color: colors.text }]}
+                      >
                         {paymentMode}
                       </Text>
                     </View>
@@ -376,25 +608,49 @@ const CheckoutScreen = () => {
 
                 {/* Discount Code Section */}
                 <View style={styles.dialogSection}>
-                  <Text style={[styles.dialogSectionTitle, { color: colors.text }]}>
+                  <Text
+                    style={[styles.dialogSectionTitle, { color: colors.text }]}
+                  >
                     Discount Code
                   </Text>
-                  
+
                   {appliedDiscount ? (
-                    <View style={[styles.appliedDiscountContainer, 
-                      { borderColor: colors.success, backgroundColor: `${colors.success}20` }]}>
+                    <View
+                      style={[
+                        styles.appliedDiscountContainer,
+                        {
+                          borderColor: colors.success,
+                          backgroundColor: `${colors.success}20`,
+                        },
+                      ]}
+                    >
                       <View style={styles.appliedDiscountInfo}>
                         <View style={styles.discountHeaderRow}>
                           <Icon name="tag" size={16} color={colors.success} />
-                          <Text style={[styles.appliedDiscountCode, { color: colors.success }]}>
+                          <Text
+                            style={[
+                              styles.appliedDiscountCode,
+                              { color: colors.success },
+                            ]}
+                          >
                             {appliedDiscount.code}
                           </Text>
                         </View>
-                        <Text style={[styles.discountValue, { color: colors.success }]}>
+                        <Text
+                          style={[
+                            styles.discountValue,
+                            { color: colors.success },
+                          ]}
+                        >
                           {appliedDiscount.discountPercentage}% off
                         </Text>
                         {appliedDiscount.description && (
-                          <Text style={[styles.appliedDiscountDescription, { color: colors.text }]}>
+                          <Text
+                            style={[
+                              styles.appliedDiscountDescription,
+                              { color: colors.text },
+                            ]}
+                          >
                             {appliedDiscount.description}
                           </Text>
                         )}
@@ -403,7 +659,11 @@ const CheckoutScreen = () => {
                         style={styles.removeDiscountButton}
                         onPress={handleRemoveDiscount}
                       >
-                        <Icon name="times-circle" size={22} color={colors.error} />
+                        <Icon
+                          name="times-circle"
+                          size={22}
+                          color={colors.error}
+                        />
                       </TouchableOpacity>
                     </View>
                   ) : (
@@ -411,11 +671,11 @@ const CheckoutScreen = () => {
                       <TextInput
                         style={[
                           styles.discountInput,
-                          { 
+                          {
                             color: colors.text,
                             borderColor: colors.border,
-                            backgroundColor: colors.background
-                          }
+                            backgroundColor: colors.background,
+                          },
                         ]}
                         value={discountCode}
                         onChangeText={setDiscountCode}
@@ -426,7 +686,7 @@ const CheckoutScreen = () => {
                       <TouchableOpacity
                         style={[
                           styles.applyButton,
-                          { backgroundColor: colors.primary }
+                          { backgroundColor: colors.primary },
                         ]}
                         onPress={handleApplyDiscount}
                         disabled={discountLoading}
@@ -442,32 +702,56 @@ const CheckoutScreen = () => {
                 </View>
 
                 {/* Updated pricing section */}
-                <View style={[styles.totalSection, { borderTopColor: colors.border }]}>
+                <View
+                  style={[
+                    styles.totalSection,
+                    { borderTopColor: colors.border },
+                  ]}
+                >
                   <View style={styles.subtotalRow}>
-                    <Text style={[styles.subtotalLabel, { color: colors.secondary }]}>
+                    <Text
+                      style={[
+                        styles.subtotalLabel,
+                        { color: colors.secondary },
+                      ]}
+                    >
                       Subtotal:
                     </Text>
-                    <Text style={[styles.subtotalValue, { color: colors.text }]}>
+                    <Text
+                      style={[styles.subtotalValue, { color: colors.text }]}
+                    >
                       ₱{subtotal.toLocaleString()}
                     </Text>
                   </View>
-                  
+
                   {appliedDiscount && (
                     <View style={styles.discountRow}>
-                      <Text style={[styles.discountLabel, { color: colors.secondary }]}>
+                      <Text
+                        style={[
+                          styles.discountLabel,
+                          { color: colors.secondary },
+                        ]}
+                      >
                         Discount ({appliedDiscount.discountPercentage}%):
                       </Text>
-                      <Text style={[styles.discountAmount, { color: colors.success }]}>
+                      <Text
+                        style={[
+                          styles.discountAmount,
+                          { color: colors.success },
+                        ]}
+                      >
                         -₱{discountAmount.toLocaleString()}
                       </Text>
                     </View>
                   )}
-                  
+
                   <View style={styles.finalTotalRow}>
                     <Text style={[styles.totalLabel, { color: colors.text }]}>
                       Total Payment:
                     </Text>
-                    <Text style={[styles.totalValue, { color: colors.primary }]}>
+                    <Text
+                      style={[styles.totalValue, { color: colors.primary }]}
+                    >
                       ₱{totalPayment.toLocaleString()}
                     </Text>
                   </View>
@@ -476,7 +760,10 @@ const CheckoutScreen = () => {
 
               <View style={styles.dialogActions}>
                 <TouchableOpacity
-                  style={[styles.dialogButton, { backgroundColor: colors.error }]}
+                  style={[
+                    styles.dialogButton,
+                    { backgroundColor: colors.error },
+                  ]}
                   onPress={() => navigation.goBack()}
                 >
                   <Text style={styles.dialogButtonText}>Cancel</Text>
@@ -484,9 +771,9 @@ const CheckoutScreen = () => {
 
                 <TouchableOpacity
                   style={[
-                    styles.dialogButton, 
+                    styles.dialogButton,
                     { backgroundColor: colors.primary },
-                    loading && styles.disabledButton
+                    loading && styles.disabledButton,
                   ]}
                   onPress={handleConfirmBooking}
                   disabled={loading}
@@ -517,21 +804,21 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 20,
     paddingVertical: 15,
     borderBottomWidth: 1,
     elevation: 2,
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 10 : 15,
+    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight + 10 : 15,
   },
   backButton: {
     padding: 10,
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   placeholder: {
     width: 40,
@@ -585,8 +872,8 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   carInfoContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 8,
   },
   carIcon: {
@@ -597,7 +884,7 @@ const styles = StyleSheet.create({
   },
   carTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     marginBottom: 3,
   },
   carSubtitle: {
@@ -609,8 +896,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   labelIconContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   labelIcon: {
     marginRight: 8,
@@ -629,8 +916,8 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   discountInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 15,
   },
   discountInput: {
@@ -640,26 +927,26 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 12,
     marginRight: 10,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   applyButton: {
     height: 48,
     paddingHorizontal: 18,
     borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   applyButtonText: {
-    color: 'white',
-    fontWeight: '600',
+    color: "white",
+    fontWeight: "600",
   },
   appliedDiscountContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     padding: 14,
     borderWidth: 1,
-    borderStyle: 'dashed',
+    borderStyle: "dashed",
     borderRadius: 10,
     marginBottom: 15,
   },
@@ -667,18 +954,18 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   discountHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 4,
   },
   appliedDiscountCode: {
-    fontWeight: 'bold',
+    fontWeight: "bold",
     fontSize: 16,
     marginLeft: 8,
   },
   discountValue: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: "500",
     marginBottom: 4,
   },
   appliedDiscountDescription: {
@@ -689,9 +976,9 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   subtotalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 10,
   },
   subtotalLabel: {
@@ -701,9 +988,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   discountRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 10,
   },
   discountLabel: {
@@ -711,7 +998,7 @@ const styles = StyleSheet.create({
   },
   discountAmount: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   totalSection: {
     paddingTop: 16,
@@ -719,9 +1006,9 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
   },
   finalTotalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginTop: 5,
   },
   totalLabel: {

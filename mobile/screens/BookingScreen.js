@@ -36,8 +36,8 @@ const BookingScreen = () => {
     (state) => state.booking || {}
   );
 
-  // Payment mode state - default to "Card"
-  const [paymentMode, setPaymentMode] = useState("Card");
+  // Payment mode state - update with available payment methods
+  const [paymentMode, setPaymentMode] = useState("Credit Card");
 
   // Handle hardware back button - update to use proper screen name
   useFocusEffect(
@@ -63,10 +63,29 @@ const BookingScreen = () => {
   );
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
+  const [startPickerMode, setStartPickerMode] = useState("date");
+  const [endPickerMode, setEndPickerMode] = useState("date");
 
   // Calculate rental days and total price
   const [rentalDays, setRentalDays] = useState(1);
   const [totalPrice, setTotalPrice] = useState(car.pricePerDay);
+
+  useEffect(() => {
+    // Log car object on component mount to debug missing ID issues
+    console.log("BookingScreen received car:", JSON.stringify(car));
+    console.log("Car ID types available:", {
+      _id: car?._id,
+      id: car?.id,
+      productId: car?.productId,
+    });
+
+    // Ensure car has _id property set when component mounts
+    if (car && !car._id && (car.id || car.productId)) {
+      const carId = car.id || car.productId;
+      console.log(`Setting missing _id to ${carId}`);
+      car._id = carId;
+    }
+  }, [car]);
 
   useEffect(() => {
     // Calculate days between start and end date
@@ -82,48 +101,136 @@ const BookingScreen = () => {
 
   const handleStartDateChange = (event, selectedDate) => {
     setShowStartPicker(false);
-    if (selectedDate) {
-      setStartDate(selectedDate);
 
-      // If start date is after end date, adjust end date
-      if (selectedDate > endDate) {
-        const newEndDate = new Date(selectedDate);
-        newEndDate.setDate(selectedDate.getDate() + 1);
-        setEndDate(newEndDate);
-      }
+    if (event.type === "dismissed") {
+      return;
+    }
+
+    const currentDate = selectedDate || startDate;
+    setStartDate(currentDate);
+
+    // If we were in date mode, switch to time mode
+    if (startPickerMode === "date") {
+      setStartPickerMode("time");
+      setShowStartPicker(true);
+      return;
+    }
+
+    // If we were in time mode, reset to date mode
+    setStartPickerMode("date");
+
+    // Adjust end date if needed
+    if (currentDate > endDate) {
+      const newEndDate = new Date(currentDate);
+      newEndDate.setHours(currentDate.getHours() + 1);
+      setEndDate(newEndDate);
     }
   };
 
   const handleEndDateChange = (event, selectedDate) => {
     setShowEndPicker(false);
-    if (selectedDate) {
-      // Ensure end date isn't before start date
-      if (selectedDate > startDate) {
-        setEndDate(selectedDate);
+
+    if (event.type === "dismissed") {
+      return;
+    }
+
+    const currentDate = selectedDate || endDate;
+
+    // If we were in date mode, switch to time mode
+    if (endPickerMode === "date") {
+      if (currentDate > startDate) {
+        setEndDate(currentDate);
+        setEndPickerMode("time");
+        setShowEndPicker(true);
       } else {
         toast.warning("End date must be after start date");
       }
+      return;
+    }
+
+    // If we were in time mode
+    if (currentDate > startDate) {
+      setEndDate(currentDate);
+      setEndPickerMode("date");
+    } else {
+      toast.warning("End time must be after start time");
     }
   };
 
   const formatDate = (date) => {
-    return date.toLocaleDateString("en-US", {
+    return date.toLocaleString("en-US", {
       year: "numeric",
       month: "short",
       day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
   const handleConfirmBooking = () => {
-    const bookingData = {
-      car: car._id, // Assuming car has an _id property
-      renter: user._id,
-      pickUpDate: startDate.toISOString(),
-      returnDate: endDate.toISOString(),
-      status: "Pending",
-      paymentMethod: paymentMode,
-      paymentStatus: "Paid",
+    // Enhanced validation with better error messages
+    if (!car) {
+      toast.error("Car information is completely missing");
+      return;
+    }
+
+    // Check multiple possible ID formats and ensure car._id is set
+    const carId = car._id || car.id || car.productId;
+    if (!carId) {
+      console.error("Car object is missing ID field:", JSON.stringify(car));
+      toast.error("Car ID is missing. Please try again.");
+      return;
+    }
+
+    // Always update the car object to ensure _id exists
+    if (!car._id) {
+      console.log(`Car missing _id, adding it now: ${carId}`);
+      car._id = carId;
+    }
+
+    if (!startDate) {
+      toast.error("Please select a pickup date");
+      return;
+    }
+
+    if (!endDate) {
+      toast.error("Please select a return date");
+      return;
+    }
+
+    if (rentalDays <= 0) {
+      toast.error("Invalid rental period");
+      return;
+    }
+
+    if (!paymentMode) {
+      toast.error("Please select a payment method");
+      return;
+    }
+
+    // Create a deep clone with guaranteed _id field
+    const enhancedCarObject = {
+      ...car,
+      _id: carId, // Ensure _id is set even if it was using a different property name
     };
+
+    console.log(
+      "Final car object for checkout:",
+      JSON.stringify({
+        _id: enhancedCarObject._id,
+        brand: enhancedCarObject.brand,
+        model: enhancedCarObject.model,
+      })
+    );
+
+    // Navigate with the enhanced car object
+    navigation.navigate("CheckoutScreen", {
+      car: enhancedCarObject,
+      pickupDate: startDate,
+      returnDate: endDate,
+      rentalDays,
+      paymentMode,
+    });
   };
 
   // Function to handle cancel booking - update to use proper screen name
@@ -225,8 +332,10 @@ const BookingScreen = () => {
           {/* Date Pickers (hidden by default) */}
           {showStartPicker && (
             <DateTimePicker
+              key={`start-${startPickerMode}`} // Add this key
               value={startDate}
-              mode="date"
+              mode={startPickerMode}
+              is24Hour={true}
               display="default"
               minimumDate={new Date()}
               onChange={handleStartDateChange}
@@ -234,13 +343,111 @@ const BookingScreen = () => {
           )}
           {showEndPicker && (
             <DateTimePicker
+              key={`end-${endPickerMode}`} // Add this key
               value={endDate}
-              mode="date"
+              mode={endPickerMode}
+              is24Hour={true}
               display="default"
-              minimumDate={new Date(startDate.getTime() + 24 * 60 * 60 * 1000)}
+              minimumDate={new Date(startDate.getTime() + 60 * 60 * 1000)}
               onChange={handleEndDateChange}
             />
           )}
+        </View>
+
+        {/* Payment Mode Selection */}
+        <View style={[styles.sectionCard, { backgroundColor: colors.card }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
+            Payment Method
+          </Text>
+
+          <View style={styles.paymentOptions}>
+            {/* Credit Card Option */}
+            <TouchableOpacity
+              style={[
+                styles.paymentOption,
+                paymentMode === "Credit Card" && [
+                  styles.selectedPayment,
+                  { borderColor: colors.primary },
+                ],
+              ]}
+              onPress={() => setPaymentMode("Credit Card")}
+            >
+              <View style={styles.paymentIconContainer}>
+                <Icon name="credit-card" size={24} color={colors.primary} />
+              </View>
+              <Text style={[styles.paymentLabel, { color: colors.text }]}>
+                Credit Card
+              </Text>
+              {paymentMode === "Credit Card" && (
+                <View
+                  style={[
+                    styles.checkmark,
+                    { backgroundColor: colors.primary },
+                  ]}
+                >
+                  <Icon name="check" size={12} color="#FFFFFF" />
+                </View>
+              )}
+            </TouchableOpacity>
+
+            {/* GCash Option */}
+            <TouchableOpacity
+              style={[
+                styles.paymentOption,
+                paymentMode === "GCash" && [
+                  styles.selectedPayment,
+                  { borderColor: colors.primary },
+                ],
+              ]}
+              onPress={() => setPaymentMode("GCash")}
+            >
+              <View style={styles.paymentIconContainer}>
+                <Icon name="money" size={24} color={colors.primary} />
+              </View>
+              <Text style={[styles.paymentLabel, { color: colors.text }]}>
+                GCash
+              </Text>
+              {paymentMode === "GCash" && (
+                <View
+                  style={[
+                    styles.checkmark,
+                    { backgroundColor: colors.primary },
+                  ]}
+                >
+                  <Icon name="check" size={12} color="#FFFFFF" />
+                </View>
+              )}
+            </TouchableOpacity>
+
+            {/* Cash Option */}
+            <TouchableOpacity
+              style={[
+                styles.paymentOption,
+                paymentMode === "Cash" && [
+                  styles.selectedPayment,
+                  { borderColor: colors.primary },
+                ],
+              ]}
+              onPress={() => setPaymentMode("Cash")}
+            >
+              <View style={styles.paymentIconContainer}>
+                <Icon name="money" size={24} color={colors.primary} />
+              </View>
+              <Text style={[styles.paymentLabel, { color: colors.text }]}>
+                Cash
+              </Text>
+              {paymentMode === "Cash" && (
+                <View
+                  style={[
+                    styles.checkmark,
+                    { backgroundColor: colors.primary },
+                  ]}
+                >
+                  <Icon name="check" size={12} color="#FFFFFF" />
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Price Summary */}
@@ -496,6 +703,44 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "600",
+  },
+  // Payment method styles
+  paymentOptions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+  paymentOption: {
+    width: "48%",
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  selectedPayment: {
+    borderWidth: 2,
+  },
+  paymentIconContainer: {
+    width: 40,
+    height: 40,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  paymentLabel: {
+    fontSize: 16,
+    fontWeight: "500",
+    flex: 1,
+  },
+  checkmark: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });
 
