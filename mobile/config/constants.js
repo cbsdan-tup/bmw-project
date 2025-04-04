@@ -12,12 +12,12 @@ export const CAR_IMAGES = {
 };
 
 // Check if assets are properly linked
-try {
-  require('../assets/images/summer-discount.png');
-  require('../assets/images/weekend-special.png');
-} catch (e) {
-  console.warn('Warning: Some assets are missing. Please ensure all required images are in the assets folder.');
-}
+// try {
+//   require('../assets/images/summer-discount.png');
+//   require('../assets/images/weekend-special.png');
+// } catch (e) {
+//   console.warn('Warning: Some assets are missing. Please ensure all required images are in the assets folder.');
+// }
 
 // App configuration
 export const APP_CONFIG = {
