@@ -168,15 +168,29 @@ const RegisterScreen = ({ navigation }) => {
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
       console.log('Google Play Services check passed');
       
+      // Sign in with Google
       const signInResult = await GoogleSignin.signIn();
-      console.log('Google sign-in successful, full result:', JSON.stringify(signInResult));
+      console.log('Google sign-in result structure:', JSON.stringify(signInResult));
       
-      const userEmail = signInResult.user?.email;
+      // Extract email and user info from the data structure
+      let userEmail = signInResult.user?.email;
       
       if (!userEmail) {
-        throw new Error('Failed to get email from Google Sign-in');
+        // Try data.user.email if user.email is not available
+        if (signInResult.data?.user?.email) {
+          userEmail = signInResult.data.user.email;
+        } else {
+          console.error('Failed to get email from Google Sign-in result');
+          throw new Error('Failed to get email from Google Sign-in');
+        }
       }
       
+      // Extract token directly - we need this for Firebase authentication
+      const idToken = signInResult.idToken || signInResult.data?.idToken;
+      
+      console.log('Successfully extracted email:', userEmail);
+      
+      // Send OTP for verification
       const response = await api.post(`/generate-otp`, {
         email: userEmail
       });
@@ -184,46 +198,33 @@ const RegisterScreen = ({ navigation }) => {
       if (response.data.success) {
         toast.success('Verification code sent to your email');
         
+        // Pass the complete structure to OTP verification
         navigation.navigate('OTPVerification', { 
           email: userEmail,
-          googleSignInData: signInResult
+          googleSignInData: {
+            idToken,
+            user: signInResult.user || signInResult.data?.user,
+            originalResponse: signInResult // Keep the original for reference
+          }
         });
       } else {
         throw new Error(response.data.message || 'Failed to send verification code');
       }
     } catch (error) {
       console.error('Google sign in error details:', error);
-      console.error('Error type:', typeof error);
-      console.error('Error toString:', String(error));
-      console.error('Error constructor:', error && error.constructor ? error.constructor.name : 'unknown');
       
-      for (const key in error) {
-        try {
-          console.error(`Error property [${key}]:`, error[key]);
-        } catch (e) {
-          console.error(`Error accessing property [${key}]`);
+      // Handle specific Firebase errors
+      if (error.code) {
+        if (error.code === 'auth/augment-error') {
+          console.error('Firebase augment error - check token format and Firebase config');
         }
       }
       
+      // Simplified error message handling
       let errorMessage = 'Google sign in failed. Please try again.';
       
-      if (error) {
-        if (typeof error === 'object') {
-          if (error.message) {
-            errorMessage = `Google sign in error: ${error.message}`;
-          }
-          if ('code' in error) {
-            if (error.code === 'CANCELED') {
-              errorMessage = 'Sign in was canceled';
-            } else if (error.code === 'PLAY_SERVICES_NOT_AVAILABLE') {
-              errorMessage = 'Google Play Services is not available';
-            } else {
-              errorMessage = `Google sign in error (${error.code})`;
-            }
-          }
-        } else if (typeof error === 'string') {
-          errorMessage = error;
-        }
+      if (error.message) {
+        errorMessage = `Google sign in error: ${error.message}`;
       }
       
       toast.error(errorMessage);

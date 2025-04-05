@@ -188,118 +188,167 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Google Sign-In function
-  const googleSignIn = async (idToken) => {
+  const googleSignIn = async (signInData) => {
     setIsLoading(true);
     setError(null);
     
     try {
+      console.log('Google sign-in attempt with data type:', typeof signInData);
+      
+      // Initialize variables for token and user info
+      let idToken = null;
+      let userInfo = null;
+      
+      // Case 1: Direct string token
+      if (typeof signInData === 'string') {
+        idToken = signInData;
+        console.log('Found direct string token');
+      } 
+      // Case 2: Object with token or nested structure
+      else if (signInData && typeof signInData === 'object') {
+        // Try various possible locations for the token
+        if (signInData.idToken) {
+          idToken = signInData.idToken;
+          console.log('Found token in signInData.idToken');
+        } else if (signInData.googleSignInData?.idToken) {
+          idToken = signInData.googleSignInData.idToken;
+          userInfo = signInData.googleSignInData.user;
+          console.log('Found token in signInData.googleSignInData.idToken');
+        } else if (signInData.data?.idToken) {
+          idToken = signInData.data.idToken;
+          userInfo = signInData.data.user;
+          console.log('Found token in signInData.data.idToken');
+        } else if (signInData.originalResponse?.idToken) {
+          idToken = signInData.originalResponse.idToken;
+          console.log('Found token in originalResponse.idToken');
+        }
+        
+        // If we didn't find a token in the object, try to log the structure
+        if (!idToken) {
+          console.log('No token found in object, object keys:', Object.keys(signInData));
+          if (signInData.googleSignInData) {
+            console.log('googleSignInData keys:', Object.keys(signInData.googleSignInData));
+          }
+        }
+      }
+      
+      // If we still don't have a token, try to get one from GoogleSignin
+      if (!idToken) {
+        try {
+          console.log('No token found in input, trying to get tokens from GoogleSignin');
+          const tokens = await GoogleSignin.getTokens();
+          if (tokens && tokens.idToken) {
+            idToken = tokens.idToken;
+            console.log('Successfully got token from GoogleSignin.getTokens()');
+          }
+        } catch (tokenError) {
+          console.error('Error getting tokens:', tokenError);
+        }
+      }
+      
+      // Final check - if we don't have a token, we can't proceed
+      if (!idToken) {
+        console.error('Failed to find valid ID token');
+        throw new Error('Failed to get authentication token');
+      }
+      
+      console.log('Using Google ID token of length:', idToken.length);
+      
+      // Create credential and sign in to Firebase
       const credential = GoogleAuthProvider.credential(idToken);
       
       const result = await signInWithCredential(auth, credential);
+      console.log('Firebase auth successful');
+      
       const firebaseToken = await result.user.getIdToken();
       const firebaseUser = result.user;
       
       try {
-        // First try to get user info from backend
-        const response = await api.post(`/getUserInfo`, { 
-          uid: result.user.uid 
+        // Try to get existing user info
+        const response = await api.post('/getUserInfo', { 
+          uid: firebaseUser.uid 
         }, {
           headers: {
-            "Content-Type": "application/json"
+            'Content-Type': 'application/json'
           }
         });
         
         if (response.data.success && response.data.user) {
-          // If user exists, check if they're disabled
-          if (response.data.isDisabled) {
-            console.log("Google sign-in attempted for disabled user:", response.data.user.email);
-            setIsLoading(false);
-            return { 
-              success: false, 
-              isDisabled: true,
-              disableInfo: response.data.disableInfo,
-              message: "Account is disabled"
-            };
-          }
-          
-          // User exists and is not disabled, set up the session
+          // User exists, set up session
           const userData = response.data.user;
-          
-          setToken(firebaseToken);
           setUser(userData);
+          setToken(firebaseToken);
+          setTokenExpiration(Date.now() + 3600 * 1000);
           
           await SecureStore.setItemAsync('auth_token', firebaseToken);
           await AsyncStorage.setItem('user', JSON.stringify(userData));
+          await AsyncStorage.setItem('tokenExpiration', (Date.now() + 3600 * 1000).toString());
           
           axios.defaults.headers.common['Authorization'] = `Bearer ${firebaseToken}`;
           
           return { success: true, user: userData };
         } else {
-          // User not found, create a new user
-          console.log("User not found in database, creating new user...");
+          console.log('User not found, creating new user');
         }
       } catch (error) {
-        // If getUserInfo fails with 404, create a new user
-        if (error.response && error.response.status === 404) {
-          console.log("User not found (404), proceeding with registration...");
-        } else {
-          // For other errors, rethrow
-          throw error;
-        }
+        // User doesn't exist, create a new one
+        console.log('Error fetching user, creating new user:', error);
       }
       
-      // Handle registration of new Google user
-      try {
-        console.log("Registering new Google user...");
-        
-        const userInfo = {
-          uid: firebaseUser.uid,
-          email: firebaseUser.email,
-          firstName: firebaseUser.displayName?.split(' ')[0] || '',
-          lastName: firebaseUser.displayName?.split(' ').slice(1).join(' ') || '',
-          profilePicture: firebaseUser.photoURL
-        };
-        
-        console.log("New user data:", userInfo);
-        
-        // Use FormData for registration
-        const formData = new FormData();
-        formData.append("uid", userInfo.uid);
-        formData.append("email", userInfo.email);
-        formData.append("firstName", userInfo.firstName);
-        formData.append("lastName", userInfo.lastName);
-        if (userInfo.profilePicture) {
-          formData.append("photoURL", userInfo.profilePicture);
+      // Create new user record
+      const formData = new FormData();
+      formData.append('uid', firebaseUser.uid);
+      formData.append('email', firebaseUser.email);
+      
+      // Extract name parts from display name
+      const displayName = userInfo?.displayName || firebaseUser.displayName || '';
+      const nameParts = displayName.split(/\s+/);
+      formData.append('firstName', nameParts[0] || '');
+      formData.append('lastName', nameParts.slice(1).join(' ') || '');
+      
+      // Add photo URL if available
+      const photoURL = userInfo?.photoURL || firebaseUser.photoURL;
+      if (photoURL) {
+        formData.append('photoURL', photoURL);
+      }
+      
+      const registerResponse = await api.post('/register', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          'Authorization': `Bearer ${firebaseToken}`
         }
+      });
+      
+      if (registerResponse.data.success) {
+        const newUser = registerResponse.data.user;
         
-        const registerResponse = await api.post(`/register`, formData, {
-          headers: { 
-            "Content-Type": "multipart/form-data",
-            "Authorization": `Bearer ${firebaseToken}`
-          }
-        });
+        setUser(newUser);
+        setToken(firebaseToken);
+        setTokenExpiration(Date.now() + 3600 * 1000);
         
-        if (registerResponse.data.success) {
-          const newUser = registerResponse.data.user;
-          
-          setToken(firebaseToken);
-          setUser(newUser);
-          
-          await SecureStore.setItemAsync('auth_token', firebaseToken);
-          await AsyncStorage.setItem('user', JSON.stringify(newUser));
-          
-          axios.defaults.headers.common['Authorization'] = `Bearer ${firebaseToken}`;
-          
-          return { success: true, user: newUser };
-        } else {
-          throw new Error(registerResponse.data.message || 'Failed to register new user');
-        }
-      } catch (registerError) {
-        console.log("Registration error:", registerError);
-        throw registerError;
+        await SecureStore.setItemAsync('auth_token', firebaseToken);
+        await AsyncStorage.setItem('user', JSON.stringify(newUser));
+        await AsyncStorage.setItem('tokenExpiration', (Date.now() + 3600 * 1000).toString());
+        
+        axios.defaults.headers.common['Authorization'] = `Bearer ${firebaseToken}`;
+        
+        return { success: true, user: newUser };
+      } else {
+        throw new Error(registerResponse.data.message || 'Failed to register user');
       }
     } catch (err) {
-      const errorMsg = err.message || 'Google sign-in failed. Please try again.';
+      console.error('Google sign-in error:', err.code, err.message);
+      
+      let errorMsg = 'Google sign-in failed. Please try again.';
+      
+      if (err.code === 'auth/invalid-credential') {
+        errorMsg = 'Invalid authentication credential. Please try again.';
+      } else if (err.code === 'auth/operation-not-allowed') {
+        errorMsg = 'Google sign-in is not enabled for this app.';
+      } else if (err.message) {
+        errorMsg = err.message;
+      }
+      
       setError(errorMsg);
       return { success: false, error: errorMsg };
     } finally {
