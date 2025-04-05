@@ -1,7 +1,22 @@
 // sendNotification.js
 const { google } = require('googleapis'); 
-const serviceAccount = require('./firebase-adminsdk.json'); 
 const axios = require("axios");
+require('dotenv').config();
+
+// Construct service account from environment variables
+const serviceAccount = {
+  type: process.env.FIREBASE_TYPE,
+  project_id: process.env.FIREBASE_PROJECT_ID,
+  private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
+  private_key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+  client_email: process.env.FIREBASE_CLIENT_EMAIL,
+  client_id: process.env.FIREBASE_CLIENT_ID,
+  auth_uri: process.env.FIREBASE_AUTH_URI,
+  token_uri: process.env.FIREBASE_TOKEN_URI,
+  auth_provider_x509_cert_url: process.env.FIREBASE_AUTH_PROVIDER_CERT_URL,
+  client_x509_cert_url: process.env.FIREBASE_CLIENT_CERT_URL,
+  universe_domain: process.env.FIREBASE_UNIVERSE_DOMAIN
+};
 
 const getFirebaseAccessToken = async () => {
   try {
@@ -51,7 +66,7 @@ const sendNotification = async (payload) => {
         };
 
         const response = await axios.post(
-          `https://fcm.googleapis.com/v1/projects/bmw-project-5ab42/messages:send`,
+          `https://fcm.googleapis.com/v1/projects/${process.env.FIREBASE_PROJECT_ID}/messages:send`,
           message,
           {
             headers: {

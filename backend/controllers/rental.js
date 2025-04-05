@@ -705,7 +705,25 @@ const getRentDetails = async (req, res) => {
     if (!rental) {
       return res.status(404).json({ message: "Rental not found" });
     }
-    res.json(rental);
+    
+    // Fetch reviews for this rental
+    const reviews = await Review.find({ rental: rental._id });
+    
+    // Calculate if there's a review and the average rating
+    const hasReview = reviews.length > 0;
+    const averageRating = reviews.length
+      ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
+      : null;
+    
+    // Combine rental with review information
+    const rentalWithReviews = {
+      ...rental.toObject(),
+      reviews,
+      hasReview,
+      averageRating
+    };
+    
+    res.json(rentalWithReviews);
   } catch (error) {
     res.status(500).json({ message: "Error retrieving rental", error });
   }
