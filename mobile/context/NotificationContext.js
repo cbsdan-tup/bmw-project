@@ -293,21 +293,31 @@ export const NotificationProvider = ({ children }) => {
         
         // Explicitly display the notification when in foreground
         if (Platform.OS === 'android') {
-          // On Android, re-fire notification as local notification to ensure visibility
-          const { title, body, data } = notification.request.content;
+          // Prevent notification loop by checking if this is from a remote source
+          // If the notification has a remote property or specific flag, it's from a push notification
+          const notificationData = notification.request.content.data || {};
           
-          Notifications.scheduleNotificationAsync({
-            content: {
-              title,
-              body,
-              data,
-              sound: 'default',
-              priority: 'max',
-              vibrate: [0, 250, 250, 250],
-              categoryIdentifier: data?.type || 'default',
-            },
-            trigger: null, 
-          });
+          // Only re-schedule if it's a remote notification and not already a local one
+          if (notificationData.remote === true || notificationData.fromPush === true) {
+            // On Android, re-fire notification as local notification to ensure visibility
+            const { title, body, data } = notification.request.content;
+            
+            // Create a copy of data but mark it as already processed
+            const localData = { ...data, remote: false, fromPush: false };
+            
+            Notifications.scheduleNotificationAsync({
+              content: {
+                title,
+                body,
+                data: localData, // Use modified data to prevent loops
+                sound: 'default',
+                priority: 'max',
+                vibrate: [0, 250, 250, 250],
+                categoryIdentifier: data?.type || 'default',
+              },
+              trigger: null, 
+            });
+          }
         }
         
         setNotification(notification);
