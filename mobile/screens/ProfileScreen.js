@@ -97,15 +97,23 @@ const ProfileScreen = () => {
             <Image source={{ uri: user.avatar.url }} style={styles.avatar} />
           ) : (
             // Fallback: Display an icon or placeholder with the user's initial
-            <View style={[styles.avatarPlaceholder, { backgroundColor: colors.primary }]}>
+            <View
+              style={[
+                styles.avatarPlaceholder,
+                { backgroundColor: colors.primary },
+              ]}
+            >
               <Text style={styles.avatarInitial}>
                 {user.firstName ? user.firstName[0].toUpperCase() : "U"}
               </Text>
             </View>
           )}
-    
+
           <TouchableOpacity
-            style={[styles.editAvatarButton, { backgroundColor: colors.primary }]}
+            style={[
+              styles.editAvatarButton,
+              { backgroundColor: colors.primary },
+            ]}
             onPress={() =>
               navigation.navigate("EditProfile", {
                 screen: "Profile",
@@ -116,14 +124,14 @@ const ProfileScreen = () => {
             <Icon name="camera" size={14} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
-    
+
         <Text style={[styles.userName, { color: colors.text }]}>
           {user.firstName} {user.lastName}
         </Text>
         <Text style={[styles.userEmail, { color: colors.secondary }]}>
           {user.email}
         </Text>
-    
+
         <TouchableOpacity
           style={[styles.editProfileButton, { borderColor: colors.border }]}
           onPress={() =>
@@ -139,7 +147,6 @@ const ProfileScreen = () => {
         </TouchableOpacity>
       </View>
     );
-    
   };
 
   const QuickStats = () => {
@@ -192,7 +199,12 @@ const ProfileScreen = () => {
 
         <TouchableOpacity
           style={[styles.menuItem, { borderBottomColor: colors.border }]}
-          onPress={() => navigation.navigate("PersonalInfo")}
+          onPress={() =>
+            navigation.navigate("EditProfile", {
+              screen: "Profile",
+              params: { screen: "EditProfile" },
+            })
+          }
         >
           <View style={styles.menuItemLeft}>
             <Icon
@@ -261,21 +273,6 @@ const ProfileScreen = () => {
           </View>
           <Icon name="angle-right" size={20} color={colors.secondary} />
         </TouchableOpacity>
-
-        <TouchableOpacity style={styles.menuItem}>
-          <View style={styles.menuItemLeft}>
-            <Icon
-              name="credit-card"
-              size={20}
-              color={colors.primary}
-              style={styles.menuIcon}
-            />
-            <Text style={[styles.menuItemText, { color: colors.text }]}>
-              Payment Methods
-            </Text>
-          </View>
-          <Icon name="angle-right" size={20} color={colors.secondary} />
-        </TouchableOpacity>
       </View>
     );
   };
@@ -308,9 +305,11 @@ const ProfileScreen = () => {
 
       <TouchableOpacity
         style={[styles.settingItem, { borderBottomColor: colors.border }]}
-        onPress={() => navigation.navigate("NotificationsTab", {
-          screen: "NotificationsScreen"
-        })}
+        onPress={() =>
+          navigation.navigate("NotificationsTab", {
+            screen: "NotificationsScreen",
+          })
+        }
       >
         <View style={styles.settingInfo}>
           <Icon

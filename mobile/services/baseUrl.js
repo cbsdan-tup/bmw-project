@@ -1,6 +1,6 @@
 const environments = {
   development: {
-    deviceLocal: "http://192.168.68.101:4000/api/v1"
+    deviceLocal: "http://192.168.1.17:4000/api/v1",
   },
   production: "https://bmw-project-514926560822.us-central1.run.app/api/v1",
 };
