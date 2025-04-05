@@ -170,6 +170,50 @@ const NotificationsScreen = () => {
     }
   };
 
+  const deleteAllNotifications = async () => {
+    const confirmMessage = 'Are you sure you want to delete all notifications? This action cannot be undone.';
+    const confirmAction = async () => {
+      try {
+        await api.delete(`/notifications/delete-all?filter=${activeFilter}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        Animated.timing(translateY, {
+          toValue: 20,
+          duration: 300,
+          useNativeDriver: true
+        }).start(() => {
+          setNotifications([]);
+          translateY.setValue(0);
+        });
+      } catch (error) {
+        console.error('Error deleting all notifications:', error);
+      }
+    };
+    
+    if (Platform.OS === 'web') {
+      if (confirm(confirmMessage)) {
+        confirmAction();
+      }
+    } else {
+      Alert.alert(
+        'Delete All Notifications',
+        confirmMessage,
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel'
+          },
+          {
+            text: 'Delete All',
+            style: 'destructive',
+            onPress: confirmAction
+          }
+        ]
+      );
+    }
+  };
+
   const handleNotificationPress = (notification) => {
     markAsRead(notification._id);
     
@@ -515,21 +559,42 @@ const NotificationsScreen = () => {
             </View>
           )}
         </Text>
-        <TouchableOpacity
-          style={[
-            styles.headerButton,
-            unreadCount === 0 && styles.headerButtonDisabled
-          ]}
-          onPress={markAllAsRead}
-          disabled={unreadCount === 0}
-        >
-          <Text style={[
-            styles.headerButtonText, 
-            { color: unreadCount > 0 ? colors.primary : colors.secondary }
-          ]}>
-            Mark all as read
-          </Text>
-        </TouchableOpacity>
+        <View style={styles.headerButtonsContainer}>
+          <TouchableOpacity
+            style={[
+              styles.headerButton,
+              unreadCount === 0 && styles.headerButtonDisabled
+            ]}
+            onPress={markAllAsRead}
+            disabled={unreadCount === 0}
+          >
+            <Text style={[
+              styles.headerButtonText, 
+              { color: unreadCount > 0 ? colors.primary : colors.secondary }
+            ]}>
+              Mark all as read
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[
+              styles.headerButton,
+              styles.deleteAllButton,
+              notifications.length === 0 && styles.headerButtonDisabled
+            ]}
+            onPress={deleteAllNotifications}
+            disabled={notifications.length === 0}
+          >
+            <Icon name="trash" size={14} color={notifications.length > 0 ? colors.error : colors.secondary} />
+            <Text style={[
+              styles.headerButtonText, 
+              styles.deleteAllButtonText,
+              { color: notifications.length > 0 ? colors.error : colors.secondary }
+            ]}>
+              Delete All
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <FilterTabs />
@@ -629,6 +694,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
   },
+  headerButtonsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   headerButton: {
     paddingVertical: 8,
     paddingHorizontal: 12,
@@ -640,6 +709,15 @@ const styles = StyleSheet.create({
   headerButtonText: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  deleteAllButton: {
+    marginLeft: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 0, 0, 0.1)',
+  },
+  deleteAllButtonText: {
+    marginLeft: 6,
   },
   filterTabsContainer: {
     borderBottomWidth: 1,

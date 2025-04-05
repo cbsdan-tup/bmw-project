@@ -213,7 +213,7 @@ const HomeScreen = () => {
         }
       })
       .catch((error) => {
-        toast.error(error || "Failed to update favorites. Please try again.");
+        console.log(error || "Failed to update favorites. Please try again.");
       });
   };
 
@@ -237,13 +237,13 @@ const HomeScreen = () => {
 
     try {
       if (!db) {
-        toast.error("Database not initialized. Please restart the app.");
+        console.log("Database not initialized. Please restart the app.");
         return;
       }
 
       // Validate required fields
       if (!car?._id || !user?._id) {
-        toast.error("Invalid car or user data.");
+        console.log("Invalid car or user data.");
         return;
       }
 
@@ -301,7 +301,7 @@ const HomeScreen = () => {
       }
     } catch (error) {
       console.error("Database operation error:", error);
-      toast.error(
+      console.log(
         error.message || "Failed to add car to cart. Please try again."
       );
     }
@@ -559,7 +559,7 @@ const HomeScreen = () => {
   useEffect(() => {
     if (dbError) {
       console.log("Database error detected:", dbError);
-      toast.error(`Database error: ${dbError}`);
+      console.log(`Database error: ${dbError}`);
     }
   }, [dbError]);
 

@@ -172,34 +172,34 @@ function updateCredentials(email, password) {
   credentialsMap.set(email, password);
 }
 
-// Array of 25 user details to create with random passwords
+// Array of 25 user details to create with the same password
 const usersToCreate = [
-  { email: 'john.doe@example.com', password: generateRandomPassword(), firstName: 'John', lastName: 'Doe' },
-  { email: 'jane.smith@example.com', password: generateRandomPassword(), firstName: 'Jane', lastName: 'Smith' },
-  { email: 'robert.johnson@example.com', password: generateRandomPassword(), firstName: 'Robert', lastName: 'Johnson' },
-  { email: 'emily.williams@example.com', password: generateRandomPassword(), firstName: 'Emily', lastName: 'Williams' },
-  { email: 'michael.brown@example.com', password: generateRandomPassword(), firstName: 'Michael', lastName: 'Brown' },
-  { email: 'sarah.jones@example.com', password: generateRandomPassword(), firstName: 'Sarah', lastName: 'Jones' },
-  { email: 'david.garcia@example.com', password: generateRandomPassword(), firstName: 'David', lastName: 'Garcia' },
-  { email: 'jessica.miller@example.com', password: generateRandomPassword(), firstName: 'Jessica', lastName: 'Miller' },
-  { email: 'thomas.davis@example.com', password: generateRandomPassword(), firstName: 'Thomas', lastName: 'Davis' },
-  { email: 'jennifer.rodriguez@example.com', password: generateRandomPassword(), firstName: 'Jennifer', lastName: 'Rodriguez' },
-  { email: 'daniel.martinez@example.com', password: generateRandomPassword(), firstName: 'Daniel', lastName: 'Martinez' },
-  { email: 'lisa.hernandez@example.com', password: generateRandomPassword(), firstName: 'Lisa', lastName: 'Hernandez' },
-  { email: 'matthew.lopez@example.com', password: generateRandomPassword(), firstName: 'Matthew', lastName: 'Lopez' },
-  { email: 'amanda.gonzalez@example.com', password: generateRandomPassword(), firstName: 'Amanda', lastName: 'Gonzalez' },
-  { email: 'james.wilson@example.com', password: generateRandomPassword(), firstName: 'James', lastName: 'Wilson' },
-  { email: 'ashley.anderson@example.com', password: generateRandomPassword(), firstName: 'Ashley', lastName: 'Anderson' },
-  { email: 'christopher.taylor@example.com', password: generateRandomPassword(), firstName: 'Christopher', lastName: 'Taylor' },
-  { email: 'elizabeth.moore@example.com', password: generateRandomPassword(), firstName: 'Elizabeth', lastName: 'Moore' },
-  { email: 'andrew.jackson@example.com', password: generateRandomPassword(), firstName: 'Andrew', lastName: 'Jackson' },
-  { email: 'stephanie.thompson@example.com', password: generateRandomPassword(), firstName: 'Stephanie', lastName: 'Thompson' },
-  { email: 'alexander.clark@example.com', password: generateRandomPassword(), firstName: 'Alexander', lastName: 'Clark' },
-  { email: 'victoria.lewis@example.com', password: generateRandomPassword(), firstName: 'Victoria', lastName: 'Lewis' },
-  { email: 'ryan.lee@example.com', password: generateRandomPassword(), firstName: 'Ryan', lastName: 'Lee' },
-  { email: 'olivia.walker@example.com', password: generateRandomPassword(), firstName: 'Olivia', lastName: 'Walker' },
-  { email: 'william.hall@example.com', password: generateRandomPassword(), firstName: 'William', lastName: 'Hall' },
-  // Admin user with an easy-to-remember password for development purposes
+  { email: 'john.doe@example.com', password: 'Pass123!', firstName: 'John', lastName: 'Doe' },
+  { email: 'jane.smith@example.com', password: 'Pass123!', firstName: 'Jane', lastName: 'Smith' },
+  { email: 'robert.johnson@example.com', password: 'Pass123!', firstName: 'Robert', lastName: 'Johnson' },
+  { email: 'emily.williams@example.com', password: 'Pass123!', firstName: 'Emily', lastName: 'Williams' },
+  { email: 'michael.brown@example.com', password: 'Pass123!', firstName: 'Michael', lastName: 'Brown' },
+  { email: 'sarah.jones@example.com', password: 'Pass123!', firstName: 'Sarah', lastName: 'Jones' },
+  { email: 'david.garcia@example.com', password: 'Pass123!', firstName: 'David', lastName: 'Garcia' },
+  { email: 'jessica.miller@example.com', password: 'Pass123!', firstName: 'Jessica', lastName: 'Miller' },
+  { email: 'thomas.davis@example.com', password: 'Pass123!', firstName: 'Thomas', lastName: 'Davis' },
+  { email: 'jennifer.rodriguez@example.com', password: 'Pass123!', firstName: 'Jennifer', lastName: 'Rodriguez' },
+  { email: 'daniel.martinez@example.com', password: 'Pass123!', firstName: 'Daniel', lastName: 'Martinez' },
+  { email: 'lisa.hernandez@example.com', password: 'Pass123!', firstName: 'Lisa', lastName: 'Hernandez' },
+  { email: 'matthew.lopez@example.com', password: 'Pass123!', firstName: 'Matthew', lastName: 'Lopez' },
+  { email: 'amanda.gonzalez@example.com', password: 'Pass123!', firstName: 'Amanda', lastName: 'Gonzalez' },
+  { email: 'james.wilson@example.com', password: 'Pass123!', firstName: 'James', lastName: 'Wilson' },
+  { email: 'ashley.anderson@example.com', password: 'Pass123!', firstName: 'Ashley', lastName: 'Anderson' },
+  { email: 'christopher.taylor@example.com', password: 'Pass123!', firstName: 'Christopher', lastName: 'Taylor' },
+  { email: 'elizabeth.moore@example.com', password: 'Pass123!', firstName: 'Elizabeth', lastName: 'Moore' },
+  { email: 'andrew.jackson@example.com', password: 'Pass123!', firstName: 'Andrew', lastName: 'Jackson' },
+  { email: 'stephanie.thompson@example.com', password: 'Pass123!', firstName: 'Stephanie', lastName: 'Thompson' },
+  { email: 'alexander.clark@example.com', password: 'Pass123!', firstName: 'Alexander', lastName: 'Clark' },
+  { email: 'victoria.lewis@example.com', password: 'Pass123!', firstName: 'Victoria', lastName: 'Lewis' },
+  { email: 'ryan.lee@example.com', password: 'Pass123!', firstName: 'Ryan', lastName: 'Lee' },
+  { email: 'olivia.walker@example.com', password: 'Pass123!', firstName: 'Olivia', lastName: 'Walker' },
+  { email: 'william.hall@example.com', password: 'Pass123!', firstName: 'William', lastName: 'Hall' },
+  // Admin user with a different password
   { email: 'admin@bmw.com', password: 'Admin123!', firstName: 'Admin', lastName: 'User', role: 'admin' }
 ];
 

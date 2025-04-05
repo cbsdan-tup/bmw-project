@@ -101,7 +101,6 @@ const CartScreen = () => {
       } catch (error) {
         console.error("Error in loadCartItems:", error);
         setIsLoading(false);
-        toast.error("Failed to load your rental cart");
       }
     };
 
@@ -157,7 +156,7 @@ const CartScreen = () => {
 
   const handleRemoveItem = async (item) => {
     if (!item || !item.productId) {
-      toast.error("Invalid car data");
+      console.log("Invalid car data");
       return;
     }
 
@@ -175,7 +174,7 @@ const CartScreen = () => {
               setIsLoading(true);
 
               if (!db) {
-                toast.error("Database not initialized");
+                console.log("Database not initialized");
                 setIsLoading(false);
                 return;
               }
@@ -201,7 +200,7 @@ const CartScreen = () => {
               toast.info("Item removed from your rentals");
             } catch (error) {
               console.error("Error removing item from cart", error);
-              toast.error("An error occurred while removing the item");
+              console.log("An error occurred while removing the item");
             } finally {
               setIsLoading(false);
             }
@@ -224,7 +223,7 @@ const CartScreen = () => {
         navigation.navigate("BookingScreen", { car: selected[0] });
       } catch (error) {
         console.error("Error processing cart before booking", error);
-        toast.error("Failed to save your selection");
+        console.log("Failed to save your selection");
       }
     } else {
       toast.info("Please select only one car to book at a time");
@@ -245,7 +244,7 @@ const CartScreen = () => {
                 setIsLoading(true);
 
                 if (!db) {
-                  toast.error("Database not initialized");
+                  console.log("Database not initialized");
                   return;
                 }
 
@@ -259,7 +258,7 @@ const CartScreen = () => {
                 toast.info("Rentals cleared successfully");
               } catch (error) {
                 console.error("Error clearing rentals", error);
-                toast.error("An error occurred while clearing your rentals");
+                console.log("An error occurred while clearing your rentals");
               } finally {
                 setIsLoading(false);
               }

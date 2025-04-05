@@ -7,6 +7,7 @@ export const IOS_CLIENT_ID = "14654770851-9b4ar5o5gcnjvghjhk723elft75lrfie.apps.
 
 // Configuration for @react-native-google-signin/google-signin
 export const GOOGLE_SIGNIN_CONFIG = {
+  scopes: ['profile', 'email'],
   webClientId: WEB_CLIENT_ID,
   offlineAccess: true,
 };
