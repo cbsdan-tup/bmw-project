@@ -215,7 +215,7 @@ const CreateDiscountScreen = ({ navigation }) => {
               value={code}
               onChangeText={setCode}
               placeholder="Enter discount code (e.g., SUMMER2023)"
-              placeholderTextColor={colors.textSecondary}
+              placeholderTextColor={colors.text}
               maxLength={20}
             />
           </View>
@@ -231,7 +231,7 @@ const CreateDiscountScreen = ({ navigation }) => {
               value={discountPercentage}
               onChangeText={setDiscountPercentage}
               placeholder="Enter percentage (1-100)"
-              placeholderTextColor={colors.textSecondary}
+              placeholderTextColor={colors.text}
               keyboardType="numeric"
               maxLength={3}
             />
@@ -248,7 +248,7 @@ const CreateDiscountScreen = ({ navigation }) => {
               value={description}
               onChangeText={setDescription}
               placeholder="Enter description for this discount"
-              placeholderTextColor={colors.textSecondary}
+              placeholderTextColor={colors.text}
               multiline
               numberOfLines={4}
             />

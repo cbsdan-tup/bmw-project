@@ -139,13 +139,27 @@ const ReviewsScreen = () => {
         <View style={styles.reviewHeader}>
           <View>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <Image
-                source={{
-                  uri: item.renter?.avatar?.url || "default-profile.jpg",
-                }}
-                style={{ width: 30, height: 30, borderRadius: 20, marginTop: 10 }}
-                resizeMode="cover"
-              />
+              {item.renter?.avatar?.url ? (
+                <Image
+                  source={{ uri: item.renter.avatar.url }}
+                  style={{ width: 30, height: 30, borderRadius: 20, marginTop: 10 }}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={{ 
+                  width: 30, 
+                  height: 30, 
+                  borderRadius: 20, 
+                  backgroundColor: colors.primary, 
+                  justifyContent: 'center', 
+                  alignItems: 'center',
+                  marginTop: 10
+                }}>
+                  <Text style={{ color: '#FFFFFF', fontWeight: 'bold' }}>
+                    {item.renter?.firstName ? item.renter.firstName.charAt(0).toUpperCase() : "?"}
+                  </Text>
+                </View>
+              )}
               <Text style={[styles.reviewerName, { color: colors.text }]}>
                 {item.renter
                   ? `${censorName(item.renter?.firstName)} ${censorName(item.renter?.lastName)}`

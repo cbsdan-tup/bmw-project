@@ -174,9 +174,15 @@ const NotificationsScreen = () => {
     const confirmMessage = 'Are you sure you want to delete all notifications? This action cannot be undone.';
     const confirmAction = async () => {
       try {
-        await api.delete(`/notifications/delete-all?filter=${activeFilter}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        setLoading(true);
+        
+        const notificationsToDelete = [...notifications];
+        
+        for (const notification of notificationsToDelete) {
+          await api.delete(`/notifications/${notification._id}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+        }
         
         Animated.timing(translateY, {
           toValue: 20,
@@ -185,9 +191,17 @@ const NotificationsScreen = () => {
         }).start(() => {
           setNotifications([]);
           translateY.setValue(0);
+          setLoading(false);
         });
       } catch (error) {
         console.error('Error deleting all notifications:', error);
+        setLoading(false);
+        
+        Alert.alert(
+          'Error',
+          'Failed to delete all notifications. Please try again.',
+          [{ text: 'OK' }]
+        );
       }
     };
     
@@ -545,21 +559,18 @@ const NotificationsScreen = () => {
         backgroundColor={colors.headerBackground}
         barStyle={colors.statusBar === 'light' ? 'light-content' : 'dark-content'}
       />
-      <View style={[styles.header, { 
-        backgroundColor: colors.headerBackground,
-        paddingTop: Platform.OS === 'ios' ? 16 : 16 + (StatusBar.currentHeight || 0)
-      }]}>
-        <Text style={[styles.headerTitle, { color: colors.headerText }]}>
-          Notifications
-          {unreadCount > 0 && (
-            <View style={styles.countBadgeContainer}>
-              <View style={[styles.countBadge, { backgroundColor: colors.primary }]}>
-                <Text style={styles.countBadgeText}>{unreadCount}</Text>
-              </View>
-            </View>
-          )}
-        </Text>
-        <View style={styles.headerButtonsContainer}>
+      <View style={[styles.headerContainer, { backgroundColor: colors.headerBackground }]}>
+        <View style={[styles.header, { 
+          backgroundColor: colors.headerBackground,
+          paddingTop: Platform.OS === 'ios' ? 16 : 16 + (StatusBar.currentHeight || 0),
+          borderBottomWidth: 0,
+        }]}>
+          <Text style={[styles.headerTitle, { color: colors.headerText }]}>
+            Notifications
+          </Text>
+        </View>
+        
+        <View style={[styles.headerActionsRow, { backgroundColor: colors.headerBackground }]}>
           <TouchableOpacity
             style={[
               styles.headerButton,
@@ -664,14 +675,25 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  headerContainer: {
+
+    borderBottomWidth: 1,
+    borderBottomColor: '#e1e1e1',
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingBottom: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#e1e1e1',
+  },
+  headerActionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
   headerTitle: {
     fontSize: 22,
@@ -714,7 +736,6 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 0, 0, 0.1)',
   },
   deleteAllButtonText: {
     marginLeft: 6,

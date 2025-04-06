@@ -124,8 +124,8 @@ const updateRentalStatus = async (req, res) => {
           // Use the modular function to send notifications
           const tickets = await sendExpoNotifications({
             tokens: rental.renter.pushTokens,
-            title: "BMW Rental Status Update",
-            body: `Your rental for ${rental.car?.brand} ${rental.car?.model} has been updated to: ${status}`,
+            title: "BMW Rental Status Notification",
+            body: `Hi! Your rental status of vehicle ${rental.car?.brand} ${rental.car?.model} has been ${status}`,
             data: { 
               rentalId: rental._id.toString(),
               status: status,
