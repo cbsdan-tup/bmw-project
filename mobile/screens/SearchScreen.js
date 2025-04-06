@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -32,21 +32,36 @@ const SearchScreen = () => {
   const [filterVisible, setFilterVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [localFilterParams, setLocalFilterParams] = useState({});
+  const [initialSearchDone, setInitialSearchDone] = useState(false);
+  const searchClearedRef = useRef(false);
   
   const { filteredCars, loading, error, filterParams } = useSelector(state => state.cars);
 
+  const loadCars = useCallback(() => {
+    return dispatch(fetchFilteredCars(localFilterParams || {}))
+      .then(() => {
+        setInitialSearchDone(true);
+      })
+      .catch(error => {
+        console.error("Error loading filtered cars:", error);
+      });
+  }, [dispatch, localFilterParams]);
+  
   useEffect(() => {
-    loadCars();
-  }, []);
+    if (!initialSearchDone) {
+      loadCars();
+    }
+  }, [loadCars, initialSearchDone]);
   
   useFocusEffect(
-    React.useCallback(() => {
+    useCallback(() => {
       if (route.params?.query) {
         const queryParam = route.params.query;
         
         setSearchQuery(queryParam);
         
         const params = { ...localFilterParams, query: queryParam };
+        setLocalFilterParams(params);
         dispatch(setFilterParams(params));
         dispatch(fetchFilteredCars(params));
         
@@ -54,59 +69,76 @@ const SearchScreen = () => {
         
         navigation.setParams({ query: undefined });
       }
-    }, [route.params])
+    }, [route.params, dispatch, localFilterParams, navigation])
   );
   
   useEffect(() => {
     setLocalFilterParams(filterParams);
   }, [filterParams]);
   
-  const loadCars = () => {
-    dispatch(fetchFilteredCars(localFilterParams || {}));
-  };
+  useEffect(() => {
+    if (searchQuery === '' && localFilterParams.query && !searchClearedRef.current) {
+      console.log('Search field cleared, resetting search query only');
+      
+      searchClearedRef.current = true;
+      
+      const { query, ...otherFilters } = localFilterParams;
+      
+      setLocalFilterParams(otherFilters);
+      dispatch(setFilterParams(otherFilters));
+      dispatch(fetchFilteredCars(otherFilters));
+    } else if (searchQuery !== '') {
+      searchClearedRef.current = false;
+    }
+  }, [searchQuery, localFilterParams, dispatch]);
   
-  const onRefresh = () => {
+  const onRefresh = useCallback(() => {
     setRefreshing(true);
-    loadCars();
-    setRefreshing(false);
-  };
+    loadCars().finally(() => {
+      setRefreshing(false);
+    });
+  }, [loadCars]);
   
-  const handleSearch = () => {
+  const handleSearch = useCallback(() => {
     if (searchQuery.trim()) {
-      // Save the search term to history
+      console.log('Performing search for:', searchQuery.trim());
+      
+      searchClearedRef.current = false;
+      
       saveSearch(searchQuery.trim());
       
-      // Perform the search
       const params = { 
         ...localFilterParams, 
         query: searchQuery 
       };
+      setLocalFilterParams(params);
       dispatch(setFilterParams(params));
       dispatch(fetchFilteredCars(params));
     }
-  };
+  }, [searchQuery, localFilterParams, dispatch]);
   
-  const handleFilterApply = (newFilters) => {
+  const handleFilterApply = useCallback((newFilters) => {
     setLocalFilterParams(newFilters);
     dispatch(setFilterParams(newFilters));
     dispatch(fetchFilteredCars(newFilters));
     setFilterVisible(false);
-  };
+  }, [dispatch]);
   
-  const handleFilterReset = () => {
+  const handleFilterReset = useCallback(() => {
+    console.log('Resetting all filters and search');
     setSearchQuery('');
     setLocalFilterParams({});
     dispatch(resetFilters());
     dispatch(fetchFilteredCars({}));
     setFilterVisible(false);
-  };
+  }, [dispatch]);
 
-  const handleFilterClose = (currentFilters) => {
+  const handleFilterClose = useCallback((currentFilters) => {
     setLocalFilterParams(currentFilters);
     setFilterVisible(false);
-  };
+  }, []);
 
-  const renderCarItem = ({ item }) => {
+  const renderCarItem = useCallback(({ item }) => {
     return (
       <TouchableOpacity 
         style={[
@@ -169,9 +201,9 @@ const SearchScreen = () => {
         </View>
       </TouchableOpacity>
     );
-  };
+  }, [colors, navigation]);
   
-  const ListEmptyComponent = () => {
+  const ListEmptyComponent = useMemo(() => {
     if (loading) {
       return (
         <View style={styles.emptyContainer}>
@@ -204,7 +236,9 @@ const SearchScreen = () => {
         </Text>
       </View>
     );
-  };
+  }, [loading, error, colors, loadCars]);
+
+  const keyExtractor = useCallback((item) => item._id, []);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -228,7 +262,10 @@ const SearchScreen = () => {
               returnKeyType="search"
             />
             {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <TouchableOpacity 
+                onPress={() => setSearchQuery('')}
+                hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
+              >
                 <Icon name="times-circle" size={18} color={colors.secondary} />
               </TouchableOpacity>
             )}
@@ -239,13 +276,16 @@ const SearchScreen = () => {
             onPress={() => setFilterVisible(true)}
           >
             <Icon name="filter" size={18} color="#FFFFFF" />
+            {Object.keys(localFilterParams).length > 0 && (localFilterParams.query ? Object.keys(localFilterParams).length > 1 : Object.keys(localFilterParams).length > 0) && (
+              <View style={styles.activeFilterIndicator} />
+            )}
           </TouchableOpacity>
         </View>
       </View>
       
       <FlatList
         data={filteredCars}
-        keyExtractor={(item) => item._id}
+        keyExtractor={keyExtractor}
         renderItem={renderCarItem}
         contentContainerStyle={styles.carsList}
         ListEmptyComponent={ListEmptyComponent}
@@ -386,6 +426,15 @@ const styles = StyleSheet.create({
   retryButtonText: {
     color: '#FFFFFF',
     fontWeight: 'bold',
+  },
+  activeFilterIndicator: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FF9500',
   }
 });
 

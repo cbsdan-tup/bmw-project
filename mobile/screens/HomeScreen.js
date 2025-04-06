@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -61,14 +61,30 @@ const HomeScreen = () => {
   const [dbError, setDbError] = useState(null);
   const [cartsInDb, setCartsInDb] = useState([]);
   const [cartCount, setCartCount] = useState(0);
+  const [dbReady, setDbReady] = useState(false);
+  const [carsLoaded, setCarsLoaded] = useState(false);
+  const [discountsLoaded, setDiscountsLoaded] = useState(false);
 
   useEffect(() => {
     const initDatabase = async () => {
       try {
         console.log("Opening database...");
-        const database = await SQLite.openDatabaseAsync("bmwCartNew.db");
+        if (db) {
+          try {
+            console.log("Closing existing database connection");
+            await db.closeAsync();
+          } catch (closeError) {
+            console.log("Error closing existing database:", closeError);
+          }
+        }
 
+        const database = await SQLite.openDatabaseAsync("bmwCartNew.db");
         console.log("Database opened successfully");
+
+        if (!database) {
+          throw new Error("Failed to open database - received null");
+        }
+
         setDb(database);
 
         await database.execAsync(
@@ -86,16 +102,95 @@ const HomeScreen = () => {
             imageUrl TEXT
           );`
         );
-        onRefresh();
-        console.log("Table created successfully");
+
+        setDbReady(true);
+        console.log("Database is ready for use");
+
+        if (user) {
+          loadCartItems(database);
+        }
       } catch (error) {
         console.error("Database setup error:", error);
         setDbError(error.message || String(error));
+        setDbReady(false);
       }
     };
 
     initDatabase();
+
+    return () => {
+      if (db) {
+        console.log("Closing database on component unmount");
+        db.closeAsync().catch((err) =>
+          console.log("Error closing database:", err)
+        );
+      }
+    };
   }, []);
+
+  const loadCartItems = async (database) => {
+    const dbToUse = database || db;
+
+    if (!dbToUse || !dbReady) {
+      console.log("Database not ready or null, skipping cart load");
+      setCartCount(0);
+      return;
+    }
+
+    if (!user) {
+      setCartCount(0);
+      return;
+    }
+
+    try {
+      console.log(`Attempting to load cart items for user: ${user._id}`);
+
+      const userId = user._id || "";
+      if (!userId) {
+        console.log("Invalid user ID, skipping cart load");
+        setCartCount(0);
+        return;
+      }
+
+      const items = await dbToUse.getAllAsync(
+        "SELECT * FROM rent_cart WHERE user_id = ?",
+        [userId]
+      );
+
+      console.log(`Found ${items.length} items in cart for user: ${userId}`);
+
+      setCartsInDb(items.map((item) => item.car_id));
+      setCartCount(items.length);
+    } catch (error) {
+      console.error("Error fetching cart items:", error);
+      setCartCount(0);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      if (db && dbReady && user) {
+        console.log("HomeScreen focused - reloading cart items");
+        loadCartItems();
+
+        if (!carsLoaded) loadFeaturedCars();
+        if (!discountsLoaded) loadDiscounts();
+      } else {
+        console.log("Skipping cart reload - database or user not ready", {
+          dbAvailable: !!db,
+          dbReady,
+          userAvailable: !!user,
+        });
+      }
+      return () => {};
+    }, [db, dbReady, user, carsLoaded, discountsLoaded, loadFeaturedCars, loadDiscounts])
+  );
+
+  useEffect(() => {
+    if (db && dbReady && user) {
+      loadCartItems();
+    }
+  }, [db, dbReady, user]);
 
   useEffect(() => {
     if (discounts && discounts.length > 0) {
@@ -108,74 +203,56 @@ const HomeScreen = () => {
     }
   }, [discounts]);
 
-  const loadFeaturedCars = () => {
-    dispatch(fetchFeaturedCars());
-  };
+  const loadFeaturedCars = useCallback(() => {
+    console.log("Loading featured cars");
+    return dispatch(fetchFeaturedCars())
+      .then(() => {
+        setCarsLoaded(true);
+        console.log("Featured cars loaded successfully");
+      })
+      .catch((error) => {
+        console.error("Error loading featured cars:", error);
+      });
+  }, [dispatch]);
 
-  const loadRecentSearches = async () => {
-    const searches = await getRecentSearches();
-    setRecentSearches(searches);
-  };
-
-  const loadDiscounts = () => {
-    dispatch(fetchAllDiscounts());
-  };
-
-  const loadCartItems = async () => {
-    if (!db || !user) {
-      setCartCount(0);
-      return;
-    }
-
-    try {
-      // Use getAllAsync instead of execAsync for consistent results
-      const items = await db.getAllAsync(
-        "SELECT * FROM rent_cart WHERE user_id = ?",
-        [user._id || ""]
-      );
-
-      // Log both the query and the result count
-      console.log(
-        `Querying cart for user: ${user._id}, found ${items.length} items`
-      );
-
-      setCartsInDb(items.map((item) => item.car_id));
-      setCartCount(items.length);
-    } catch (error) {
-      console.error("Error fetching cart items:", error);
-      setCartCount(0);
-    }
-  };
-
-  useFocusEffect(
-    React.useCallback(() => {
-      if (db && user) {
-        console.log("HomeScreen focused - reloading cart items");
-        loadCartItems();
-
-        // Also refresh the entire screen content when returning to the home screen
-        onRefresh();
-      }
-      return () => {}; // cleanup function
-    }, [db, user])
-  );
+  const loadDiscounts = useCallback(() => {
+    console.log("Loading discounts");
+    return dispatch(fetchAllDiscounts())
+      .then(() => {
+        setDiscountsLoaded(true);
+        console.log("Discounts loaded successfully");
+      })
+      .catch((error) => {
+        console.error("Error loading discounts:", error);
+      });
+  }, [dispatch]);
 
   useEffect(() => {
-    if (db && user) {
-      loadCartItems();
-    }
-  }, [db, user]);
+    if (!carsLoaded) loadFeaturedCars();
+    if (!discountsLoaded) loadDiscounts();
+  }, [loadFeaturedCars, loadDiscounts, carsLoaded, discountsLoaded]);
 
-  const onRefresh = () => {
+  const loadRecentSearches = useCallback(async () => {
+    const searches = await getRecentSearches();
+    setRecentSearches(searches);
+  }, []);
+
+  const onRefresh = useCallback(() => {
     setRefreshing(true);
+    console.log("Manual refresh initiated by user");
+
     Promise.all([
-      dispatch(fetchFeaturedCars()),
-      dispatch(fetchAllDiscounts()),
-    ]).then(() => {
-      loadRecentSearches();
-      setRefreshing(false);
-    });
-  };
+      loadFeaturedCars(),
+      loadDiscounts(),
+      loadRecentSearches(),
+    ])
+      .then(() => {
+        setRefreshing(false);
+      })
+      .catch(() => {
+        setRefreshing(false);
+      });
+  }, [loadFeaturedCars, loadDiscounts, loadRecentSearches]);
 
   const handleCarPress = (carId) => {
     navigation.navigate("CarDetails", { carId });
@@ -236,18 +313,18 @@ const HomeScreen = () => {
     }
 
     try {
-      if (!db) {
-        console.log("Database not initialized. Please restart the app.");
+      if (!db || !dbReady) {
+        console.log("Database not initialized or not ready. Please restart the app.");
+        toast.error("Database error. Please restart the app.");
         return;
       }
 
-      // Validate required fields
       if (!car?._id || !user?._id) {
         console.log("Invalid car or user data.");
+        toast.error("Invalid data. Please try again.");
         return;
       }
 
-      // First check if it's already in cart using getAllAsync
       const existingItems = await db.getAllAsync(
         "SELECT * FROM rent_cart WHERE car_id = ? AND user_id = ?",
         [car._id, user._id]
@@ -258,7 +335,6 @@ const HomeScreen = () => {
         return;
       }
 
-      // Prepare data with proper validation
       const insertData = {
         car_id: car._id,
         user_id: user._id,
@@ -272,7 +348,6 @@ const HomeScreen = () => {
         imageUrl: (car.images?.[0]?.url || car.images?.[0] || "").toString(),
       };
 
-      // Use parameterized query to prevent SQL injection
       const result = await db.runAsync(
         `INSERT INTO rent_cart (
           car_id, user_id, price, brand, model, 
@@ -294,16 +369,13 @@ const HomeScreen = () => {
 
       if (result.changes > 0) {
         toast.success(`${car.brand} ${car.model} added to your rent cart`);
-        // Refresh cart items after adding to keep the count accurate
         await loadCartItems();
       } else {
         throw new Error("Failed to add car to cart");
       }
     } catch (error) {
       console.error("Database operation error:", error);
-      console.log(
-        error.message || "Failed to add car to cart. Please try again."
-      );
+      toast.error("Failed to add car to cart. Please try again.");
     }
   };
 
@@ -559,7 +631,7 @@ const HomeScreen = () => {
   useEffect(() => {
     if (dbError) {
       console.log("Database error detected:", dbError);
-      console.log(`Database error: ${dbError}`);
+      toast.error(`Database error: ${dbError}`);
     }
   }, [dbError]);
 
